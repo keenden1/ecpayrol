@@ -164,11 +164,20 @@ public function testConnection(Request $request)
     $validated = $request->validate([
         'ip_address' => 'required|string',
         'port' => 'required|integer|min:1|max:65535',
+        'device_id' => 'nullable|exists:biometric_devices,id',
     ]);
 
     $ip = $validated['ip_address'];
     $port = $validated['port'];
+    $deviceId = $validated['device_id'] ?? null;
     $debugInfo = [];
+
+    $updateDeviceStatus = function (bool $success) use ($deviceId) {
+        if ($deviceId) {
+            BiometricDevice::where('id', $deviceId)
+                ->update(['status' => $success ? 'active' : 'inactive']);
+        }
+    };
     
     try {
         // Step 1: Basic network connectivity check (ping)
@@ -190,6 +199,7 @@ public function testConnection(Request $request)
         $debugInfo['ping_test'] = $pingResult;
         
         if ($pingReturnCode !== 0) {
+            $updateDeviceStatus(false);
             return response()->json([
                 'success' => false,
                 'message' => "Device is not reachable (ping failed)",
@@ -213,6 +223,7 @@ public function testConnection(Request $request)
         $debugInfo['socket_test'] = $socketResult;
         
         if ($socket === false) {
+            $updateDeviceStatus(false);
             return response()->json([
                 'success' => false,
                 'message' => "Device is reachable but port $port is closed or filtered",
@@ -239,6 +250,7 @@ public function testConnection(Request $request)
             $debugInfo['zk_protocol_test'] = $zkResult;
             
             if (!$connected) {
+                $updateDeviceStatus(false);
                 return response()->json([
                     'success' => false,
                     'message' => "Network connection successful, but device did not respond to ZKTeco protocol",
@@ -246,24 +258,21 @@ public function testConnection(Request $request)
                     'debug_info' => $debugInfo
                 ]);
             }
-            
-            // Just return success without trying to get device info
-            // We can add that back once we know what methods are available
-            
-            // Disconnect from device
+
             $zk->disconnect();
-            
-            // Return success response
+
+            $updateDeviceStatus(true);
             return response()->json([
                 'success' => true,
                 'message' => "Successfully connected to device",
                 'device_info' => null,
                 'debug_info' => $debugInfo
             ]);
-            
+
         } catch (\Exception $e) {
             $debugInfo['zk_protocol_error'] = $e->getMessage();
-            
+
+            $updateDeviceStatus(false);
             return response()->json([
                 'success' => false,
                 'message' => "Network connection successful, but ZKTeco protocol error: " . $e->getMessage(),
@@ -271,8 +280,9 @@ public function testConnection(Request $request)
                 'debug_info' => $debugInfo
             ]);
         }
-        
+
     } catch (\Exception $e) {
+        $updateDeviceStatus(false);
         return response()->json([
             'success' => false,
             'message' => "Connection test error: " . $e->getMessage(),

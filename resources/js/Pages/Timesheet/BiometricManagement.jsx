@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 const BiometricManagement = ({ auth, devices = [] }) => {
+    const [deviceList, setDeviceList] = useState(devices);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentDevice, setCurrentDevice] = useState(null);
@@ -25,6 +26,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [deviceToDelete, setDeviceToDelete] = useState(null);
     const [testResult, setTestResult] = useState(null);
     const [isTestingConnection, setIsTestingConnection] = useState(false);
+    const [testingDevice, setTestingDevice] = useState(null);
 
     // New states for device discovery
     const [isScanning, setIsScanning] = useState(false);
@@ -370,7 +372,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
 
             if (data.success && data.devices && data.devices.length > 0) {
                 // Filter out devices that are already in the list
-                const existingIPs = devices.map((device) => device.ip_address);
+                const existingIPs = deviceList.map((device) => device.ip_address);
                 const newDevices = data.devices.filter(
                     (device) => !existingIPs.includes(device.ip_address),
                 );
@@ -548,6 +550,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
 
     // Open test connection modal
     const handleTestConnectionClick = (device = null) => {
+        setTestingDevice(device ?? null);
         if (device) {
             setTestConnectionData({
                 ip_address: device.ip_address,
@@ -579,6 +582,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 verbose: true,
                 connection_timeout: 10000, // 10-second timeout
                 retry_attempts: 2, // Allow retry mechanism
+                ...(testingDevice ? { device_id: testingDevice.id } : {}),
             };
 
             // Perform fetch request to test connection
@@ -619,18 +623,34 @@ const BiometricManagement = ({ auth, devices = [] }) => {
             // Update test result state
             setTestResult(data);
 
+            // Update device status in local list if this test was for a specific device
+            if (testingDevice) {
+                const newStatus = data.success ? "active" : "inactive";
+                setDeviceList((prev) =>
+                    prev.map((d) =>
+                        d.id === testingDevice.id ? { ...d, status: newStatus } : d,
+                    ),
+                );
+            }
+
             // Sophisticated success/failure handling
             if (data.success) {
-                toast.success("Device Connection Verified", {
-                    description: "Authentication and connectivity confirmed",
-                    duration: 4000,
-                });
+                toast.success(
+                    testingDevice
+                        ? `${testingDevice.name} is now Active`
+                        : "Device Connection Verified",
+                    { duration: 4000 },
+                );
             } else {
-                toast.error("Connection Verification Failed", {
-                    description:
-                        data.message || "Unable to establish device connection",
-                    duration: 4000,
-                });
+                toast.error(
+                    testingDevice
+                        ? `${testingDevice.name} set to Inactive`
+                        : "Connection Verification Failed",
+                    {
+                        description: data.message || "Unable to establish device connection",
+                        duration: 4000,
+                    },
+                );
             }
         } catch (error) {
             // Comprehensive error handling
@@ -866,7 +886,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {!devices || devices.length === 0 ? (
+                                    {!deviceList || deviceList.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan="7"
@@ -878,7 +898,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                             </td>
                                         </tr>
                                     ) : (
-                                        devices.map((device) => (
+                                        deviceList.map((device) => (
                                             <tr key={device.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     {device.name}
