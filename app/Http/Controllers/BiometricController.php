@@ -283,8 +283,11 @@ public function testConnection(Request $request)
 }
 
 
-// Optimize fetchLogs method to retrieve data faster
-public function fetchLogs(Request $request)
+/**
+ * Create a sync log record and return its ID so the frontend
+ * can start polling progress before the blocking fetchLogs request.
+ */
+public function prepareFetch(Request $request)
 {
     $validated = $request->validate([
         'device_id' => 'required|exists:biometric_devices,id',
@@ -293,35 +296,82 @@ public function fetchLogs(Request $request)
     ]);
 
     try {
-        // Create sync log record
         $syncLog = BiometricSyncLog::create([
             'device_id' => $validated['device_id'],
             'initiated_by' => auth()->id(),
             'start_date' => $validated['start_date'] ?? null,
             'end_date' => $validated['end_date'] ?? null,
             'status' => 'pending',
-            'current_stage' => 'Queued for processing...'
+            'current_stage' => 'Queued for processing...',
         ]);
-
-        // Dispatch job for background processing
-        ProcessBiometricLogs::dispatch($syncLog);
 
         return response()->json([
             'success' => true,
-            'message' => 'Sync started. Processing in background...',
-            'sync_log_id' => $syncLog->id
+            'sync_log_id' => $syncLog->id,
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error preparing biometric sync: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+// Optimize fetchLogs method to retrieve data faster
+public function fetchLogs(Request $request)
+{
+    $validated = $request->validate([
+        'device_id' => 'required|exists:biometric_devices,id',
+        'start_date' => 'nullable|date',
+        'end_date' => 'nullable|date|after_or_equal:start_date',
+        'sync_log_id' => 'nullable|exists:biometric_sync_logs,id',
+    ]);
+
+    try {
+        // Reuse pre-created sync log if provided, otherwise create a new one
+        if (!empty($validated['sync_log_id'])) {
+            $syncLog = BiometricSyncLog::findOrFail($validated['sync_log_id']);
+        } else {
+            $syncLog = BiometricSyncLog::create([
+                'device_id' => $validated['device_id'],
+                'initiated_by' => auth()->id(),
+                'start_date' => $validated['start_date'] ?? null,
+                'end_date' => $validated['end_date'] ?? null,
+                'status' => 'pending',
+                'current_stage' => 'Queued for processing...',
+            ]);
+        }
+
+        // With QUEUE_CONNECTION=sync this runs inline and blocks until done
+        ProcessBiometricLogs::dispatch($syncLog);
+
+        // Refresh to get final counts written by the job
+        $syncLog->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sync completed.',
+            'sync_log_id' => $syncLog->id,
+            'log_summary' => [
+                'processed_count' => $syncLog->processed_logs,
+                'saved_count' => $syncLog->saved_records,
+                'updated_count' => $syncLog->updated_records,
+                'skipped_count' => $syncLog->skipped_logs,
+            ],
         ]);
     } catch (\Exception $e) {
         Log::error('Error starting biometric sync: ' . $e->getMessage());
         return response()->json([
             'success' => false,
-            'message' => 'Error: ' . $e->getMessage()
+            'message' => 'Error: ' . $e->getMessage(),
         ], 500);
     }
 }
 
 /**
- * Check the progress of a sync operation
+ * Check the progress of a sync operation.
+ * Returns a computed progress_percentage based on status + processed/total counts.
  */
 public function getSyncProgress(Request $request)
 {
@@ -332,16 +382,41 @@ public function getSyncProgress(Request $request)
     $syncLog = BiometricSyncLog::with(['device', 'initiatedBy'])
         ->findOrFail($validated['sync_log_id']);
 
+    $processed = $syncLog->processed_logs ?? 0;
+    $total = $syncLog->total_logs ?? 0;
+
+    switch ($syncLog->status) {
+        case 'pending':
+            $percentage = 5;
+            break;
+        case 'fetching':
+            $percentage = $total > 0 ? 30 : 15;
+            break;
+        case 'processing':
+            $percentage = $total > 0
+                ? min(90, 30 + (int)(($processed / $total) * 60))
+                : 30;
+            break;
+        case 'completed':
+            $percentage = 100;
+            break;
+        case 'failed':
+            $percentage = 100;
+            break;
+        default:
+            $percentage = 0;
+    }
+
     return response()->json([
         'success' => true,
         'sync_log' => [
             'id' => $syncLog->id,
-            'device_name' => $syncLog->device->name,
+            'device_name' => $syncLog->device->name ?? '',
             'status' => $syncLog->status,
             'current_stage' => $syncLog->current_stage,
-            'progress_percentage' => $syncLog->progress_percentage,
-            'total_logs' => $syncLog->total_logs,
-            'processed_logs' => $syncLog->processed_logs,
+            'progress_percentage' => $percentage,
+            'total_logs' => $total,
+            'processed_logs' => $processed,
             'skipped_logs' => $syncLog->skipped_logs,
             'saved_records' => $syncLog->saved_records,
             'updated_records' => $syncLog->updated_records,

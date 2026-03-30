@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Head, usePage } from "@inertiajs/react";
 import { router } from "@inertiajs/react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
@@ -39,6 +39,10 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         start_date: "",
         end_date: "",
     });
+    const [isFetching, setIsFetching] = useState(false);
+    const [fetchProgress, setFetchProgress] = useState(0);
+    const [fetchStage, setFetchStage] = useState("");
+    const pollRef = useRef(null);
 
     // Form data state
     const [formData, setFormData] = useState({
@@ -82,216 +86,213 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         }));
     };
 
-    const submitFetchLogs = (e) => {
+    const csrfToken = () =>
+        document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+
+    const stopPolling = () => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+    };
+
+    const startPolling = (syncLogId) => {
+        stopPolling();
+        pollRef.current = setInterval(async () => {
+            try {
+                const res = await fetch(
+                    route("biometric-devices.sync-progress") + `?sync_log_id=${syncLogId}`,
+                    { headers: { Accept: "application/json" } },
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.success) {
+                    const log = data.sync_log;
+                    setFetchProgress(log.progress_percentage ?? 0);
+                    setFetchStage(log.current_stage ?? "");
+                }
+            } catch (_) {}
+        }, 800);
+    };
+
+    const submitFetchLogs = async (e) => {
         e.preventDefault();
 
-        // Validate date range if both dates are provided
         if (fetchLogsData.start_date && fetchLogsData.end_date) {
-            const startDate = new Date(fetchLogsData.start_date);
-            const endDate = new Date(fetchLogsData.end_date);
-
-            if (startDate > endDate) {
+            if (new Date(fetchLogsData.start_date) > new Date(fetchLogsData.end_date)) {
                 toast.error("Start date must be before or equal to end date");
                 return;
             }
         }
 
-        // Show a better toast with progress
-        const toastId = toast.loading(
-            `Connecting to ${fetchLogsDevice.name}...`,
-            {
-                autoClose: false,
-            },
-        );
+        const headers = {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-CSRF-TOKEN": csrfToken(),
+        };
 
-        let progressInterval;
-        let progressCounter = 0;
-
-        // Simulate fetch progress updates
-        progressInterval = setInterval(() => {
-            const stages = [
-                "Connecting to device...",
-                "Authenticating...",
-                "Retrieving attendance data...",
-                "Processing records...",
-                "Saving to database...",
-            ];
-
-            const currentStage =
-                stages[
-                    Math.min(
-                        Math.floor(progressCounter / 20),
-                        stages.length - 1,
-                    )
-                ];
-
-            toast.update(toastId, {
-                render: `${currentStage} (${Math.min(progressCounter, 95)}%)`,
-                isLoading: true,
-            });
-
-            progressCounter += 5;
-            if (progressCounter > 95) {
-                clearInterval(progressInterval);
-            }
-        }, 500);
-
-        const requestPayload = {
+        const basePayload = {
             device_id: fetchLogsDevice.id,
-            ...(fetchLogsData.start_date && {
-                start_date: fetchLogsData.start_date,
-            }),
+            ...(fetchLogsData.start_date && { start_date: fetchLogsData.start_date }),
             ...(fetchLogsData.end_date && { end_date: fetchLogsData.end_date }),
         };
 
-        fetch(route("biometric-devices.fetch-logs"), {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "X-CSRF-TOKEN": document
-                    .querySelector('meta[name="csrf-token"]')
-                    .getAttribute("content"),
-            },
-            body: JSON.stringify(requestPayload),
-        })
-            .then((response) => {
-                clearInterval(progressInterval);
-
-                if (!response.ok) {
-                    throw new Error(`Network response: ${response.status}`);
-                }
-
-                return response.json();
-            })
-            .then((data) => {
-                if (data.success) {
-                    const savedCount =
-                        data.log_summary?.processed_count || "No";
-                    const dateRangeMessage =
-                        fetchLogsData.start_date && fetchLogsData.end_date
-                            ? ` from ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
-                            : "";
-
-                    toast.update(toastId, {
-                        render: `Successfully fetched logs${dateRangeMessage}: ${savedCount} records saved`,
-                        type: "success",
-                        isLoading: false,
-                        autoClose: 3000,
-                    });
-
-                    setShowFetchLogsModal(false);
-                } else {
-                    toast.update(toastId, {
-                        render: `Failed: ${data.message || "Unknown error"}`,
-                        type: "error",
-                        isLoading: false,
-                        autoClose: 3000,
-                    });
-                }
-            })
-            .catch((error) => {
-                clearInterval(progressInterval);
-
-                toast.update(toastId, {
-                    render: `Error: ${error.message}`,
-                    type: "error",
-                    isLoading: false,
-                    autoClose: 3000,
-                });
+        // Step 1: create the sync log record first so we have an ID to poll
+        let syncLogId;
+        try {
+            const prepRes = await fetch(route("biometric-devices.prepare-fetch"), {
+                method: "POST",
+                headers,
+                body: JSON.stringify(basePayload),
             });
+            const prepData = await prepRes.json();
+            if (!prepData.success) throw new Error(prepData.message || "Failed to prepare sync");
+            syncLogId = prepData.sync_log_id;
+        } catch (err) {
+            toast.error(`Error: ${err.message}`);
+            return;
+        }
+
+        // Step 2: show progress overlay and start polling
+        setFetchProgress(5);
+        setFetchStage("Queued for processing...");
+        setIsFetching(true);
+        startPolling(syncLogId);
+
+        // Step 3: fire the blocking fetch-logs request (runs the job synchronously)
+        try {
+            const res = await fetch(route("biometric-devices.fetch-logs"), {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ ...basePayload, sync_log_id: syncLogId }),
+            });
+
+            stopPolling();
+            setFetchProgress(100);
+            setFetchStage("Sync completed successfully");
+
+            const data = await res.json();
+
+            setTimeout(() => {
+                setIsFetching(false);
+                setShowFetchLogsModal(false);
+                if (data.success) {
+                    const saved = data.log_summary?.saved_count ?? data.log_summary?.processed_count ?? 0;
+                    toast.success(`Sync complete — ${saved} records saved`);
+                } else {
+                    toast.error(`Failed: ${data.message || "Unknown error"}`);
+                }
+            }, 800);
+        } catch (err) {
+            stopPolling();
+            setIsFetching(false);
+            toast.error(`Error: ${err.message}`);
+        }
     };
 
     // Render fetch logs modal
     const renderFetchLogsModal = () => (
         <div className="fixed z-10 inset-0 overflow-y-auto">
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div
-                    className="fixed inset-0 transition-opacity"
-                    aria-hidden="true"
-                >
+                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
                     <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
                 </div>
-
-                <span
-                    className="hidden sm:inline-block sm:align-middle sm:h-screen"
-                    aria-hidden="true"
-                >
-                    &#8203;
-                </span>
+                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
                 <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <form onSubmit={submitFetchLogs}>
-                        <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <div className="sm:flex sm:items-start">
-                                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                                    <RefreshCw className="h-6 w-6 text-green-600" />
+                    {isFetching ? (
+                        /* Progress overlay */
+                        <div className="bg-white px-6 py-8">
+                            <div className="flex flex-col items-center">
+                                <div className="mb-2 flex items-center gap-2 text-green-600">
+                                    <RefreshCw className="h-5 w-5 animate-spin" />
+                                    <span className="text-sm font-medium">
+                                        Syncing {fetchLogsDevice?.name}…
+                                    </span>
                                 </div>
-                                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                        Fetch Logs for {fetchLogsDevice.name}
-                                    </h3>
-                                    <div className="mt-4 space-y-4">
-                                        <div>
-                                            <label
-                                                htmlFor="start_date"
-                                                className="block text-sm font-medium text-gray-700"
-                                            >
-                                                Start Date (Optional)
-                                            </label>
-                                            <input
-                                                type="date"
-                                                name="start_date"
-                                                id="start_date"
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                value={fetchLogsData.start_date}
-                                                onChange={handleFetchLogsChange}
-                                            />
-                                        </div>
 
-                                        <div>
-                                            <label
-                                                htmlFor="end_date"
-                                                className="block text-sm font-medium text-gray-700"
-                                            >
-                                                End Date (Optional)
-                                            </label>
-                                            <input
-                                                type="date"
-                                                name="end_date"
-                                                id="end_date"
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                value={fetchLogsData.end_date}
-                                                onChange={handleFetchLogsChange}
-                                            />
-                                        </div>
+                                {/* Percentage label */}
+                                <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
+                                    <span>{fetchStage}</span>
+                                    <span>{Math.round(fetchProgress)}%</span>
+                                </div>
 
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            Leave dates blank to fetch all
-                                            available logs. If both dates are
-                                            provided, only logs within that
-                                            range will be fetched.
-                                        </p>
+                                {/* Progress bar */}
+                                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                                    <div
+                                        className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
+                                        style={{ width: `${fetchProgress}%` }}
+                                    />
+                                </div>
+
+                                <p className="mt-4 text-xs text-gray-400 text-center">
+                                    Please keep this window open until the sync completes.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Date range form */
+                        <form onSubmit={submitFetchLogs}>
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <RefreshCw className="h-6 w-6 text-green-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Fetch Logs for {fetchLogsDevice.name}
+                                        </h3>
+                                        <div className="mt-4 space-y-4">
+                                            <div>
+                                                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+                                                    Start Date (Optional)
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    name="start_date"
+                                                    id="start_date"
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                    value={fetchLogsData.start_date}
+                                                    onChange={handleFetchLogsChange}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
+                                                    End Date (Optional)
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    name="end_date"
+                                                    id="end_date"
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                    value={fetchLogsData.end_date}
+                                                    onChange={handleFetchLogsChange}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button
-                                type="submit"
-                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
-                            >
-                                Fetch Logs
-                            </button>
-                            <button
-                                type="button"
-                                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                onClick={() => setShowFetchLogsModal(false)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button
+                                    type="submit"
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
+                                >
+                                    Fetch Logs
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    onClick={() => setShowFetchLogsModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </div>
             </div>
         </div>

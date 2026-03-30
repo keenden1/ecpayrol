@@ -415,6 +415,8 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
     // Specific routes must come BEFORE wildcard {id} routes
     Route::post('/biometric-devices/test-connection', [BiometricController::class, 'testConnection'])
         ->name('biometric-devices.test-connection');
+    Route::post('/biometric-devices/prepare-fetch', [BiometricController::class, 'prepareFetch'])
+        ->name('biometric-devices.prepare-fetch');
     Route::post('/biometric-devices/fetch-logs', [BiometricController::class, 'fetchLogs'])
         ->name('biometric-devices.fetch-logs');
     Route::post('/biometric-devices/diagnostic', [BiometricController::class, 'diagnosticTest'])
