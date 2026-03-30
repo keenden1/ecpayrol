@@ -111,7 +111,7 @@ const Login = () => {
         return newErrors;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setProcessing(true);
         setErrors({});
@@ -124,48 +124,48 @@ const Login = () => {
             return;
         }
 
-        // Get CSRF token
         const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        
-        // Create standard form submission (more reliable than fetch)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/login';
-        form.style.display = 'none';
-        
-        // Add CSRF token
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = token;
-        form.appendChild(csrfInput);
-        
-        // Add email
-        const emailInput = document.createElement('input');
-        emailInput.type = 'hidden';
-        emailInput.name = 'email';
-        emailInput.value = formData.email;
-        form.appendChild(emailInput);
-        
-        // Add password
-        const passwordInput = document.createElement('input');
-        passwordInput.type = 'hidden';
-        passwordInput.name = 'password';
-        passwordInput.value = formData.password;
-        form.appendChild(passwordInput);
-        
-        // Add remember checkbox if checked
-        if (formData.remember) {
-            const rememberInput = document.createElement('input');
-            rememberInput.type = 'hidden';
-            rememberInput.name = 'remember';
-            rememberInput.value = '1';
-            form.appendChild(rememberInput);
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                    remember: formData.remember ? 1 : 0,
+                }),
+            });
+
+            if (response.ok) {
+                sessionStorage.setItem('loginSuccess', '1');
+                window.location.href = '/dashboard';
+                return;
+            }
+
+            const data = await response.json().catch(() => null);
+
+            if (response.status === 422 && data?.errors) {
+                // Laravel validation errors
+                const mapped = {};
+                Object.entries(data.errors).forEach(([field, messages]) => {
+                    mapped[field] = Array.isArray(messages) ? messages[0] : messages;
+                });
+                setErrors(mapped);
+            } else if (response.status === 419) {
+                setErrors({ submit: 'Session expired. Please refresh the page and try again.' });
+            } else {
+                setErrors({ submit: data?.message || 'These credentials do not match our records.' });
+            }
+        } catch {
+            setErrors({ submit: 'A network error occurred. Please check your connection and try again.' });
+        } finally {
+            setProcessing(false);
         }
-        
-        // Submit the form
-        document.body.appendChild(form);
-        form.submit();
     };
 
     const handleChange = (e) => {
@@ -227,7 +227,7 @@ const Login = () => {
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                    className={`w-full px-4 py-2 rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:border-transparent transition-all duration-200 ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                                     autoComplete="username"
                                     autoFocus
                                 />
@@ -245,7 +245,7 @@ const Login = () => {
                                     name="password"
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                    className={`w-full px-4 py-2 rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:border-transparent transition-all duration-200 ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                                     autoComplete="current-password"
                                 />
                                 {errors.password && (
