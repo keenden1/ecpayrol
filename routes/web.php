@@ -417,6 +417,8 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         ->name('biometric-devices.test-connection');
     Route::post('/biometric-devices/prepare-fetch', [BiometricController::class, 'prepareFetch'])
         ->name('biometric-devices.prepare-fetch');
+    Route::post('/biometric-devices/save-logs', [BiometricController::class, 'saveLogs'])
+        ->name('biometric-devices.save-logs');
     Route::post('/biometric-devices/fetch-logs', [BiometricController::class, 'fetchLogs'])
         ->name('biometric-devices.fetch-logs');
     Route::post('/biometric-devices/diagnostic', [BiometricController::class, 'diagnosticTest'])

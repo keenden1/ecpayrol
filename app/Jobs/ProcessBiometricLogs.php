@@ -20,6 +20,7 @@ class ProcessBiometricLogs implements ShouldQueue
 
     public $timeout = 3600; // 60 minutes max
     public $tries = 1; // Don't retry automatically
+    public bool $previewOnly = false;
 
     protected $syncLog;
     protected $deviceId;
@@ -99,24 +100,42 @@ class ProcessBiometricLogs implements ShouldQueue
                 'current_stage' => "Processing {$totalLogs} attendance records..."
             ]);
 
-            // Process and save logs
+            // Process logs (and optionally save)
             $result = $this->saveBiometricLogsBatch($logs);
 
-            // Update device last sync
             $device->last_sync = now();
             $device->save();
 
-            // Mark as completed
-            $this->updateSyncLog([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'current_stage' => 'Sync completed successfully',
-                'processed_logs' => $result['processed_count'],
-                'skipped_logs' => $result['skipped_count'],
-                'saved_records' => $result['saved_count'],
-                'updated_records' => $result['updated_count'],
-                'unmatched_employees' => $result['unmatched_employees'] ?? []
-            ]);
+            if ($this->previewOnly) {
+                // Store preview records in cache for the save step
+                Cache::put(
+                    "biometric_preview_{$this->syncLog->id}",
+                    $result['preview_records'],
+                    now()->addHours(2)
+                );
+
+                $this->updateSyncLog([
+                    'status' => 'preview',
+                    'completed_at' => now(),
+                    'current_stage' => 'Preview ready — ' . $result['total_records'] . ' records found',
+                    'processed_logs' => $result['processed_count'],
+                    'skipped_logs'   => $result['skipped_count'],
+                    'saved_records'  => $result['new_count'],
+                    'updated_records'=> $result['update_count'],
+                    'unmatched_employees' => $result['unmatched_employees'] ?? [],
+                ]);
+            } else {
+                $this->updateSyncLog([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                    'current_stage' => 'Sync completed successfully',
+                    'processed_logs' => $result['processed_count'],
+                    'skipped_logs'   => $result['skipped_count'],
+                    'saved_records'  => $result['saved_count'],
+                    'updated_records'=> $result['updated_count'],
+                    'unmatched_employees' => $result['unmatched_employees'] ?? [],
+                ]);
+            }
 
         } catch (\Exception $e) {
             Log::error('Biometric sync job failed: ' . $e->getMessage(), [
@@ -227,8 +246,52 @@ class ProcessBiometricLogs implements ShouldQueue
             }
         }
 
-        // Group and save logs
+        // Group logs
         $groupedLogs = $this->groupLogsByEmployeeAndDate($employeePunches);
+
+        // PREVIEW MODE: build records without touching the DB
+        if ($this->previewOnly) {
+            $this->updateSyncLog(['current_stage' => 'Building preview records...']);
+
+            $employeeCache = [];
+            $previewRecords = [];
+            $newCount = 0;
+            $updateCount = 0;
+
+            foreach ($groupedLogs as $employeeId => $dates) {
+                if (!isset($employeeCache[$employeeId])) {
+                    $employeeCache[$employeeId] = Employee::find($employeeId);
+                }
+                $employee = $employeeCache[$employeeId];
+
+                foreach ($dates as $date => $logData) {
+                    $dbRecord = $this->createAttendanceRecord($employeeId, $date, $logData);
+                    $exists = DB::table('processed_attendances')
+                        ->where('employee_id', $employeeId)
+                        ->where('attendance_date', $date)
+                        ->exists();
+
+                    $previewRecords[] = array_merge($dbRecord, [
+                        'employee_idno'  => $employee?->idno ?? 'N/A',
+                        'employee_name'  => $employee ? trim($employee->Fname . ' ' . $employee->Lname) : 'Unknown',
+                        'is_new'         => !$exists,
+                    ]);
+
+                    if ($exists) $updateCount++;
+                    else $newCount++;
+                }
+            }
+
+            return [
+                'processed_count'     => $processedLogs,
+                'skipped_count'       => $skippedLogs,
+                'total_records'       => count($previewRecords),
+                'new_count'           => $newCount,
+                'update_count'        => $updateCount,
+                'unmatched_employees' => $unmatchedEmployees,
+                'preview_records'     => $previewRecords,
+            ];
+        }
 
         $this->updateSyncLog([
             'current_stage' => 'Saving attendance records to database...'

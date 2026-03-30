@@ -81,10 +81,10 @@ class BiometricController extends Controller
                 'status' => 'active',
             ]);
             
-            return redirect()->back()->with('success', 'Biometric device added successfully.');
+            return redirect()->route('biometric-devices.index')->with('success', 'Biometric device added successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to add biometric device: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to add device: ' . $e->getMessage());
+            return redirect()->route('biometric-devices.index')->with('error', 'Failed to add device: ' . $e->getMessage());
         }
     }
     
@@ -119,8 +119,8 @@ class BiometricController extends Controller
                 'serial_number' => $request->serial_number,
                 'status' => $request->status,
             ]);
-            
-            return redirect()->back()->with('success', 'Biometric device updated successfully.');
+
+            return redirect()->route('biometric-devices.index')->with('success', 'Biometric device updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update biometric device: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to update device: ' . $e->getMessage());
@@ -297,6 +297,94 @@ public function testConnection(Request $request)
  * Create a sync log record and return its ID so the frontend
  * can start polling progress before the blocking fetchLogs request.
  */
+/**
+ * Save the previewed biometric records to the database.
+ */
+public function saveLogs(Request $request)
+{
+    $validated = $request->validate([
+        'sync_log_id' => 'required|exists:biometric_sync_logs,id',
+    ]);
+
+    $syncLog   = BiometricSyncLog::findOrFail($validated['sync_log_id']);
+    $cacheKey  = "biometric_preview_{$syncLog->id}";
+    $records   = Cache::get($cacheKey);
+
+    if (!$records) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Preview data has expired. Please fetch the logs again.',
+        ], 422);
+    }
+
+    $batchSize   = 100;
+    $savedCount  = 0;
+    $updatedCount = 0;
+    $insertBatch = [];
+
+    // Fields to exclude when writing to the DB
+    $displayOnly = ['employee_idno', 'employee_name', 'is_new'];
+
+    DB::beginTransaction();
+    try {
+        foreach ($records as $record) {
+            $dbRecord = array_diff_key($record, array_flip($displayOnly));
+            $dbRecord['updated_at'] = now();
+
+            $existing = DB::table('processed_attendances')
+                ->where('employee_id', $dbRecord['employee_id'])
+                ->where('attendance_date', $dbRecord['attendance_date'])
+                ->first();
+
+            if ($existing) {
+                DB::table('processed_attendances')
+                    ->where('id', $existing->id)
+                    ->update($dbRecord);
+                $updatedCount++;
+            } else {
+                $dbRecord['created_at'] = now();
+                $insertBatch[] = $dbRecord;
+                $savedCount++;
+            }
+
+            if (count($insertBatch) >= $batchSize) {
+                DB::table('processed_attendances')->insert($insertBatch);
+                $insertBatch = [];
+            }
+        }
+
+        if (count($insertBatch) > 0) {
+            DB::table('processed_attendances')->insert($insertBatch);
+        }
+
+        DB::commit();
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Failed to save biometric preview records: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error saving records: ' . $e->getMessage(),
+        ], 500);
+    }
+
+    Cache::forget($cacheKey);
+
+    $syncLog->update([
+        'status'          => 'completed',
+        'completed_at'    => now(),
+        'current_stage'   => 'Saved successfully',
+        'saved_records'   => $savedCount,
+        'updated_records' => $updatedCount,
+    ]);
+
+    return response()->json([
+        'success'       => true,
+        'saved_count'   => $savedCount,
+        'updated_count' => $updatedCount,
+        'total'         => $savedCount + $updatedCount,
+    ]);
+}
+
 public function prepareFetch(Request $request)
 {
     $validated = $request->validate([
@@ -353,22 +441,28 @@ public function fetchLogs(Request $request)
             ]);
         }
 
-        // With QUEUE_CONNECTION=sync this runs inline and blocks until done
-        ProcessBiometricLogs::dispatch($syncLog);
+        // Run synchronously (QUEUE_CONNECTION=sync) in preview mode — don't save to DB yet
+        $job = new ProcessBiometricLogs($syncLog);
+        $job->previewOnly = true;
+        dispatch($job);
 
-        // Refresh to get final counts written by the job
         $syncLog->refresh();
 
+        // Retrieve the preview records the job stored in cache
+        $previewRecords = Cache::get("biometric_preview_{$syncLog->id}", []);
+
         return response()->json([
-            'success' => true,
-            'message' => 'Sync completed.',
+            'success'  => true,
+            'preview'  => true,
             'sync_log_id' => $syncLog->id,
-            'log_summary' => [
-                'processed_count' => $syncLog->processed_logs,
-                'saved_count' => $syncLog->saved_records,
-                'updated_count' => $syncLog->updated_records,
-                'skipped_count' => $syncLog->skipped_logs,
+            'summary'  => [
+                'total_records'   => count($previewRecords),
+                'new_records'     => $syncLog->saved_records,
+                'update_records'  => $syncLog->updated_records,
+                'skipped_count'   => $syncLog->skipped_logs,
+                'unmatched'       => $syncLog->unmatched_employees ?? [],
             ],
+            'preview_records' => $previewRecords,
         ]);
     } catch (\Exception $e) {
         Log::error('Error starting biometric sync: ' . $e->getMessage());

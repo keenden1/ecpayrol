@@ -28,6 +28,11 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [testingDevice, setTestingDevice] = useState(null);
 
+    // Keep local list in sync when Inertia reloads the page props after save/delete
+    useEffect(() => {
+        setDeviceList(devices);
+    }, [devices]);
+
     // New states for device discovery
     const [isScanning, setIsScanning] = useState(false);
     const [scanResults, setScanResults] = useState([]);
@@ -45,6 +50,10 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [fetchProgress, setFetchProgress] = useState(0);
     const [fetchStage, setFetchStage] = useState("");
     const pollRef = useRef(null);
+    const [previewRecords, setPreviewRecords] = useState([]);
+    const [previewSummary, setPreviewSummary] = useState(null);
+    const [previewSyncLogId, setPreviewSyncLogId] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Form data state
     const [formData, setFormData] = useState({
@@ -80,6 +89,42 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     };
 
     // Handle input changes for date range
+    const handleSaveLogs = async () => {
+        setIsSaving(true);
+        try {
+            const res = await fetch(route("biometric-devices.save-logs"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
+                body: JSON.stringify({ sync_log_id: previewSyncLogId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowFetchLogsModal(false);
+                setPreviewRecords([]);
+                setPreviewSummary(null);
+                setPreviewSyncLogId(null);
+                toast.success(`Saved — ${data.saved_count} new, ${data.updated_count} updated`);
+            } else {
+                toast.error(`Save failed: ${data.message || "Unknown error"}`);
+            }
+        } catch (err) {
+            toast.error(`Error: ${err.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDiscardPreview = () => {
+        setPreviewRecords([]);
+        setPreviewSummary(null);
+        setPreviewSyncLogId(null);
+        setShowFetchLogsModal(false);
+    };
+
     const handleFetchLogsChange = (e) => {
         const { name, value } = e.target;
         setFetchLogsData((prev) => ({
@@ -161,7 +206,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         setIsFetching(true);
         startPolling(syncLogId);
 
-        // Step 3: fire the blocking fetch-logs request (runs the job synchronously)
+        // Step 3: fire the blocking fetch-logs request (runs the job synchronously, preview only)
         try {
             const res = await fetch(route("biometric-devices.fetch-logs"), {
                 method: "POST",
@@ -171,20 +216,22 @@ const BiometricManagement = ({ auth, devices = [] }) => {
 
             stopPolling();
             setFetchProgress(100);
-            setFetchStage("Sync completed successfully");
+            setFetchStage("Preview ready");
 
             const data = await res.json();
 
             setTimeout(() => {
                 setIsFetching(false);
-                setShowFetchLogsModal(false);
-                if (data.success) {
-                    const saved = data.log_summary?.saved_count ?? data.log_summary?.processed_count ?? 0;
-                    toast.success(`Sync complete — ${saved} records saved`);
+                if (data.success && data.preview) {
+                    setPreviewRecords(data.preview_records ?? []);
+                    setPreviewSummary(data.summary ?? {});
+                    setPreviewSyncLogId(data.sync_log_id);
+                    // keep modal open — switch to preview phase
                 } else {
+                    setShowFetchLogsModal(false);
                     toast.error(`Failed: ${data.message || "Unknown error"}`);
                 }
-            }, 800);
+            }, 500);
         } catch (err) {
             stopPolling();
             setIsFetching(false);
@@ -201,7 +248,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 </div>
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${previewRecords.length > 0 ? 'sm:max-w-4xl' : 'sm:max-w-lg'} sm:w-full`}>
                     {isFetching ? (
                         /* Progress overlay */
                         <div className="bg-white px-6 py-8">
@@ -212,24 +259,84 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                         Syncing {fetchLogsDevice?.name}…
                                     </span>
                                 </div>
-
-                                {/* Percentage label */}
                                 <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
                                     <span>{fetchStage}</span>
                                     <span>{Math.round(fetchProgress)}%</span>
                                 </div>
-
-                                {/* Progress bar */}
                                 <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                                     <div
                                         className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
                                         style={{ width: `${fetchProgress}%` }}
                                     />
                                 </div>
-
                                 <p className="mt-4 text-xs text-gray-400 text-center">
                                     Please keep this window open until the sync completes.
                                 </p>
+                            </div>
+                        </div>
+                    ) : previewRecords.length > 0 ? (
+                        /* Preview table */
+                        <div className="bg-white">
+                            <div className="px-6 pt-5 pb-3 border-b border-gray-200">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Preview — {fetchLogsDevice?.name}
+                                </h3>
+                                <div className="mt-2 flex gap-4 text-sm">
+                                    <span className="text-gray-600">Total: <strong>{previewSummary?.total_records ?? previewRecords.length}</strong></span>
+                                    <span className="text-green-600">New: <strong>{previewSummary?.new_records ?? 0}</strong></span>
+                                    <span className="text-blue-600">Updates: <strong>{previewSummary?.update_records ?? 0}</strong></span>
+                                    {previewSummary?.skipped_count > 0 && (
+                                        <span className="text-gray-400">Skipped: <strong>{previewSummary.skipped_count}</strong></span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="overflow-auto" style={{ maxHeight: '55vh' }}>
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
+                                                <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-100">
+                                        {previewRecords.map((r, i) => (
+                                            <tr key={i} className={r.is_new ? '' : 'bg-blue-50/40'}>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">{r.employee_idno}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.attendance_date}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_in ? r.time_in.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_out ? r.time_out.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.hours_worked ?? '—'}</td>
+                                                <td className="px-3 py-1.5 whitespace-nowrap">
+                                                    {r.is_new
+                                                        ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">New</span>
+                                                        : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Update</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="px-6 py-3 bg-gray-50 flex justify-end gap-3 border-t border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={handleDiscardPreview}
+                                    className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                >
+                                    Discard
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveLogs}
+                                    disabled={isSaving}
+                                    className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50"
+                                >
+                                    {isSaving ? 'Saving…' : `Save ${previewRecords.length} Records`}
+                                </button>
                             </div>
                         </div>
                     ) : (
@@ -288,7 +395,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                 <button
                                     type="button"
                                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                    onClick={() => setShowFetchLogsModal(false)}
+                                    onClick={() => { setShowFetchLogsModal(false); setPreviewRecords([]); setPreviewSummary(null); setPreviewSyncLogId(null); }}
                                 >
                                     Cancel
                                 </button>
@@ -494,10 +601,10 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         }
 
         if (isEditing && currentDevice) {
-            // Update existing device
-            router.put(
+            // Update existing device — use POST + _method spoofing (reliable with Inertia v2)
+            router.post(
                 route("biometric-devices.update", { id: currentDevice.id }),
-                formData,
+                { ...formData, _method: "PUT" },
                 {
                     onSuccess: () => {
                         setShowModal(false);
