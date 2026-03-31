@@ -416,6 +416,80 @@ public function prepareFetch(Request $request)
     }
 }
 
+public function addDeviceUserAsEmployee(Request $request)
+{
+    $validated = $request->validate([
+        'idno' => 'required|string|max:50|unique:employees,idno',
+    ]);
+
+    try {
+        $employee = Employee::create([
+            'idno'      => $validated['idno'],
+            'Lname'     => '',
+            'Fname'     => '',
+            'JobStatus' => 'Active',
+        ]);
+
+        return response()->json([
+            'success'     => true,
+            'employee_id' => $employee->id,
+            'message'     => "Employee created with ID #{$validated['idno']}",
+        ]);
+    } catch (\Exception $e) {
+        Log::error('addDeviceUserAsEmployee failed: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
+
+public function getDeviceUsers(Request $request)
+{
+    $validated = $request->validate([
+        'device_id' => 'required|exists:biometric_devices,id',
+    ]);
+
+    try {
+        $device = BiometricDevice::findOrFail($validated['device_id']);
+        $zk = new ZKTeco($device->ip_address, $device->port);
+
+        if (!$zk->connect()) {
+            return response()->json(['success' => false, 'message' => 'Could not connect to device'], 422);
+        }
+
+        $rawUsers = $zk->getUser();
+        $zk->disconnect();
+
+        // Get all employees indexed by idno for match check
+        $employees = Employee::select('id', 'idno', 'Fname', 'Lname', 'Department')
+            ->get()
+            ->keyBy('idno');
+
+        $users = array_values(array_map(function($user) use ($employees) {
+            $matched = $employees->get($user['userid']);
+            return [
+                'uid'      => $user['uid'],
+                'userid'   => $user['userid'],
+                'name'     => $user['name'],
+                'cardno'   => trim($user['cardno']),
+                'role'     => $user['role'],
+                'matched'  => $matched !== null,
+                'employee' => $matched ? trim($matched->Fname . ' ' . $matched->Lname) : null,
+                'department' => $matched?->Department,
+            ];
+        }, $rawUsers));
+
+        return response()->json([
+            'success' => true,
+            'total'   => count($users),
+            'matched' => count(array_filter($users, fn($u) => $u['matched'])),
+            'users'   => $users,
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('getDeviceUsers failed: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
+
 // Optimize fetchLogs method to retrieve data faster
 public function fetchLogs(Request $request)
 {
@@ -424,6 +498,7 @@ public function fetchLogs(Request $request)
         'start_date' => 'nullable|date',
         'end_date' => 'nullable|date|after_or_equal:start_date',
         'sync_log_id' => 'nullable|exists:biometric_sync_logs,id',
+        'limit' => 'nullable|integer|min:1',
     ]);
 
     try {
@@ -444,6 +519,7 @@ public function fetchLogs(Request $request)
         // Run synchronously (QUEUE_CONNECTION=sync) in preview mode — don't save to DB yet
         $job = new ProcessBiometricLogs($syncLog);
         $job->previewOnly = true;
+        $job->limit = $validated['limit'] ?? null;
         dispatch($job);
 
         $syncLog->refresh();

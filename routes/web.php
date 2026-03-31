@@ -431,6 +431,10 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         ->name('biometric-devices.sync-history');
     Route::get('/biometric-devices/unmatched-employees', [BiometricController::class, 'getUnmatchedEmployees'])
         ->name('biometric-devices.unmatched-employees');
+    Route::post('/biometric-devices/device-users', [BiometricController::class, 'getDeviceUsers'])
+        ->name('biometric-devices.device-users');
+    Route::post('/biometric-devices/add-device-user', [BiometricController::class, 'addDeviceUserAsEmployee'])
+        ->name('biometric-devices.add-device-user');
     // Wildcard routes must come AFTER specific routes
     Route::put('/biometric-devices/{id}', [BiometricController::class, 'updateDevice'])
         ->name('biometric-devices.update');

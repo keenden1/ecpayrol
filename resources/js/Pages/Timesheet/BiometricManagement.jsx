@@ -45,11 +45,24 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         device_id: null,
         start_date: "",
         end_date: "",
+        limit: "",
     });
     const [isFetching, setIsFetching] = useState(false);
+    const [limitEnabled, setLimitEnabled] = useState(false);
+
+    // Device users panel
+    const [showUsersPanel, setShowUsersPanel] = useState(false);
+    const [usersDevice, setUsersDevice] = useState(null);
+    const [deviceUsers, setDeviceUsers] = useState([]);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [usersFilter, setUsersFilter] = useState("");
+    const [usersMatchFilter, setUsersMatchFilter] = useState("all");
+    const [addingUsers, setAddingUsers] = useState({});
+    const [addedUsers, setAddedUsers] = useState(new Set());
     const [fetchProgress, setFetchProgress] = useState(0);
     const [fetchStage, setFetchStage] = useState("");
     const pollRef = useRef(null);
+    const fetchAbortRef = useRef(null);
     const [previewRecords, setPreviewRecords] = useState([]);
     const [previewSummary, setPreviewSummary] = useState(null);
     const [previewSyncLogId, setPreviewSyncLogId] = useState(null);
@@ -136,6 +149,58 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const csrfToken = () =>
         document.querySelector('meta[name="csrf-token"]').getAttribute("content");
 
+    const handleAddDeviceUser = async (userid) => {
+        setAddingUsers(prev => ({ ...prev, [userid]: true }));
+        try {
+            const res = await fetch("/biometric-devices/add-device-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ idno: userid }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(data.message);
+                setAddedUsers(prev => new Set([...prev, userid]));
+                setDeviceUsers(prev => prev.map(u => u.userid === userid ? { ...u, matched: true, employee: '' } : u));
+            } else {
+                toast.error(data.message || "Failed to add employee");
+            }
+        } catch (e) {
+            toast.error("Error adding employee");
+        } finally {
+            setAddingUsers(prev => ({ ...prev, [userid]: false }));
+        }
+    };
+
+    const handleViewUsers = async (device) => {
+        setUsersDevice(device);
+        setDeviceUsers([]);
+        setUsersFilter("");
+        setUsersMatchFilter("all");
+        setAddedUsers(new Set());
+        setShowUsersPanel(true);
+        setUsersLoading(true);
+        try {
+            const res = await fetch("/biometric-devices/device-users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ device_id: device.id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDeviceUsers(data.users);
+            } else {
+                toast.error(data.message || "Failed to fetch users");
+                setShowUsersPanel(false);
+            }
+        } catch (e) {
+            toast.error("Error fetching device users");
+            setShowUsersPanel(false);
+        } finally {
+            setUsersLoading(false);
+        }
+    };
+
     const stopPolling = () => {
         if (pollRef.current) {
             clearInterval(pollRef.current);
@@ -143,22 +208,52 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         }
     };
 
-    const startPolling = (syncLogId) => {
+    const handleCancelFetch = () => {
+        if (fetchAbortRef.current) {
+            fetchAbortRef.current.abort();
+            fetchAbortRef.current = null;
+        }
         stopPolling();
-        pollRef.current = setInterval(async () => {
-            try {
-                const res = await fetch(
-                    route("biometric-devices.sync-progress") + `?sync_log_id=${syncLogId}`,
-                    { headers: { Accept: "application/json" } },
-                );
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.success) {
-                    const log = data.sync_log;
-                    setFetchProgress(log.progress_percentage ?? 0);
-                    setFetchStage(log.current_stage ?? "");
-                }
-            } catch (_) {}
+        setIsFetching(false);
+        setFetchProgress(0);
+        setFetchStage("");
+        setShowFetchLogsModal(false);
+    };
+
+    const startPolling = () => {
+        stopPolling();
+        const startTime = Date.now();
+
+        const stages = [
+            { at: 0,   pct: 5,  label: "Queued for processing..." },
+            { at: 3,   pct: 15, label: "Connecting to biometric device..." },
+            { at: 10,  pct: 30, label: "Retrieving attendance logs from device..." },
+            { at: 25,  pct: 55, label: "Processing attendance records..." },
+            { at: 60,  pct: 70, label: "Building preview records..." },
+            { at: 100, pct: 85, label: "Almost done..." },
+        ];
+
+        pollRef.current = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+
+            // Pick the most recent stage that has been reached
+            let current = stages[0];
+            for (const s of stages) {
+                if (elapsed >= s.at) current = s;
+                else break;
+            }
+
+            // Smoothly interpolate progress toward next stage
+            const nextStage = stages[stages.indexOf(current) + 1];
+            let progress = current.pct;
+            if (nextStage) {
+                const span = nextStage.at - current.at;
+                const pctSpan = nextStage.pct - current.pct;
+                progress = current.pct + ((elapsed - current.at) / span) * pctSpan;
+            }
+
+            setFetchProgress(Math.min(88, progress));
+            setFetchStage(current.label);
         }, 800);
     };
 
@@ -182,38 +277,28 @@ const BiometricManagement = ({ auth, devices = [] }) => {
             device_id: fetchLogsDevice.id,
             ...(fetchLogsData.start_date && { start_date: fetchLogsData.start_date }),
             ...(fetchLogsData.end_date && { end_date: fetchLogsData.end_date }),
+            ...(fetchLogsData.limit && { limit: parseInt(fetchLogsData.limit) }),
         };
 
-        // Step 1: create the sync log record first so we have an ID to poll
-        let syncLogId;
-        try {
-            const prepRes = await fetch(route("biometric-devices.prepare-fetch"), {
-                method: "POST",
-                headers,
-                body: JSON.stringify(basePayload),
-            });
-            const prepData = await prepRes.json();
-            if (!prepData.success) throw new Error(prepData.message || "Failed to prepare sync");
-            syncLogId = prepData.sync_log_id;
-        } catch (err) {
-            toast.error(`Error: ${err.message}`);
-            return;
-        }
-
-        // Step 2: show progress overlay and start polling
+        // Show progress overlay and start time-based simulation
         setFetchProgress(5);
         setFetchStage("Queued for processing...");
         setIsFetching(true);
-        startPolling(syncLogId);
+        startPolling();
 
-        // Step 3: fire the blocking fetch-logs request (runs the job synchronously, preview only)
+        // Fire the blocking fetch-logs request (runs the job synchronously, preview only)
+        const abortController = new AbortController();
+        fetchAbortRef.current = abortController;
+
         try {
             const res = await fetch(route("biometric-devices.fetch-logs"), {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ ...basePayload, sync_log_id: syncLogId }),
+                body: JSON.stringify(basePayload),
+                signal: abortController.signal,
             });
 
+            fetchAbortRef.current = null;
             stopPolling();
             setFetchProgress(100);
             setFetchStage("Preview ready");
@@ -226,16 +311,18 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                     setPreviewRecords(data.preview_records ?? []);
                     setPreviewSummary(data.summary ?? {});
                     setPreviewSyncLogId(data.sync_log_id);
-                    // keep modal open — switch to preview phase
                 } else {
                     setShowFetchLogsModal(false);
                     toast.error(`Failed: ${data.message || "Unknown error"}`);
                 }
             }, 500);
         } catch (err) {
+            fetchAbortRef.current = null;
             stopPolling();
             setIsFetching(false);
-            toast.error(`Error: ${err.message}`);
+            if (err.name !== "AbortError") {
+                toast.error(`Error: ${err.message}`);
+            }
         }
     };
 
@@ -259,6 +346,15 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                         Syncing {fetchLogsDevice?.name}…
                                     </span>
                                 </div>
+                                <p className="text-xs text-gray-500">
+                                    {fetchLogsData.start_date && fetchLogsData.end_date
+                                        ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
+                                        : fetchLogsData.start_date
+                                        ? `From: ${fetchLogsData.start_date}`
+                                        : fetchLogsData.end_date
+                                        ? `Until: ${fetchLogsData.end_date}`
+                                        : 'Fetching all available logs'}
+                                </p>
                                 <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
                                     <span>{fetchStage}</span>
                                     <span>{Math.round(fetchProgress)}%</span>
@@ -272,6 +368,12 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                 <p className="mt-4 text-xs text-gray-400 text-center">
                                     Please keep this window open until the sync completes.
                                 </p>
+                                <button
+                                    onClick={handleCancelFetch}
+                                    className="mt-4 text-xs text-red-500 hover:text-red-700 underline"
+                                >
+                                    Cancel
+                                </button>
                             </div>
                         </div>
                     ) : previewRecords.length > 0 ? (
@@ -339,6 +441,33 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                 </button>
                             </div>
                         </div>
+                    ) : previewSummary !== null ? (
+                        /* No records found */
+                        <div className="bg-white px-6 py-8">
+                            <div className="flex flex-col items-center text-center">
+                                <XCircle className="h-12 w-12 text-gray-400 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
+                                <p className="text-sm text-gray-500 mb-2">
+                                    No attendance logs were found for the selected date range on <strong>{fetchLogsDevice?.name}</strong>.
+                                </p>
+                                <p className="text-xs text-gray-400 mb-6">
+                                    {fetchLogsData.start_date && fetchLogsData.end_date
+                                        ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
+                                        : fetchLogsData.start_date
+                                        ? `From: ${fetchLogsData.start_date}`
+                                        : fetchLogsData.end_date
+                                        ? `Until: ${fetchLogsData.end_date}`
+                                        : 'All available logs'}
+                                </p>
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                    onClick={() => { setPreviewSummary(null); setPreviewRecords([]); setPreviewSyncLogId(null); }}
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         /* Date range form */
                         <form onSubmit={submitFetchLogs}>
@@ -377,6 +506,35 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                                     value={fetchLogsData.end_date}
                                                     onChange={handleFetchLogsChange}
                                                 />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-between">
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Limit (for testing)
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLimitEnabled(v => !v);
+                                                            setFetchLogsData(d => ({ ...d, limit: "" }));
+                                                        }}
+                                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${limitEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
+                                                    >
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${limitEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                    </button>
+                                                </div>
+                                                {limitEnabled && (
+                                                    <input
+                                                        type="number"
+                                                        name="limit"
+                                                        id="limit"
+                                                        min="1"
+                                                        placeholder="e.g. 5"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                        value={fetchLogsData.limit}
+                                                        onChange={handleFetchLogsChange}
+                                                    />
+                                                )}
                                             </div>
                                             <p className="text-xs text-gray-500 mt-2">
                                                 Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
@@ -825,13 +983,22 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                             device_id: device.id,
                             start_date: "",
                             end_date: "",
+                            limit: "",
                         });
+                        setLimitEnabled(false);
                         setShowFetchLogsModal(true);
                     }}
                     className="text-green-600 hover:text-green-900"
                     title="Fetch Logs"
                 >
                     <RefreshCw className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={() => handleViewUsers(device)}
+                    className="text-purple-600 hover:text-purple-900"
+                    title="View Enrolled Users"
+                >
+                    <Search className="w-5 h-5" />
                 </button>
                 <button
                     onClick={() => handleEditDevice(device)}
@@ -1058,6 +1225,134 @@ const BiometricManagement = ({ auth, devices = [] }) => {
 
             {/* Fetch Logs Modal */}
             {showFetchLogsModal && renderFetchLogsModal()}
+
+            {/* Device Users Panel */}
+            {showUsersPanel && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-start justify-center min-h-screen pt-10 px-4">
+                        <div className="fixed inset-0 bg-gray-500 bg-opacity-50" onClick={() => setShowUsersPanel(false)} />
+                        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-3xl">
+                            {/* Header */}
+                            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        Enrolled Users — {usersDevice?.name}
+                                    </h3>
+                                    {!usersLoading && (
+                                        <p className="text-xs text-gray-500 mt-0.5">
+                                            {deviceUsers.length} users &nbsp;·&nbsp;
+                                            <span className="text-green-600">{deviceUsers.filter(u => u.matched).length} matched</span>
+                                            &nbsp;·&nbsp;
+                                            <span className="text-red-500">{deviceUsers.filter(u => !u.matched).length} unmatched</span>
+                                        </p>
+                                    )}
+                                </div>
+                                <button onClick={() => setShowUsersPanel(false)} className="text-gray-400 hover:text-gray-600">
+                                    <XCircle className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Filters */}
+                            {!usersLoading && (
+                                <div className="px-6 py-3 border-b border-gray-100 flex gap-3 items-center flex-wrap">
+                                    <div className="relative flex-1 min-w-[180px]">
+                                        <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search ID, name, employee..."
+                                            className="pl-8 pr-3 py-1.5 w-full text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                            value={usersFilter}
+                                            onChange={e => setUsersFilter(e.target.value)}
+                                        />
+                                    </div>
+                                    <select
+                                        className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        value={usersMatchFilter}
+                                        onChange={e => setUsersMatchFilter(e.target.value)}
+                                    >
+                                        <option value="all">All</option>
+                                        <option value="matched">Matched only</option>
+                                        <option value="unmatched">Unmatched only</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Body */}
+                            <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
+                                {usersLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                                        <Loader className="w-8 h-8 animate-spin mb-3" />
+                                        <p className="text-sm">Fetching enrolled users from device...</p>
+                                    </div>
+                                ) : deviceUsers.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                                        <XCircle className="w-10 h-10 mb-3" />
+                                        <p className="text-sm">No users enrolled on this device.</p>
+                                    </div>
+                                ) : (() => {
+                                    const q = usersFilter.toLowerCase();
+                                    const filtered = deviceUsers.filter(u => {
+                                        const matchesSearch = !q ||
+                                            u.userid?.toLowerCase().includes(q) ||
+                                            u.name?.toLowerCase().includes(q) ||
+                                            u.employee?.toLowerCase().includes(q) ||
+                                            u.department?.toLowerCase().includes(q);
+                                        const matchesStatus =
+                                            usersMatchFilter === "all" ||
+                                            (usersMatchFilter === "matched" && u.matched) ||
+                                            (usersMatchFilter === "unmatched" && !u.matched);
+                                        return matchesSearch && matchesStatus;
+                                    });
+
+                                    return filtered.length === 0 ? (
+                                        <div className="text-center py-10 text-sm text-gray-400">No users match your filter.</div>
+                                    ) : (
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                            <thead className="bg-gray-50 sticky top-0">
+                                                <tr>
+                                                    {['UID', 'User ID', 'Device Name', 'Employee', 'Department', 'Status', ''].map(h => (
+                                                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-100">
+                                                {filtered.map((u, i) => (
+                                                    <tr key={i} className={u.matched ? '' : 'bg-red-50'}>
+                                                        <td className="px-4 py-2 text-gray-500">{u.uid}</td>
+                                                        <td className="px-4 py-2 font-mono font-medium">{u.userid}</td>
+                                                        <td className="px-4 py-2 text-gray-600">{u.name}</td>
+                                                        <td className="px-4 py-2">{u.employee ?? <span className="text-red-400 italic">No match</span>}</td>
+                                                        <td className="px-4 py-2 text-gray-500">{u.department ?? '—'}</td>
+                                                        <td className="px-4 py-2">
+                                                            {u.matched
+                                                                ? <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle className="w-3.5 h-3.5" /> Matched</span>
+                                                                : <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium"><XCircle className="w-3.5 h-3.5" /> Unmatched</span>}
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            {!u.matched && (
+                                                                <button
+                                                                    onClick={() => handleAddDeviceUser(u.userid)}
+                                                                    disabled={!!addingUsers[u.userid]}
+                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+                                                                >
+                                                                    {addingUsers[u.userid]
+                                                                        ? <Loader className="w-3 h-3 animate-spin" />
+                                                                        : <PlusCircle className="w-3 h-3" />}
+                                                                    Add
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Add/Edit Device Modal with Device Discovery */}
             {showModal && (

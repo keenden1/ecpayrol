@@ -21,6 +21,7 @@ class ProcessBiometricLogs implements ShouldQueue
     public $timeout = 3600; // 60 minutes max
     public $tries = 1; // Don't retry automatically
     public bool $previewOnly = false;
+    public ?int $limit = null;
 
     protected $syncLog;
     protected $deviceId;
@@ -34,8 +35,8 @@ class ProcessBiometricLogs implements ShouldQueue
     {
         $this->syncLog = $syncLog;
         $this->deviceId = $syncLog->device_id;
-        $this->startDate = $syncLog->start_date;
-        $this->endDate = $syncLog->end_date;
+        $this->startDate = $syncLog->start_date?->format('Y-m-d');
+        $this->endDate = $syncLog->end_date?->format('Y-m-d');
     }
 
     /**
@@ -115,9 +116,9 @@ class ProcessBiometricLogs implements ShouldQueue
                 );
 
                 $this->updateSyncLog([
-                    'status' => 'preview',
+                    'status' => 'completed',
                     'completed_at' => now(),
-                    'current_stage' => 'Preview ready — ' . $result['total_records'] . ' records found',
+                    'current_stage' => 'Preview ready — ' . $result['total_records'] . ' records found (not saved)',
                     'processed_logs' => $result['processed_count'],
                     'skipped_logs'   => $result['skipped_count'],
                     'saved_records'  => $result['new_count'],
@@ -172,13 +173,24 @@ class ProcessBiometricLogs implements ShouldQueue
 
         // Filter by date range
         if ($this->startDate || $this->endDate) {
-            $startTimestamp = $this->startDate ? strtotime($this->startDate) : 0;
-            $endTimestamp = $this->endDate ? strtotime($this->endDate . ' 23:59:59') : PHP_INT_MAX;
+            $start = $this->startDate ? Carbon::parse($this->startDate)->startOfDay() : null;
+            $end   = $this->endDate   ? Carbon::parse($this->endDate)->endOfDay()     : null;
 
-            $logs = array_filter($logs, function($log) use ($startTimestamp, $endTimestamp) {
-                $logTimestamp = strtotime($log['timestamp']);
-                return $logTimestamp >= $startTimestamp && $logTimestamp <= $endTimestamp;
+            $logs = array_filter($logs, function($log) use ($start, $end) {
+                try {
+                    $logTime = Carbon::parse($log['timestamp']);
+                } catch (\Exception $e) {
+                    return false;
+                }
+                if ($start && $logTime->lt($start)) return false;
+                if ($end   && $logTime->gt($end))   return false;
+                return true;
             });
+        }
+
+        // Limit records for testing
+        if ($this->limit !== null) {
+            $logs = array_slice($logs, 0, $this->limit);
         }
 
         return array_values($logs);
