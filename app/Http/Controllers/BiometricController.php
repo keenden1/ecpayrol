@@ -27,13 +27,103 @@ class BiometricController extends Controller
     public function index()
     {
         $devices = BiometricDevice::all();
-        
+
+        // Check which devices have a raw JSON cache file on disk
+        $jsonCacheInfo = [];
+        foreach ($devices as $device) {
+            $cachePath = base_path("device-logs/cache_device_{$device->id}_raw.json");
+            if (file_exists($cachePath)) {
+                $data = json_decode(file_get_contents($cachePath), true);
+                $jsonCacheInfo[$device->id] = [
+                    'exists'     => true,
+                    'fetch_time' => $data['fetch_time'] ?? null,
+                    'total_logs' => $data['total_logs'] ?? 0,
+                ];
+            }
+        }
+
         return Inertia::render('Timesheet/BiometricManagement', [
-            'devices' => $devices,
+            'devices'       => $devices,
+            'jsonCacheInfo' => $jsonCacheInfo,
             'auth' => [
                 'user' => auth()->user(),
             ],
         ]);
+    }
+
+    /**
+     * Sync raw logs from device to JSON file only — no processing, no DB save.
+     */
+    public function syncRaw(Request $request)
+    {
+        $validated = $request->validate([
+            'device_id' => 'required|exists:biometric_devices,id',
+        ]);
+
+        $device = BiometricDevice::select(['id', 'name', 'ip_address', 'port'])->findOrFail($validated['device_id']);
+
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
+        try {
+            $zk = new \Rats\Zkteco\Lib\ZKTeco($device->ip_address, $device->port);
+
+            $connectTimeout = 10;
+            $connected      = false;
+            $connectStart   = microtime(true);
+
+            while (!$connected && (microtime(true) - $connectStart) < $connectTimeout) {
+                $connected = $zk->connect();
+                if (!$connected) usleep(500000);
+            }
+
+            if (!$connected) {
+                return response()->json(['success' => false, 'message' => 'Failed to connect to device after ' . $connectTimeout . ' seconds'], 500);
+            }
+
+            // Fetch with retry (device sometimes returns 0 logs on first attempt)
+            $rawLogs = [];
+            for ($attempt = 1; $attempt <= 5; $attempt++) {
+                $rawLogs = $zk->getAttendance();
+                if (count($rawLogs) > 0) break;
+                if ($attempt < 5) {
+                    $zk->disconnect();
+                    sleep(4);
+                    $zk->connect();
+                }
+            }
+
+            $zk->disconnect();
+
+            $fetchTime = now()->toDateTimeString();
+            $total     = count($rawLogs);
+
+            // Save to JSON cache
+            $cacheDir = base_path('device-logs');
+            if (!is_dir($cacheDir)) mkdir($cacheDir, 0755, true);
+
+            $cachePath = "{$cacheDir}/cache_device_{$device->id}_raw.json";
+            file_put_contents($cachePath, json_encode([
+                'device_id'   => $device->id,
+                'device_name' => $device->name,
+                'fetch_time'  => $fetchTime,
+                'total_logs'  => $total,
+                'logs'        => $rawLogs,
+            ], JSON_PRETTY_PRINT));
+
+            // Update device last_sync timestamp
+            BiometricDevice::where('id', $device->id)->update(['last_sync' => now()]);
+
+            return response()->json([
+                'success'    => true,
+                'total_logs' => $total,
+                'fetch_time' => $fetchTime,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('syncRaw error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
     
     /**
@@ -135,11 +225,11 @@ class BiometricController extends Controller
         try {
             $device = BiometricDevice::findOrFail($id);
             $device->delete();
-            
-            return redirect()->back()->with('success', 'Biometric device deleted successfully.');
+
+            return response()->json(['success' => true, 'message' => 'Device deleted successfully.']);
         } catch (\Exception $e) {
             Log::error('Failed to delete biometric device: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to delete device: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to delete device: ' . $e->getMessage()], 500);
         }
     }
     

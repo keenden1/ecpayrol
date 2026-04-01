@@ -16,7 +16,7 @@ import {
     Loader,
 } from "lucide-react";
 
-const BiometricManagement = ({ auth, devices = [] }) => {
+const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCacheInfo = {} }) => {
     const [deviceList, setDeviceList] = useState(devices);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -38,20 +38,12 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [scanResults, setScanResults] = useState([]);
     const [scanProgress, setScanProgress] = useState(0);
 
-    // New state for fetch logs modal
-    const [showFetchLogsModal, setShowFetchLogsModal] = useState(false);
-    const [fetchLogsDevice, setFetchLogsDevice] = useState(null);
-    const [fetchLogsData, setFetchLogsData] = useState({
-        device_id: null,
-        start_date: "",
-        end_date: "",
-        limit: "",
-        user_ids: null,
-    });
-    const [isFetching, setIsFetching] = useState(false);
-    const [limitEnabled, setLimitEnabled] = useState(false);
-    const [cacheInfo, setCacheInfo] = useState(null); // { has_cache, fetch_time, total_logs }
-    const [useCache, setUseCache] = useState(false);
+    // Multi-device sync state
+    const [syncConfirmDevice, setSyncConfirmDevice] = useState(null); // device waiting for confirm
+    const [activeSyncs, setActiveSyncs] = useState({});
+    // { [deviceId]: { device, progress, stage, isExpanded, status, previewRecords, previewSummary, syncLogId, previewPage, isSaving } }
+    // status: 'syncing' | 'preview' | 'no_records'
+    const syncRefsMap = useRef({});
 
     // Device users panel
     const [showUsersPanel, setShowUsersPanel] = useState(false);
@@ -62,16 +54,17 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [usersMatchFilter, setUsersMatchFilter] = useState("all");
     const [addingUsers, setAddingUsers] = useState({});
     const [addedUsers, setAddedUsers] = useState(new Set());
-    const [fetchProgress, setFetchProgress] = useState(0);
-    const [fetchStage, setFetchStage] = useState("");
-    const pollRef = useRef(null);
-    const fetchAbortRef = useRef(null);
-    const [previewRecords, setPreviewRecords] = useState([]);
-    const [previewSummary, setPreviewSummary] = useState(null);
-    const [previewSyncLogId, setPreviewSyncLogId] = useState(null);
-    const [previewPage, setPreviewPage] = useState(1);
     const previewPageSize = 50;
-    const [isSaving, setIsSaving] = useState(false);
+
+    // Fetch Matched Logs modal (date picker)
+    const [fetchLogsDevice, setFetchLogsDevice] = useState(null);
+    const [fetchStartDate, setFetchStartDate] = useState('');
+    const [fetchEndDate, setFetchEndDate] = useState('');
+    const [fetchUseLimit, setFetchUseLimit] = useState(false);
+    const [fetchUseCached, setFetchUseCached] = useState(false);
+    // JSON cache info per device — seeded from disk on page load { [deviceId]: { exists, fetch_time, total_logs } }
+    const [jsonCacheInfo, setJsonCacheInfo] = useState(initialJsonCacheInfo);
+    const [isSyncingRaw, setIsSyncingRaw] = useState(false);
 
     // Form data state
     const [formData, setFormData] = useState({
@@ -106,64 +99,65 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         return baseClasses;
     };
 
-    // Handle input changes for date range
-    const handleSaveLogs = async () => {
-        setIsSaving(true);
+    // ── Multi-device sync helpers ──────────────────────────────────────────────
+
+    const updateSync = (deviceId, updates) =>
+        setActiveSyncs(prev => ({ ...prev, [deviceId]: { ...prev[deviceId], ...updates } }));
+
+    const getSyncRefs = (deviceId) => {
+        if (!syncRefsMap.current[deviceId]) {
+            syncRefsMap.current[deviceId] = { abortController: null, pollInterval: null };
+        }
+        return syncRefsMap.current[deviceId];
+    };
+
+    const removeSync = (deviceId) => {
+        const refs = getSyncRefs(deviceId);
+        if (refs.abortController) refs.abortController.abort();
+        if (refs.pollInterval) clearInterval(refs.pollInterval);
+        delete syncRefsMap.current[deviceId];
+        setActiveSyncs(prev => { const n = { ...prev }; delete n[deviceId]; return n; });
+    };
+
+    const expandSync = (deviceId) =>
+        setActiveSyncs(prev => {
+            const n = { ...prev };
+            Object.keys(n).forEach(id => { n[id] = { ...n[id], isExpanded: id === String(deviceId) }; });
+            return n;
+        });
+
+    const collapseSync = (deviceId) => updateSync(deviceId, { isExpanded: false });
+
+    const openFetchLogsModal = (device) => {
+        setFetchStartDate('');
+        setFetchEndDate('');
+        setFetchUseLimit(false);
+        setFetchUseCached(false);
+        setFetchLogsDevice(device);
+    };
+
+    const saveLogs = async (deviceId) => {
+        const sync = activeSyncs[deviceId];
+        if (!sync) return;
+        updateSync(deviceId, { isSaving: true });
         try {
             const res = await fetch(route("biometric-devices.save-logs"), {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Accept: "application/json",
-                    "X-CSRF-TOKEN": csrfToken(),
-                },
-                body: JSON.stringify({ sync_log_id: previewSyncLogId }),
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ sync_log_id: sync.syncLogId }),
             });
             const data = await res.json();
             if (data.success) {
-                setShowFetchLogsModal(false);
-                setPreviewRecords([]);
-                setPreviewSummary(null);
-                setPreviewSyncLogId(null);
-                toast.success(`Saved — ${data.saved_count} new, ${data.updated_count} updated`);
+                removeSync(deviceId);
+                toast.success(`${sync.device.name} — ${data.saved_count} new, ${data.updated_count} updated`);
             } else {
                 toast.error(`Save failed: ${data.message || "Unknown error"}`);
+                updateSync(deviceId, { isSaving: false });
             }
         } catch (err) {
             toast.error(`Error: ${err.message}`);
-        } finally {
-            setIsSaving(false);
+            updateSync(deviceId, { isSaving: false });
         }
-    };
-
-    const handleDiscardPreview = () => {
-        setPreviewRecords([]);
-        setPreviewSummary(null);
-        setPreviewSyncLogId(null);
-        setShowFetchLogsModal(false);
-    };
-
-    const openFetchLogsModal = async (device, extraData = {}) => {
-        setFetchLogsDevice(device);
-        setFetchLogsData({ device_id: device.id, start_date: "", end_date: "", limit: "", user_ids: null, ...extraData });
-        setLimitEnabled(false);
-        setUseCache(false);
-        setCacheInfo(null);
-        setShowFetchLogsModal(true);
-
-        try {
-            const res = await fetch(route("biometric-devices.cache-status") + `?device_id=${device.id}`);
-            const data = await res.json();
-            setCacheInfo(data);
-        } catch (_) {}
-    };
-
-    const handleFetchLogsChange = (e) => {
-        const { name, value } = e.target;
-        setFetchLogsData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
     };
 
     const csrfToken = () =>
@@ -221,29 +215,10 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         }
     };
 
-    const stopPolling = () => {
-        if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-        }
-    };
-
-    const handleCancelFetch = () => {
-        if (fetchAbortRef.current) {
-            fetchAbortRef.current.abort();
-            fetchAbortRef.current = null;
-        }
-        stopPolling();
-        setIsFetching(false);
-        setFetchProgress(0);
-        setFetchStage("");
-        setShowFetchLogsModal(false);
-    };
-
-    const startPolling = () => {
-        stopPolling();
+    const startSyncPolling = (deviceId) => {
+        const refs = getSyncRefs(deviceId);
+        if (refs.pollInterval) clearInterval(refs.pollInterval);
         const startTime = Date.now();
-
         const stages = [
             { at: 0,   pct: 5,  label: "Queued for processing..." },
             { at: 3,   pct: 15, label: "Connecting to biometric device..." },
@@ -252,453 +227,459 @@ const BiometricManagement = ({ auth, devices = [] }) => {
             { at: 60,  pct: 70, label: "Building preview records..." },
             { at: 100, pct: 85, label: "Almost done..." },
         ];
-
-        pollRef.current = setInterval(() => {
+        refs.pollInterval = setInterval(() => {
             const elapsed = (Date.now() - startTime) / 1000;
-
-            // Pick the most recent stage that has been reached
             let current = stages[0];
-            for (const s of stages) {
-                if (elapsed >= s.at) current = s;
-                else break;
-            }
-
-            // Smoothly interpolate progress toward next stage
-            const nextStage = stages[stages.indexOf(current) + 1];
+            for (const s of stages) { if (elapsed >= s.at) current = s; else break; }
+            const next = stages[stages.indexOf(current) + 1];
             let progress = current.pct;
-            if (nextStage) {
-                const span = nextStage.at - current.at;
-                const pctSpan = nextStage.pct - current.pct;
-                progress = current.pct + ((elapsed - current.at) / span) * pctSpan;
+            if (next) {
+                progress = current.pct + ((elapsed - current.at) / (next.at - current.at)) * (next.pct - current.pct);
             }
-
-            setFetchProgress(Math.min(88, progress));
-            setFetchStage(current.label);
+            updateSync(deviceId, { progress: Math.min(88, progress), stage: current.label });
         }, 800);
     };
 
-    const submitFetchLogs = async (e) => {
-        e.preventDefault();
-
-        if (fetchLogsData.start_date && fetchLogsData.end_date) {
-            if (new Date(fetchLogsData.start_date) > new Date(fetchLogsData.end_date)) {
-                toast.error("Start date must be before or equal to end date");
-                return;
+    // Sync — dumps raw logs from device to JSON file, no processing, no preview
+    const startRawSync = async (device) => {
+        setIsSyncingRaw(true);
+        try {
+            const res = await fetch(route("biometric-devices.sync-raw"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ device_id: device.id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSyncConfirmDevice(null);
+                setJsonCacheInfo(prev => ({
+                    ...prev,
+                    [device.id]: { exists: true, fetch_time: data.fetch_time, total_logs: data.total_logs },
+                }));
+                toast.success(`${device.name} — ${data.total_logs} logs saved to cache`);
+            } else {
+                toast.error(`${device.name}: ${data.message || "Sync failed"}`);
             }
+        } catch (err) {
+            toast.error(`${device.name}: ${err.message}`);
+        } finally {
+            setIsSyncingRaw(false);
         }
+    };
 
-        const headers = {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "X-CSRF-TOKEN": csrfToken(),
-        };
+    // Fetch Matched Logs — reads from JSON cache (or device), filters by date + matched users, shows preview
+    const startFetchLogs = async (device) => {
+        const deviceId = device.id;
+        setFetchLogsDevice(null);
 
-        const basePayload = {
-            device_id: fetchLogsDevice.id,
-            ...(fetchLogsData.start_date && { start_date: fetchLogsData.start_date }),
-            ...(fetchLogsData.end_date && { end_date: fetchLogsData.end_date }),
-            ...(fetchLogsData.limit && { limit: parseInt(fetchLogsData.limit) }),
-            ...(fetchLogsData.user_ids && { user_ids: fetchLogsData.user_ids }),
-            use_cache: useCache,
-        };
+        const extras = {};
+        if (fetchStartDate) extras.start_date = fetchStartDate;
+        if (fetchEndDate) extras.end_date = fetchEndDate;
+        if (fetchUseLimit) extras.limit = 100;
+        if (fetchUseCached && jsonCacheInfo[deviceId]?.exists) extras.use_cache = true;
 
-        // Show progress overlay and start time-based simulation
-        setFetchProgress(5);
-        setFetchStage("Queued for processing...");
-        setIsFetching(true);
-        startPolling();
+        setActiveSyncs(prev => {
+            const n = {};
+            Object.keys(prev).forEach(id => { n[id] = { ...prev[id], isExpanded: false }; });
+            n[deviceId] = {
+                device,
+                progress: 5,
+                stage: "Queued for processing...",
+                isExpanded: true,
+                status: 'syncing',
+                previewRecords: [],
+                previewSummary: null,
+                syncLogId: null,
+                previewPage: 1,
+                isSaving: false,
+            };
+            return n;
+        });
 
-        // Fire the blocking fetch-logs request (runs the job synchronously, preview only)
+        startSyncPolling(deviceId);
+        const refs = getSyncRefs(deviceId);
         const abortController = new AbortController();
-        fetchAbortRef.current = abortController;
+        refs.abortController = abortController;
 
         try {
             const res = await fetch(route("biometric-devices.fetch-logs"), {
                 method: "POST",
-                headers,
-                body: JSON.stringify(basePayload),
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ device_id: deviceId, ...extras }),
                 signal: abortController.signal,
             });
 
-            fetchAbortRef.current = null;
-            stopPolling();
-            setFetchProgress(100);
-            setFetchStage("Preview ready");
+            refs.abortController = null;
+            if (refs.pollInterval) { clearInterval(refs.pollInterval); refs.pollInterval = null; }
+            updateSync(deviceId, { progress: 100, stage: "Preview ready" });
 
             const data = await res.json();
 
             setTimeout(() => {
-                setIsFetching(false);
                 if (data.success && data.preview) {
-                    setPreviewRecords(data.preview_records ?? []);
-                    setPreviewPage(1);
-                    setPreviewSummary(data.summary ?? {});
-                    setPreviewSyncLogId(data.sync_log_id);
+                    updateSync(deviceId, {
+                        status: 'preview',
+                        isExpanded: true,
+                        previewRecords: data.preview_records ?? [],
+                        previewSummary: data.summary ?? {},
+                        syncLogId: data.sync_log_id,
+                        previewPage: 1,
+                    });
+                } else if (data.success) {
+                    updateSync(deviceId, { status: 'no_records', isExpanded: true, previewSummary: data.summary ?? {} });
                 } else {
-                    setShowFetchLogsModal(false);
-                    toast.error(`Failed: ${data.message || "Unknown error"}`);
+                    toast.error(`${device.name}: ${data.message || "Unknown error"}`);
+                    removeSync(deviceId);
                 }
             }, 500);
         } catch (err) {
-            fetchAbortRef.current = null;
-            stopPolling();
-            setIsFetching(false);
+            refs.abortController = null;
+            if (refs.pollInterval) { clearInterval(refs.pollInterval); refs.pollInterval = null; }
             if (err.name !== "AbortError") {
-                toast.error(`Error: ${err.message}`);
+                toast.error(`${device.name}: ${err.message}`);
+                removeSync(deviceId);
             }
         }
     };
 
-    // Render fetch logs modal
-    const renderFetchLogsModal = () => (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                    <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                </div>
-                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${previewRecords.length > 0 ? 'sm:max-w-4xl' : 'sm:max-w-lg'} sm:w-full`}>
-                    {isFetching ? (
-                        /* Progress overlay */
-                        <div className="bg-white px-6 py-8">
-                            <div className="flex flex-col items-center">
-                                <div className="mb-2 flex items-center gap-2 text-green-600">
-                                    <RefreshCw className="h-5 w-5 animate-spin" />
-                                    <span className="text-sm font-medium">
-                                        Syncing {fetchLogsDevice?.name}…
-                                    </span>
-                                </div>
-                                <p className="text-xs text-gray-500">
-                                    {fetchLogsData.start_date && fetchLogsData.end_date
-                                        ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
-                                        : fetchLogsData.start_date
-                                        ? `From: ${fetchLogsData.start_date}`
-                                        : fetchLogsData.end_date
-                                        ? `Until: ${fetchLogsData.end_date}`
-                                        : 'Fetching all available logs'}
+    // ── Render: simple sync confirmation modal (dumps raw logs to JSON, no preview) ──
+    const renderSyncConfirm = () => syncConfirmDevice && (
+        <div className="fixed z-20 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => !isSyncingRaw && setSyncConfirmDevice(null)} />
+                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
+                            <RefreshCw className={`h-5 w-5 text-green-600 ${isSyncingRaw ? 'animate-spin' : ''}`} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">Sync — {syncConfirmDevice.name}</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Fetches all raw attendance logs from the device and <strong>saves to cache</strong>. No records are written to the database.
+                            </p>
+                            <p className="mt-1 text-xs text-gray-400">
+                                IP: {syncConfirmDevice.ip_address} &bull; Port: {syncConfirmDevice.port}
+                            </p>
+                            {jsonCacheInfo[syncConfirmDevice.id] && (
+                                <p className="mt-2 text-xs text-green-600">
+                                    Last synced: {jsonCacheInfo[syncConfirmDevice.id].fetch_time} &bull; {jsonCacheInfo[syncConfirmDevice.id].total_logs} logs
                                 </p>
-                                {fetchLogsData.user_ids && (
-                                    <p className="text-xs text-indigo-500 font-medium">
-                                        Matched users only ({fetchLogsData.user_ids.length} IDs)
-                                    </p>
-                                )}
-                                <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
-                                    <span>{fetchStage}</span>
-                                    <span>{Math.round(fetchProgress)}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                                    <div
-                                        className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
-                                        style={{ width: `${fetchProgress}%` }}
-                                    />
-                                </div>
-                                <p className="mt-4 text-xs text-gray-400 text-center">
-                                    Please keep this window open until the sync completes.
-                                </p>
-                                <button
-                                    onClick={handleCancelFetch}
-                                    className="mt-4 text-xs text-red-500 hover:text-red-700 underline"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
+                            )}
                         </div>
-                    ) : previewRecords.length > 0 ? (
-                        /* Preview table */
-                        <div className="bg-white">
-                            <div className="px-6 pt-5 pb-3 border-b border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    Preview — {fetchLogsDevice?.name}
-                                </h3>
-                                <div className="mt-2 flex gap-4 text-sm">
-                                    <span className="text-gray-600">Total: <strong>{previewSummary?.total_records ?? previewRecords.length}</strong></span>
-                                    <span className="text-green-600">New: <strong>{previewSummary?.new_records ?? 0}</strong></span>
-                                    <span className="text-blue-600">Updates: <strong>{previewSummary?.update_records ?? 0}</strong></span>
-                                    {previewSummary?.skipped_count > 0 && (
-                                        <span className="text-gray-400">Skipped: <strong>{previewSummary.skipped_count}</strong></span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="overflow-auto" style={{ maxHeight: '55vh' }}>
-                                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                    <thead className="bg-gray-50 sticky top-0">
-                                        <tr>
-                                            {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
-                                                <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-100">
-                                        {previewRecords.slice((previewPage - 1) * previewPageSize, previewPage * previewPageSize).map((r, i) => (
-                                            <tr key={i} className={r.is_new ? '' : 'bg-blue-50/40'}>
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">{r.employee_idno}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.attendance_date}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_in ? r.time_in.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_out ? r.time_out.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.hours_worked ?? '—'}</td>
-                                                <td className="px-3 py-1.5 whitespace-nowrap">
-                                                    {r.is_new
-                                                        ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">New</span>
-                                                        : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Update</span>
-                                                    }
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Pagination */}
-                            {previewRecords.length > previewPageSize && (() => {
-                                const totalPages = Math.ceil(previewRecords.length / previewPageSize);
-                                return (
-                                    <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm">
-                                        <span className="text-gray-500">
-                                            Showing {((previewPage - 1) * previewPageSize) + 1}–{Math.min(previewPage * previewPageSize, previewRecords.length)} of {previewRecords.length}
-                                        </span>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => setPreviewPage(1)}
-                                                disabled={previewPage === 1}
-                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
-                                            >«</button>
-                                            <button
-                                                onClick={() => setPreviewPage(p => p - 1)}
-                                                disabled={previewPage === 1}
-                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
-                                            >‹</button>
-                                            <span className="px-3 py-1 text-gray-700">Page {previewPage} / {totalPages}</span>
-                                            <button
-                                                onClick={() => setPreviewPage(p => p + 1)}
-                                                disabled={previewPage === totalPages}
-                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
-                                            >›</button>
-                                            <button
-                                                onClick={() => setPreviewPage(totalPages)}
-                                                disabled={previewPage === totalPages}
-                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
-                                            >»</button>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-
-                            <div className="px-6 py-3 bg-gray-50 flex justify-end gap-3 border-t border-gray-200">
-                                <button
-                                    type="button"
-                                    onClick={handleDiscardPreview}
-                                    className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                >
-                                    Discard
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveLogs}
-                                    disabled={isSaving}
-                                    className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50"
-                                >
-                                    {isSaving ? 'Saving…' : `Save ${previewRecords.length} Records`}
-                                </button>
-                            </div>
-                        </div>
-                    ) : previewSummary !== null ? (
-                        /* No records found */
-                        <div className="bg-white px-6 py-8">
-                            <div className="flex flex-col items-center text-center">
-                                {(() => {
-                                    const reason = previewSummary?.no_records_reason;
-                                    if (reason === 'device_empty') return (
-                                        <>
-                                            <ServerCrash className="h-12 w-12 text-orange-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">Device Returned No Data</h3>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                <strong>{fetchLogsDevice?.name}</strong> connected successfully but returned 0 logs.
-                                            </p>
-                                            <p className="text-xs text-orange-500 mb-6">
-                                                The device may be busy, recovering from a previous fetch, or its log storage is empty. Wait a minute and try again.
-                                            </p>
-                                        </>
-                                    );
-                                    if (reason === 'filtered_out') return (
-                                        <>
-                                            <XCircle className="h-12 w-12 text-yellow-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records in Selected Range</h3>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                <strong>{fetchLogsDevice?.name}</strong> returned <strong>{previewSummary?.raw_count?.toLocaleString()}</strong> total logs but none matched your filters.
-                                            </p>
-                                            <p className="text-xs text-yellow-600 mb-6">
-                                                {fetchLogsData.start_date || fetchLogsData.end_date
-                                                    ? `Try a wider date range or remove the date filter.`
-                                                    : fetchLogsData.user_ids
-                                                    ? `All filtered user IDs had no logs on the device.`
-                                                    : `No logs passed validation.`}
-                                            </p>
-                                        </>
-                                    );
-                                    if (reason === 'all_unmatched') return (
-                                        <>
-                                            <XCircle className="h-12 w-12 text-red-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Matched Employees</h3>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                Logs were found on <strong>{fetchLogsDevice?.name}</strong> but none of the user IDs matched any employee record.
-                                            </p>
-                                            <p className="text-xs text-red-500 mb-6">
-                                                Use the Enrolled Users panel to check and add unmatched device users to employees.
-                                            </p>
-                                        </>
-                                    );
-                                    // Generic fallback
-                                    return (
-                                        <>
-                                            <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                No attendance logs were found for the selected date range on <strong>{fetchLogsDevice?.name}</strong>.
-                                            </p>
-                                            <p className="text-xs text-gray-400 mb-6">
-                                                {fetchLogsData.start_date && fetchLogsData.end_date
-                                                    ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
-                                                    : fetchLogsData.start_date
-                                                    ? `From: ${fetchLogsData.start_date}`
-                                                    : fetchLogsData.end_date
-                                                    ? `Until: ${fetchLogsData.end_date}`
-                                                    : 'All available logs'}
-                                            </p>
-                                        </>
-                                    );
-                                })()}
-                                <button
-                                    type="button"
-                                    className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                    onClick={() => { setPreviewSummary(null); setPreviewRecords([]); setPreviewSyncLogId(null); }}
-                                >
-                                    Try Again
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        /* Date range form */
-                        <form onSubmit={submitFetchLogs}>
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                                        <RefreshCw className="h-6 w-6 text-green-600" />
-                                    </div>
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                            Fetch Logs for {fetchLogsDevice.name}
-                                        </h3>
-                                        <div className="mt-4 space-y-4">
-                                            <div>
-                                                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                                                    Start Date (Optional)
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    name="start_date"
-                                                    id="start_date"
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                    value={fetchLogsData.start_date}
-                                                    onChange={handleFetchLogsChange}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
-                                                    End Date (Optional)
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    name="end_date"
-                                                    id="end_date"
-                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                    value={fetchLogsData.end_date}
-                                                    onChange={handleFetchLogsChange}
-                                                />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center justify-between">
-                                                    <label className="block text-sm font-medium text-gray-700">
-                                                        Limit (for testing)
-                                                    </label>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setLimitEnabled(v => !v);
-                                                            setFetchLogsData(d => ({ ...d, limit: "" }));
-                                                        }}
-                                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${limitEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${limitEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                    </button>
-                                                </div>
-                                                {limitEnabled && (
-                                                    <input
-                                                        type="number"
-                                                        name="limit"
-                                                        id="limit"
-                                                        min="1"
-                                                        placeholder="e.g. 5"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                        value={fetchLogsData.limit}
-                                                        onChange={handleFetchLogsChange}
-                                                    />
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">
-                                                Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
-                                            </p>
-
-                                            {/* Use cached data toggle */}
-                                            <div className={`mt-3 rounded-md border p-3 ${useCache ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-700">Use cached data</p>
-                                                        {cacheInfo?.has_cache ? (
-                                                            <p className="text-xs text-blue-600 mt-0.5">
-                                                                Last fetched: {new Date(cacheInfo.fetch_time).toLocaleString()} &mdash; {cacheInfo.total_logs.toLocaleString()} logs
-                                                            </p>
-                                                        ) : (
-                                                            <p className="text-xs text-gray-400 mt-0.5">No cache yet — fetch from device first</p>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        disabled={!cacheInfo?.has_cache}
-                                                        onClick={() => setUseCache(v => !v)}
-                                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${cacheInfo?.has_cache ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'} ${useCache ? 'bg-blue-500' : 'bg-gray-200'}`}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${useCache ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button
-                                    type="submit"
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
-                                >
-                                    {useCache ? 'Process from Cache' : 'Fetch Logs'}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                    onClick={() => { setShowFetchLogsModal(false); setPreviewRecords([]); setPreviewSummary(null); setPreviewSyncLogId(null); }}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                    </div>
+                    <div className="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setSyncConfirmDevice(null)}
+                            disabled={isSyncingRaw}
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >Cancel</button>
+                        <button
+                            type="button"
+                            onClick={() => startRawSync(syncConfirmDevice)}
+                            disabled={isSyncingRaw}
+                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {isSyncingRaw && <Loader className="w-4 h-4 animate-spin" />}
+                            {isSyncingRaw ? 'Syncing...' : 'Sync Now'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     );
+
+    // ── Render: fetch matched logs modal (with date filter) ───────────────────
+    const renderFetchLogsModal = () => fetchLogsDevice && (
+        <div className="fixed z-20 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setFetchLogsDevice(null)} />
+                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                    <div className="flex items-start gap-4 mb-5">
+                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
+                            <RefreshCw className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">
+                                Fetch Logs for ZKTeco Device ({fetchLogsDevice.ip_address})
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Start Date <span className="text-gray-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={fetchStartDate}
+                                onChange={e => setFetchStartDate(e.target.value)}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                End Date <span className="text-gray-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={fetchEndDate}
+                                onChange={e => setFetchEndDate(e.target.value)}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">
+                                Limit <span className="text-gray-400 font-normal">(for testing)</span>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setFetchUseLimit(v => !v)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${fetchUseLimit ? 'bg-green-500' : 'bg-gray-200'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fetchUseLimit ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-500">
+                            Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
+                        </p>
+
+                        <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-gray-700">Use cached data</p>
+                                <p className="text-xs text-gray-400">
+                                    {jsonCacheInfo[fetchLogsDevice.id]?.exists
+                                        ? `Synced ${jsonCacheInfo[fetchLogsDevice.id].fetch_time} · ${jsonCacheInfo[fetchLogsDevice.id].total_logs} logs`
+                                        : 'No cache yet — sync device first'}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => jsonCacheInfo[fetchLogsDevice.id]?.exists && setFetchUseCached(v => !v)}
+                                disabled={!jsonCacheInfo[fetchLogsDevice.id]?.exists}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'bg-green-500' : 'bg-gray-200'} ${!jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setFetchLogsDevice(null)}
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >Cancel</button>
+                        <button
+                            type="button"
+                            onClick={() => startFetchLogs(fetchLogsDevice)}
+                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700"
+                        >Fetch Logs</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // ── Render: floating chips (one per active sync) ───────────────────────────
+    const renderSyncChips = () => {
+        const syncs = Object.values(activeSyncs);
+        if (syncs.length === 0) return null;
+        return (
+            <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end">
+                {syncs.map(sync => {
+                    if (sync.isExpanded) return null;
+                    const deviceId = sync.device.id;
+                    const isSyncing = sync.status === 'syncing';
+                    const isDone = sync.status === 'preview' || sync.status === 'no_records';
+                    return (
+                        <div
+                            key={deviceId}
+                            className="flex items-center gap-3 bg-white border border-gray-200 shadow-xl rounded-full px-4 py-2.5 cursor-pointer hover:shadow-2xl transition-shadow"
+                            onClick={() => expandSync(deviceId)}
+                        >
+                            {isSyncing
+                                ? <RefreshCw className="h-4 w-4 text-green-600 animate-spin flex-shrink-0" />
+                                : <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            }
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-semibold text-gray-800 truncate max-w-[140px]">{sync.device.name}</span>
+                                <span className="text-xs text-gray-400 truncate max-w-[140px]">
+                                    {isSyncing ? sync.stage : 'Preview ready — click to review'}
+                                </span>
+                            </div>
+                            {isSyncing && (
+                                <>
+                                    <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                        <div className="h-1.5 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${sync.progress}%` }} />
+                                    </div>
+                                    <span className="text-xs font-medium text-green-600 w-7 text-right">{Math.round(sync.progress)}%</span>
+                                </>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    // ── Render: expanded sync modal (progress or preview) ─────────────────────
+    const renderExpandedSync = () => {
+        const sync = Object.values(activeSyncs).find(s => s.isExpanded);
+        if (!sync) return null;
+        const deviceId = sync.device.id;
+
+        return (
+            <div className="fixed z-10 inset-0 overflow-y-auto">
+                <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                    <div className="fixed inset-0 bg-gray-500 opacity-75" />
+                    <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                    <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sync.status === 'preview' && sync.previewRecords.length > 0 ? 'sm:max-w-4xl' : 'sm:max-w-lg'} sm:w-full`}>
+
+                        {sync.status === 'syncing' ? (
+                            /* Progress view */
+                            <div className="bg-white px-6 py-8">
+                                <div className="flex flex-col items-center">
+                                    <div className="mb-2 flex items-center gap-2 text-green-600 w-full justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <RefreshCw className="h-5 w-5 animate-spin" />
+                                            <span className="text-sm font-medium">Syncing {sync.device.name}…</span>
+                                        </div>
+                                        <button
+                                            onClick={() => collapseSync(deviceId)}
+                                            title="Minimize"
+                                            className="text-gray-400 hover:text-gray-600 text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100"
+                                        >
+                                            <span>Minimize</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 self-start">Fetching all available logs</p>
+                                    <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
+                                        <span>{sync.stage}</span>
+                                        <span>{Math.round(sync.progress)}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                                        <div className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500" style={{ width: `${sync.progress}%` }} />
+                                    </div>
+                                    <p className="mt-4 text-xs text-gray-400 text-center">You can minimize this and continue using the dashboard.</p>
+                                    <button onClick={() => removeSync(deviceId)} className="mt-4 text-xs text-red-500 hover:text-red-700 underline">Cancel</button>
+                                </div>
+                            </div>
+
+                        ) : sync.status === 'preview' && sync.previewRecords.length > 0 ? (
+                            /* Preview table */
+                            <div className="bg-white">
+                                <div className="px-6 pt-5 pb-3 border-b border-gray-200 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900">Preview — {sync.device.name}</h3>
+                                        <div className="mt-1 flex gap-4 text-sm">
+                                            <span className="text-gray-600">Total: <strong>{sync.previewSummary?.total_records ?? sync.previewRecords.length}</strong></span>
+                                            <span className="text-green-600">New: <strong>{sync.previewSummary?.new_records ?? 0}</strong></span>
+                                            <span className="text-blue-600">Updates: <strong>{sync.previewSummary?.update_records ?? 0}</strong></span>
+                                            {sync.previewSummary?.skipped_count > 0 && (
+                                                <span className="text-gray-400">Skipped: <strong>{sync.previewSummary.skipped_count}</strong></span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button onClick={() => collapseSync(deviceId)} className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-100">Minimize</button>
+                                </div>
+                                <div className="overflow-auto" style={{ maxHeight: '55vh' }}>
+                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
+                                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-100">
+                                            {sync.previewRecords.slice((sync.previewPage - 1) * previewPageSize, sync.previewPage * previewPageSize).map((r, i) => (
+                                                <tr key={i} className={r.is_new ? '' : 'bg-blue-50/40'}>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">{r.employee_idno}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.attendance_date}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_in ? r.time_in.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_out ? r.time_out.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.hours_worked ?? '—'}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap">
+                                                        {r.is_new
+                                                            ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">New</span>
+                                                            : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Update</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {sync.previewRecords.length > previewPageSize && (() => {
+                                    const totalPages = Math.ceil(sync.previewRecords.length / previewPageSize);
+                                    return (
+                                        <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm">
+                                            <span className="text-gray-500">
+                                                Showing {((sync.previewPage - 1) * previewPageSize) + 1}–{Math.min(sync.previewPage * previewPageSize, sync.previewRecords.length)} of {sync.previewRecords.length}
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => updateSync(deviceId, { previewPage: 1 })} disabled={sync.previewPage === 1} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">«</button>
+                                                <button onClick={() => updateSync(deviceId, { previewPage: sync.previewPage - 1 })} disabled={sync.previewPage === 1} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">‹</button>
+                                                <span className="px-3 py-1 text-gray-700">Page {sync.previewPage} / {totalPages}</span>
+                                                <button onClick={() => updateSync(deviceId, { previewPage: sync.previewPage + 1 })} disabled={sync.previewPage === totalPages} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">›</button>
+                                                <button onClick={() => updateSync(deviceId, { previewPage: totalPages })} disabled={sync.previewPage === totalPages} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">»</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                                <div className="px-6 py-3 bg-gray-50 flex justify-end gap-3 border-t border-gray-200">
+                                    <button type="button" onClick={() => removeSync(deviceId)} className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Discard</button>
+                                    <button type="button" onClick={() => saveLogs(deviceId)} disabled={sync.isSaving} className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50">
+                                        {sync.isSaving ? 'Saving…' : `Save ${sync.previewRecords.length} Records`}
+                                    </button>
+                                </div>
+                            </div>
+
+                        ) : (
+                            /* No records / error state */
+                            <div className="bg-white px-6 py-8">
+                                <div className="flex flex-col items-center text-center">
+                                    {(() => {
+                                        const reason = sync.previewSummary?.no_records_reason;
+                                        if (reason === 'device_empty') return (<>
+                                            <ServerCrash className="h-12 w-12 text-orange-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">Device Returned No Data</h3>
+                                            <p className="text-sm text-gray-500 mb-1"><strong>{sync.device.name}</strong> connected but returned 0 logs.</p>
+                                            <p className="text-xs text-orange-500 mb-6">The device may be busy or its log storage is empty. Wait a minute and try again.</p>
+                                        </>);
+                                        if (reason === 'all_unmatched') return (<>
+                                            <XCircle className="h-12 w-12 text-red-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Matched Employees</h3>
+                                            <p className="text-sm text-gray-500 mb-1">Logs were found on <strong>{sync.device.name}</strong> but no user IDs matched any employee.</p>
+                                            <p className="text-xs text-red-500 mb-6">Use the Enrolled Users panel to add unmatched users to employees.</p>
+                                        </>);
+                                        return (<>
+                                            <XCircle className="h-12 w-12 text-gray-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
+                                            <p className="text-xs text-gray-400 mb-6">All available logs were fetched but none were found on <strong>{sync.device.name}</strong>.</p>
+                                        </>);
+                                    })()}
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => removeSync(deviceId)} className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Close</button>
+                                        <button type="button" onClick={() => { removeSync(deviceId); openFetchLogsModal(sync.device); }} className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700">Try Again</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // Handle form input changes
     const handleChange = (e) => {
@@ -929,22 +910,24 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     };
 
     // Handle device deletion
-    const confirmDelete = () => {
-        if (deviceToDelete) {
-            router.delete(
-                route("biometric-devices.destroy", deviceToDelete.id),
-                {
-                    onSuccess: () => {
-                        setShowDeleteConfirm(false);
-                        setDeviceToDelete(null);
-                        toast.success("Device deleted successfully");
-                    },
-                    onError: (error) => {
-                        console.error(error);
-                        toast.error("Failed to delete device");
-                    },
-                },
-            );
+    const confirmDelete = async () => {
+        if (!deviceToDelete) return;
+        try {
+            const res = await fetch(route("biometric-devices.destroy", deviceToDelete.id), {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setDeviceList(prev => prev.filter(d => d.id !== deviceToDelete.id));
+                setShowDeleteConfirm(false);
+                setDeviceToDelete(null);
+                toast.success("Device deleted successfully");
+            } else {
+                toast.error(data.message || "Failed to delete device");
+            }
+        } catch (err) {
+            toast.error("Failed to delete device");
         }
     };
 
@@ -1112,9 +1095,9 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 </button>
 
                 <button
-                    onClick={() => openFetchLogsModal(device)}
+                    onClick={() => setSyncConfirmDevice(device)}
                     className="text-green-600 hover:text-green-900"
-                    title="Fetch Logs"
+                    title="Sync"
                 >
                     <RefreshCw className="w-5 h-5" />
                 </button>
@@ -1348,8 +1331,17 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 </div>
             </div>
 
-            {/* Fetch Logs Modal */}
-            {showFetchLogsModal && renderFetchLogsModal()}
+            {/* Sync confirmation modal */}
+            {renderSyncConfirm()}
+
+            {/* Fetch Matched Logs modal (with date filter) */}
+            {renderFetchLogsModal()}
+
+            {/* Floating chips for each active sync */}
+            {renderSyncChips()}
+
+            {/* Expanded modal for the focused sync */}
+            {renderExpandedSync()}
 
             {/* Device Users Panel */}
             {showUsersPanel && (
@@ -1376,9 +1368,8 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                     {!usersLoading && deviceUsers.some(u => u.matched) && (
                                         <button
                                             onClick={() => {
-                                                const matchedIds = deviceUsers.filter(u => u.matched).map(u => u.userid);
                                                 setShowUsersPanel(false);
-                                                openFetchLogsModal(usersDevice, { user_ids: matchedIds });
+                                                openFetchLogsModal(usersDevice);
                                             }}
                                             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700"
                                         >

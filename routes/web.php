@@ -421,6 +421,8 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         ->name('biometric-devices.save-logs');
     Route::post('/biometric-devices/fetch-logs', [BiometricController::class, 'fetchLogs'])
         ->name('biometric-devices.fetch-logs');
+    Route::post('/biometric-devices/sync-raw', [BiometricController::class, 'syncRaw'])
+        ->name('biometric-devices.sync-raw');
     Route::get('/biometric-devices/cache-status', [BiometricController::class, 'cacheStatus'])
         ->name('biometric-devices.cache-status');
     Route::post('/biometric-devices/diagnostic', [BiometricController::class, 'diagnosticTest'])
