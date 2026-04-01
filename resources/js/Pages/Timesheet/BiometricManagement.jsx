@@ -46,9 +46,12 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         start_date: "",
         end_date: "",
         limit: "",
+        user_ids: null,
     });
     const [isFetching, setIsFetching] = useState(false);
     const [limitEnabled, setLimitEnabled] = useState(false);
+    const [cacheInfo, setCacheInfo] = useState(null); // { has_cache, fetch_time, total_logs }
+    const [useCache, setUseCache] = useState(false);
 
     // Device users panel
     const [showUsersPanel, setShowUsersPanel] = useState(false);
@@ -66,6 +69,8 @@ const BiometricManagement = ({ auth, devices = [] }) => {
     const [previewRecords, setPreviewRecords] = useState([]);
     const [previewSummary, setPreviewSummary] = useState(null);
     const [previewSyncLogId, setPreviewSyncLogId] = useState(null);
+    const [previewPage, setPreviewPage] = useState(1);
+    const previewPageSize = 50;
     const [isSaving, setIsSaving] = useState(false);
 
     // Form data state
@@ -136,6 +141,21 @@ const BiometricManagement = ({ auth, devices = [] }) => {
         setPreviewSummary(null);
         setPreviewSyncLogId(null);
         setShowFetchLogsModal(false);
+    };
+
+    const openFetchLogsModal = async (device, extraData = {}) => {
+        setFetchLogsDevice(device);
+        setFetchLogsData({ device_id: device.id, start_date: "", end_date: "", limit: "", user_ids: null, ...extraData });
+        setLimitEnabled(false);
+        setUseCache(false);
+        setCacheInfo(null);
+        setShowFetchLogsModal(true);
+
+        try {
+            const res = await fetch(route("biometric-devices.cache-status") + `?device_id=${device.id}`);
+            const data = await res.json();
+            setCacheInfo(data);
+        } catch (_) {}
     };
 
     const handleFetchLogsChange = (e) => {
@@ -278,6 +298,8 @@ const BiometricManagement = ({ auth, devices = [] }) => {
             ...(fetchLogsData.start_date && { start_date: fetchLogsData.start_date }),
             ...(fetchLogsData.end_date && { end_date: fetchLogsData.end_date }),
             ...(fetchLogsData.limit && { limit: parseInt(fetchLogsData.limit) }),
+            ...(fetchLogsData.user_ids && { user_ids: fetchLogsData.user_ids }),
+            use_cache: useCache,
         };
 
         // Show progress overlay and start time-based simulation
@@ -309,6 +331,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 setIsFetching(false);
                 if (data.success && data.preview) {
                     setPreviewRecords(data.preview_records ?? []);
+                    setPreviewPage(1);
                     setPreviewSummary(data.summary ?? {});
                     setPreviewSyncLogId(data.sync_log_id);
                 } else {
@@ -355,6 +378,11 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                         ? `Until: ${fetchLogsData.end_date}`
                                         : 'Fetching all available logs'}
                                 </p>
+                                {fetchLogsData.user_ids && (
+                                    <p className="text-xs text-indigo-500 font-medium">
+                                        Matched users only ({fetchLogsData.user_ids.length} IDs)
+                                    </p>
+                                )}
                                 <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
                                     <span>{fetchStage}</span>
                                     <span>{Math.round(fetchProgress)}%</span>
@@ -403,7 +431,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-100">
-                                        {previewRecords.map((r, i) => (
+                                        {previewRecords.slice((previewPage - 1) * previewPageSize, previewPage * previewPageSize).map((r, i) => (
                                             <tr key={i} className={r.is_new ? '' : 'bg-blue-50/40'}>
                                                 <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">{r.employee_idno}</td>
                                                 <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
@@ -422,6 +450,41 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Pagination */}
+                            {previewRecords.length > previewPageSize && (() => {
+                                const totalPages = Math.ceil(previewRecords.length / previewPageSize);
+                                return (
+                                    <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">
+                                            Showing {((previewPage - 1) * previewPageSize) + 1}–{Math.min(previewPage * previewPageSize, previewRecords.length)} of {previewRecords.length}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setPreviewPage(1)}
+                                                disabled={previewPage === 1}
+                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                            >«</button>
+                                            <button
+                                                onClick={() => setPreviewPage(p => p - 1)}
+                                                disabled={previewPage === 1}
+                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                            >‹</button>
+                                            <span className="px-3 py-1 text-gray-700">Page {previewPage} / {totalPages}</span>
+                                            <button
+                                                onClick={() => setPreviewPage(p => p + 1)}
+                                                disabled={previewPage === totalPages}
+                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                            >›</button>
+                                            <button
+                                                onClick={() => setPreviewPage(totalPages)}
+                                                disabled={previewPage === totalPages}
+                                                className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                            >»</button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             <div className="px-6 py-3 bg-gray-50 flex justify-end gap-3 border-t border-gray-200">
                                 <button
@@ -445,20 +508,68 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                         /* No records found */
                         <div className="bg-white px-6 py-8">
                             <div className="flex flex-col items-center text-center">
-                                <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
-                                <p className="text-sm text-gray-500 mb-2">
-                                    No attendance logs were found for the selected date range on <strong>{fetchLogsDevice?.name}</strong>.
-                                </p>
-                                <p className="text-xs text-gray-400 mb-6">
-                                    {fetchLogsData.start_date && fetchLogsData.end_date
-                                        ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
-                                        : fetchLogsData.start_date
-                                        ? `From: ${fetchLogsData.start_date}`
-                                        : fetchLogsData.end_date
-                                        ? `Until: ${fetchLogsData.end_date}`
-                                        : 'All available logs'}
-                                </p>
+                                {(() => {
+                                    const reason = previewSummary?.no_records_reason;
+                                    if (reason === 'device_empty') return (
+                                        <>
+                                            <ServerCrash className="h-12 w-12 text-orange-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">Device Returned No Data</h3>
+                                            <p className="text-sm text-gray-500 mb-1">
+                                                <strong>{fetchLogsDevice?.name}</strong> connected successfully but returned 0 logs.
+                                            </p>
+                                            <p className="text-xs text-orange-500 mb-6">
+                                                The device may be busy, recovering from a previous fetch, or its log storage is empty. Wait a minute and try again.
+                                            </p>
+                                        </>
+                                    );
+                                    if (reason === 'filtered_out') return (
+                                        <>
+                                            <XCircle className="h-12 w-12 text-yellow-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records in Selected Range</h3>
+                                            <p className="text-sm text-gray-500 mb-1">
+                                                <strong>{fetchLogsDevice?.name}</strong> returned <strong>{previewSummary?.raw_count?.toLocaleString()}</strong> total logs but none matched your filters.
+                                            </p>
+                                            <p className="text-xs text-yellow-600 mb-6">
+                                                {fetchLogsData.start_date || fetchLogsData.end_date
+                                                    ? `Try a wider date range or remove the date filter.`
+                                                    : fetchLogsData.user_ids
+                                                    ? `All filtered user IDs had no logs on the device.`
+                                                    : `No logs passed validation.`}
+                                            </p>
+                                        </>
+                                    );
+                                    if (reason === 'all_unmatched') return (
+                                        <>
+                                            <XCircle className="h-12 w-12 text-red-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Matched Employees</h3>
+                                            <p className="text-sm text-gray-500 mb-1">
+                                                Logs were found on <strong>{fetchLogsDevice?.name}</strong> but none of the user IDs matched any employee record.
+                                            </p>
+                                            <p className="text-xs text-red-500 mb-6">
+                                                Use the Enrolled Users panel to check and add unmatched device users to employees.
+                                            </p>
+                                        </>
+                                    );
+                                    // Generic fallback
+                                    return (
+                                        <>
+                                            <XCircle className="h-12 w-12 text-gray-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
+                                            <p className="text-sm text-gray-500 mb-1">
+                                                No attendance logs were found for the selected date range on <strong>{fetchLogsDevice?.name}</strong>.
+                                            </p>
+                                            <p className="text-xs text-gray-400 mb-6">
+                                                {fetchLogsData.start_date && fetchLogsData.end_date
+                                                    ? `Date range: ${fetchLogsData.start_date} to ${fetchLogsData.end_date}`
+                                                    : fetchLogsData.start_date
+                                                    ? `From: ${fetchLogsData.start_date}`
+                                                    : fetchLogsData.end_date
+                                                    ? `Until: ${fetchLogsData.end_date}`
+                                                    : 'All available logs'}
+                                            </p>
+                                        </>
+                                    );
+                                })()}
                                 <button
                                     type="button"
                                     className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
@@ -539,6 +650,30 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                             <p className="text-xs text-gray-500 mt-2">
                                                 Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
                                             </p>
+
+                                            {/* Use cached data toggle */}
+                                            <div className={`mt-3 rounded-md border p-3 ${useCache ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-700">Use cached data</p>
+                                                        {cacheInfo?.has_cache ? (
+                                                            <p className="text-xs text-blue-600 mt-0.5">
+                                                                Last fetched: {new Date(cacheInfo.fetch_time).toLocaleString()} &mdash; {cacheInfo.total_logs.toLocaleString()} logs
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-xs text-gray-400 mt-0.5">No cache yet — fetch from device first</p>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!cacheInfo?.has_cache}
+                                                        onClick={() => setUseCache(v => !v)}
+                                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${cacheInfo?.has_cache ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'} ${useCache ? 'bg-blue-500' : 'bg-gray-200'}`}
+                                                    >
+                                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${useCache ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -548,7 +683,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                     type="submit"
                                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
                                 >
-                                    Fetch Logs
+                                    {useCache ? 'Process from Cache' : 'Fetch Logs'}
                                 </button>
                                 <button
                                     type="button"
@@ -977,17 +1112,7 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                 </button>
 
                 <button
-                    onClick={() => {
-                        setFetchLogsDevice(device);
-                        setFetchLogsData({
-                            device_id: device.id,
-                            start_date: "",
-                            end_date: "",
-                            limit: "",
-                        });
-                        setLimitEnabled(false);
-                        setShowFetchLogsModal(true);
-                    }}
+                    onClick={() => openFetchLogsModal(device)}
                     className="text-green-600 hover:text-green-900"
                     title="Fetch Logs"
                 >
@@ -1247,9 +1372,24 @@ const BiometricManagement = ({ auth, devices = [] }) => {
                                         </p>
                                     )}
                                 </div>
-                                <button onClick={() => setShowUsersPanel(false)} className="text-gray-400 hover:text-gray-600">
-                                    <XCircle className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {!usersLoading && deviceUsers.some(u => u.matched) && (
+                                        <button
+                                            onClick={() => {
+                                                const matchedIds = deviceUsers.filter(u => u.matched).map(u => u.userid);
+                                                setShowUsersPanel(false);
+                                                openFetchLogsModal(usersDevice, { user_ids: matchedIds });
+                                            }}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700"
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                            Fetch Matched Logs
+                                        </button>
+                                    )}
+                                    <button onClick={() => setShowUsersPanel(false)} className="text-gray-400 hover:text-gray-600">
+                                        <XCircle className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Filters */}

@@ -385,6 +385,28 @@ public function saveLogs(Request $request)
     ]);
 }
 
+public function cacheStatus(Request $request)
+{
+    $validated = $request->validate([
+        'device_id' => 'required|exists:biometric_devices,id',
+    ]);
+
+    $cachePath = base_path("device-logs/cache_device_{$validated['device_id']}_raw.json");
+
+    if (!file_exists($cachePath)) {
+        return response()->json(['has_cache' => false]);
+    }
+
+    $meta = json_decode(file_get_contents($cachePath), true);
+
+    return response()->json([
+        'has_cache'   => true,
+        'fetch_time'  => $meta['fetch_time'] ?? null,
+        'total_logs'  => $meta['total_logs'] ?? 0,
+        'device_name' => $meta['device_name'] ?? null,
+    ]);
+}
+
 public function prepareFetch(Request $request)
 {
     $validated = $request->validate([
@@ -499,7 +521,12 @@ public function fetchLogs(Request $request)
         'end_date' => 'nullable|date|after_or_equal:start_date',
         'sync_log_id' => 'nullable|exists:biometric_sync_logs,id',
         'limit' => 'nullable|integer|min:1',
+        'user_ids' => 'nullable|array',
+        'user_ids.*' => 'string',
+        'use_cache' => 'nullable|boolean',
     ]);
+
+    set_time_limit(0); // Large device logs can take a very long time
 
     try {
         // Reuse pre-created sync log if provided, otherwise create a new one
@@ -519,24 +546,30 @@ public function fetchLogs(Request $request)
         // Run synchronously (QUEUE_CONNECTION=sync) in preview mode — don't save to DB yet
         $job = new ProcessBiometricLogs($syncLog);
         $job->previewOnly = true;
+        $job->useCache = (bool) ($validated['use_cache'] ?? false);
         $job->limit = $validated['limit'] ?? null;
+        $job->userIds = $validated['user_ids'] ?? null;
         dispatch($job);
 
         $syncLog->refresh();
 
         // Retrieve the preview records the job stored in cache
         $previewRecords = Cache::get("biometric_preview_{$syncLog->id}", []);
+        $fetchMeta      = Cache::get("biometric_fetch_meta_{$syncLog->id}", []);
 
         return response()->json([
             'success'  => true,
             'preview'  => true,
             'sync_log_id' => $syncLog->id,
             'summary'  => [
-                'total_records'   => count($previewRecords),
-                'new_records'     => $syncLog->saved_records,
-                'update_records'  => $syncLog->updated_records,
-                'skipped_count'   => $syncLog->skipped_logs,
-                'unmatched'       => $syncLog->unmatched_employees ?? [],
+                'total_records'    => count($previewRecords),
+                'new_records'      => $syncLog->saved_records,
+                'update_records'   => $syncLog->updated_records,
+                'skipped_count'    => $syncLog->skipped_logs,
+                'unmatched'        => $syncLog->unmatched_employees ?? [],
+                'raw_count'        => $fetchMeta['raw_count'] ?? null,
+                'filtered_count'   => $fetchMeta['filtered_count'] ?? null,
+                'no_records_reason'=> $fetchMeta['no_records_reason'] ?? null,
             ],
             'preview_records' => $previewRecords,
         ]);

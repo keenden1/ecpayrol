@@ -18,10 +18,12 @@ class ProcessBiometricLogs implements ShouldQueue
 {
     use Queueable;
 
-    public $timeout = 3600; // 60 minutes max
+    public $timeout = 0; // No timeout — large device logs can take over an hour
     public $tries = 1; // Don't retry automatically
     public bool $previewOnly = false;
+    public bool $useCache = false;
     public ?int $limit = null;
+    public ?array $userIds = null;
 
     protected $syncLog;
     protected $deviceId;
@@ -57,43 +59,94 @@ class ProcessBiometricLogs implements ShouldQueue
 
             // Increase memory for large datasets
             ini_set('memory_limit', '1024M');
-            set_time_limit(3600);
+            set_time_limit(0); // No limit — large device logs can take a long time
 
-            // Connect to device
-            $zk = new ZKTeco($device->ip_address, $device->port);
+            $cachePath = base_path("device-logs/cache_device_{$device->id}_raw.json");
 
-            $this->updateSyncLog(['current_stage' => 'Establishing connection...']);
+            // Load from cache if requested and available
+            if ($this->useCache && file_exists($cachePath)) {
+                $this->updateSyncLog([
+                    'status' => 'fetching',
+                    'current_stage' => 'Loading logs from cached file...',
+                ]);
+                $cached = json_decode(file_get_contents($cachePath), true);
+                $rawLogsFromDevice = $cached['logs'] ?? [];
+            } else {
+                // Connect to device
+                $zk = new ZKTeco($device->ip_address, $device->port);
 
-            $connectTimeout = 10;
-            $connected = false;
-            $connectStart = microtime(true);
+                $this->updateSyncLog(['current_stage' => 'Establishing connection...']);
 
-            while (!$connected && (microtime(true) - $connectStart) < $connectTimeout) {
-                $connected = $zk->connect();
+                $connectTimeout = 10;
+                $connected = false;
+                $connectStart = microtime(true);
+
+                while (!$connected && (microtime(true) - $connectStart) < $connectTimeout) {
+                    $connected = $zk->connect();
+                    if (!$connected) {
+                        usleep(500000); // 500ms
+                    }
+                }
+
                 if (!$connected) {
-                    usleep(500000); // 500ms
+                    throw new \Exception('Failed to connect to device after ' . $connectTimeout . ' seconds');
+                }
+
+                // Fetch logs — retry up to 5x if device returns 0 (large log stores can cause the device to dump empty)
+                $maxFetchAttempts = 5;
+                $rawLogsFromDevice = [];
+
+                for ($attempt = 1; $attempt <= $maxFetchAttempts; $attempt++) {
+                    $this->updateSyncLog([
+                        'status' => 'fetching',
+                        'current_stage' => $attempt === 1
+                            ? 'Retrieving attendance logs from device...'
+                            : "Device returned 0 logs — retrying ({$attempt}/{$maxFetchAttempts})...",
+                    ]);
+
+                    $rawLogsFromDevice = $zk->getAttendance();
+
+                    if (count($rawLogsFromDevice) > 0) {
+                        break;
+                    }
+
+                    if ($attempt < $maxFetchAttempts) {
+                        $zk->disconnect();
+                        sleep(4);
+                        $zk->connect();
+                    }
+                }
+
+                $zk->disconnect();
+
+                // Persist successful dump as cache for future use
+                if (count($rawLogsFromDevice) > 0) {
+                    file_put_contents($cachePath, json_encode([
+                        'device_id'   => $device->id,
+                        'device_name' => $device->name,
+                        'fetch_time'  => now()->toDateTimeString(),
+                        'total_logs'  => count($rawLogsFromDevice),
+                        'logs'        => $rawLogsFromDevice,
+                    ], JSON_PRETTY_PRINT));
                 }
             }
 
-            if (!$connected) {
-                throw new \Exception('Failed to connect to device after ' . $connectTimeout . ' seconds');
-            }
-
-            // Fetch logs
-            $this->updateSyncLog([
-                'status' => 'fetching',
-                'current_stage' => 'Retrieving attendance logs from device...'
-            ]);
-
-            $rawLogsFromDevice = $zk->getAttendance();
             $this->saveRawLogsToFile($rawLogsFromDevice, $device, 'raw_unfiltered');
+
+            $rawCount = count($rawLogsFromDevice);
 
             $logs = $this->filterAndValidateLogs($rawLogsFromDevice);
             $this->saveRawLogsToFile($logs, $device, 'filtered');
 
-            $zk->disconnect();
-
             $totalLogs = count($logs);
+
+            // Determine no-records reason early for use in preview
+            $noRecordsReason = null;
+            if ($rawCount === 0) {
+                $noRecordsReason = 'device_empty';
+            } elseif ($totalLogs === 0) {
+                $noRecordsReason = 'filtered_out';
+            }
 
             $this->updateSyncLog([
                 'total_logs' => $totalLogs,
@@ -104,6 +157,14 @@ class ProcessBiometricLogs implements ShouldQueue
             // Process logs (and optionally save)
             $result = $this->saveBiometricLogsBatch($logs);
 
+            // Detect all-unmatched scenario
+            if ($noRecordsReason === null && $this->previewOnly) {
+                $previewCount = $result['total_records'] ?? 0;
+                if ($previewCount === 0 && $rawCount > 0 && $totalLogs > 0) {
+                    $noRecordsReason = 'all_unmatched';
+                }
+            }
+
             $device->last_sync = now();
             $device->save();
 
@@ -112,6 +173,16 @@ class ProcessBiometricLogs implements ShouldQueue
                 Cache::put(
                     "biometric_preview_{$this->syncLog->id}",
                     $result['preview_records'],
+                    now()->addHours(2)
+                );
+
+                Cache::put(
+                    "biometric_fetch_meta_{$this->syncLog->id}",
+                    [
+                        'raw_count'        => $rawCount,
+                        'filtered_count'   => $totalLogs,
+                        'no_records_reason'=> $noRecordsReason,
+                    ],
                     now()->addHours(2)
                 );
 
@@ -185,6 +256,13 @@ class ProcessBiometricLogs implements ShouldQueue
                 if ($start && $logTime->lt($start)) return false;
                 if ($end   && $logTime->gt($end))   return false;
                 return true;
+            });
+        }
+
+        // Filter to matched users only
+        if ($this->userIds !== null) {
+            $logs = array_filter($logs, function($log) {
+                return in_array((string)($log['id'] ?? ''), $this->userIds, true);
             });
         }
 
