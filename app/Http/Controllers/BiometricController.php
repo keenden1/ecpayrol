@@ -531,15 +531,24 @@ public function prepareFetch(Request $request)
 public function addDeviceUserAsEmployee(Request $request)
 {
     $validated = $request->validate([
-        'idno' => 'required|string|max:50|unique:employees,idno',
+        'idno'      => 'required|string|max:50|unique:employees,idno',
+        'Lname'     => 'nullable|string|max:100',
+        'Fname'     => 'nullable|string|max:100',
+        'MName'     => 'nullable|string|max:100',
+        'Department'=> 'nullable|string|max:100',
+        'Jobtitle'  => 'nullable|string|max:100',
+        'JobStatus' => 'nullable|string|in:Active,Inactive',
     ]);
 
     try {
         $employee = Employee::create([
-            'idno'      => $validated['idno'],
-            'Lname'     => '',
-            'Fname'     => '',
-            'JobStatus' => 'Active',
+            'idno'       => $validated['idno'],
+            'Lname'      => $validated['Lname'] ?? '',
+            'Fname'      => $validated['Fname'] ?? '',
+            'MName'      => $validated['MName'] ?? '',
+            'Department' => $validated['Department'] ?? '',
+            'Jobtitle'   => $validated['Jobtitle'] ?? '',
+            'JobStatus'  => $validated['JobStatus'] ?? 'Active',
         ]);
 
         return response()->json([
@@ -563,8 +572,17 @@ public function getDeviceUsers(Request $request)
         $device = BiometricDevice::findOrFail($validated['device_id']);
         $zk = new ZKTeco($device->ip_address, $device->port);
 
-        if (!$zk->connect()) {
-            return response()->json(['success' => false, 'message' => 'Could not connect to device'], 422);
+        $connectTimeout = 10;
+        $connected      = false;
+        $connectStart   = microtime(true);
+
+        while (!$connected && (microtime(true) - $connectStart) < $connectTimeout) {
+            $connected = $zk->connect();
+            if (!$connected) usleep(500000);
+        }
+
+        if (!$connected) {
+            return response()->json(['success' => false, 'message' => 'Could not connect to device after ' . $connectTimeout . ' seconds'], 422);
         }
 
         $rawUsers = $zk->getUser();
@@ -616,7 +634,8 @@ public function fetchLogs(Request $request)
         'use_cache' => 'nullable|boolean',
     ]);
 
-    set_time_limit(0); // Large device logs can take a very long time
+    set_time_limit(0);
+    ini_set('max_execution_time', '0'); // Large device logs can take a very long time
 
     try {
         // Reuse pre-created sync log if provided, otherwise create a new one

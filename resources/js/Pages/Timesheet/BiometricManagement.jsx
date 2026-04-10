@@ -54,6 +54,11 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const [usersMatchFilter, setUsersMatchFilter] = useState("all");
     const [addingUsers, setAddingUsers] = useState({});
     const [addedUsers, setAddedUsers] = useState(new Set());
+
+    // Add Employee modal state
+    const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+    const [addEmployeeUser, setAddEmployeeUser] = useState(null); // the device user being added
+    const [addEmployeeForm, setAddEmployeeForm] = useState({ Fname: '', Lname: '', MName: '', Department: '', Jobtitle: '', JobStatus: 'Active' });
     const previewPageSize = 50;
 
     // Fetch Matched Logs modal (date picker)
@@ -163,19 +168,40 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const csrfToken = () =>
         document.querySelector('meta[name="csrf-token"]').getAttribute("content");
 
-    const handleAddDeviceUser = async (userid) => {
+    const handleOpenAddEmployeeModal = (user) => {
+        // Pre-fill name from device name field (format may be "LASTNAME, FIRSTNAME" or just a name)
+        let Lname = '', Fname = '';
+        if (user.name) {
+            const parts = user.name.split(',');
+            if (parts.length >= 2) {
+                Lname = parts[0].trim();
+                Fname = parts.slice(1).join(',').trim();
+            } else {
+                Fname = user.name.trim();
+            }
+        }
+        setAddEmployeeUser(user);
+        setAddEmployeeForm({ Fname, Lname, MName: '', Department: '', Jobtitle: '', JobStatus: 'Active' });
+        setShowAddEmployeeModal(true);
+    };
+
+    const handleAddDeviceUser = async () => {
+        if (!addEmployeeUser) return;
+        const userid = addEmployeeUser.userid;
         setAddingUsers(prev => ({ ...prev, [userid]: true }));
+        setShowAddEmployeeModal(false);
         try {
             const res = await fetch("/biometric-devices/add-device-user", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-TOKEN": csrfToken() },
-                body: JSON.stringify({ idno: userid }),
+                body: JSON.stringify({ idno: userid, ...addEmployeeForm }),
             });
             const data = await res.json();
             if (data.success) {
                 toast.success(data.message);
                 setAddedUsers(prev => new Set([...prev, userid]));
-                setDeviceUsers(prev => prev.map(u => u.userid === userid ? { ...u, matched: true, employee: '' } : u));
+                const fullName = [addEmployeeForm.Lname, addEmployeeForm.Fname].filter(Boolean).join(', ') || '';
+                setDeviceUsers(prev => prev.map(u => u.userid === userid ? { ...u, matched: true, employee: fullName, department: addEmployeeForm.Department } : u));
             } else {
                 toast.error(data.message || "Failed to add employee");
             }
@@ -183,6 +209,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             toast.error("Error adding employee");
         } finally {
             setAddingUsers(prev => ({ ...prev, [userid]: false }));
+            setAddEmployeeUser(null);
         }
     };
 
@@ -1462,7 +1489,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                                         <td className="px-4 py-2">
                                                             {!u.matched && (
                                                                 <button
-                                                                    onClick={() => handleAddDeviceUser(u.userid)}
+                                                                    onClick={() => handleOpenAddEmployeeModal(u)}
                                                                     disabled={!!addingUsers[u.userid]}
                                                                     className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
                                                                 >
@@ -1480,6 +1507,104 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                     );
                                 })()}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Employee Modal */}
+            {showAddEmployeeModal && addEmployeeUser && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddEmployeeModal(false)}></div>
+                    <div className="relative w-full max-w-md mx-4 my-6 bg-white rounded-xl shadow-2xl border border-gray-200 z-10">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-800">Add Employee</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Device User ID: <span className="font-mono font-medium">{addEmployeeUser.userid}</span></p>
+                            </div>
+                            <button onClick={() => setShowAddEmployeeModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.Fname}
+                                        onChange={e => setAddEmployeeForm(f => ({ ...f, Fname: e.target.value }))}
+                                        placeholder="First name"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.Lname}
+                                        onChange={e => setAddEmployeeForm(f => ({ ...f, Lname: e.target.value }))}
+                                        placeholder="Last name"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Middle Name</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={addEmployeeForm.MName}
+                                    onChange={e => setAddEmployeeForm(f => ({ ...f, MName: e.target.value }))}
+                                    placeholder="Middle name (optional)"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={addEmployeeForm.Department}
+                                    onChange={e => setAddEmployeeForm(f => ({ ...f, Department: e.target.value }))}
+                                    placeholder="Department"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Job Title</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={addEmployeeForm.Jobtitle}
+                                    onChange={e => setAddEmployeeForm(f => ({ ...f, Jobtitle: e.target.value }))}
+                                    placeholder="Job title (optional)"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                                <select
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={addEmployeeForm.JobStatus}
+                                    onChange={e => setAddEmployeeForm(f => ({ ...f, JobStatus: e.target.value }))}
+                                >
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                            <button
+                                onClick={() => setShowAddEmployeeModal(false)}
+                                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddDeviceUser}
+                                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-2"
+                            >
+                                <PlusCircle className="w-4 h-4" />
+                                Save Employee
+                            </button>
                         </div>
                     </div>
                 </div>
