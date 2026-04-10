@@ -42,9 +42,27 @@ class BiometricController extends Controller
             }
         }
 
+        $departments = Employee::whereNotNull('Department')
+            ->where('Department', '!=', '')
+            ->distinct()
+            ->orderBy('Department')
+            ->pluck('Department')
+            ->filter()
+            ->values();
+
+        $jobtitles = Employee::whereNotNull('Jobtitle')
+            ->where('Jobtitle', '!=', '')
+            ->distinct()
+            ->orderBy('Jobtitle')
+            ->pluck('Jobtitle')
+            ->filter()
+            ->values();
+
         return Inertia::render('Timesheet/BiometricManagement', [
             'devices'       => $devices,
             'jsonCacheInfo' => $jsonCacheInfo,
+            'departments'   => $departments,
+            'jobtitles'     => $jobtitles,
             'auth' => [
                 'user' => auth()->user(),
             ],

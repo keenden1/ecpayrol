@@ -16,7 +16,7 @@ import {
     Loader,
 } from "lucide-react";
 
-const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCacheInfo = {} }) => {
+const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCacheInfo = {}, departments = [], jobtitles = [] }) => {
     const [deviceList, setDeviceList] = useState(devices);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -59,6 +59,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
     const [addEmployeeUser, setAddEmployeeUser] = useState(null); // the device user being added
     const [addEmployeeForm, setAddEmployeeForm] = useState({ Fname: '', Lname: '', MName: '', Department: '', Jobtitle: '', JobStatus: 'Active' });
+    const [openCombo, setOpenCombo] = useState(null); // 'dept' | 'jobtitle' | null
     const previewPageSize = 50;
 
     // Fetch Matched Logs modal (date picker)
@@ -1517,32 +1518,32 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                 <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto">
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddEmployeeModal(false)}></div>
                     <div className="relative w-full max-w-md mx-4 my-6 bg-white rounded-xl shadow-2xl border border-gray-200 z-10">
-                        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl">
                             <div>
-                                <h3 className="text-base font-semibold text-gray-800">Add Employee</h3>
-                                <p className="text-xs text-gray-500 mt-0.5">Device User ID: <span className="font-mono font-medium">{addEmployeeUser.userid}</span></p>
+                                <h3 className="text-sm font-semibold text-gray-800">Add Employee</h3>
+                                <p className="text-xs text-gray-500">Device User ID: <span className="font-mono font-medium">{addEmployeeUser.userid}</span></p>
                             </div>
                             <button onClick={() => setShowAddEmployeeModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <XCircle className="w-5 h-5" />
+                                <XCircle className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="p-5 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="px-4 py-3 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">First Name</label>
                                     <input
                                         type="text"
-                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Fname}
                                         onChange={e => setAddEmployeeForm(f => ({ ...f, Fname: e.target.value }))}
                                         placeholder="First name"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Last Name</label>
                                     <input
                                         type="text"
-                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Lname}
                                         onChange={e => setAddEmployeeForm(f => ({ ...f, Lname: e.target.value }))}
                                         placeholder="Last name"
@@ -1550,39 +1551,75 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Middle Name</label>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">Middle Name</label>
                                 <input
                                     type="text"
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     value={addEmployeeForm.MName}
                                     onChange={e => setAddEmployeeForm(f => ({ ...f, MName: e.target.value }))}
                                     placeholder="Middle name (optional)"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
-                                <input
-                                    type="text"
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={addEmployeeForm.Department}
-                                    onChange={e => setAddEmployeeForm(f => ({ ...f, Department: e.target.value }))}
-                                    placeholder="Department"
-                                />
+                            <div className="grid grid-cols-2 gap-2">
+                                {/* Department combobox */}
+                                <div className="relative">
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Department</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.Department}
+                                        onChange={e => { setAddEmployeeForm(f => ({ ...f, Department: e.target.value })); setOpenCombo('dept'); }}
+                                        onFocus={() => setOpenCombo('dept')}
+                                        onBlur={() => setTimeout(() => setOpenCombo(c => c === 'dept' ? null : c), 150)}
+                                        placeholder="Select or type"
+                                    />
+                                    {openCombo === 'dept' && (() => {
+                                        const q = addEmployeeForm.Department.toLowerCase();
+                                        const filtered = departments.filter(d => d.toLowerCase().includes(q));
+                                        return filtered.length > 0 ? (
+                                            <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
+                                                {filtered.map((d, i) => (
+                                                    <li key={i} onMouseDown={() => { setAddEmployeeForm(f => ({ ...f, Department: d })); setOpenCombo(null); }}
+                                                        className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700">
+                                                        {d}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null;
+                                    })()}
+                                </div>
+                                {/* Job Title combobox */}
+                                <div className="relative">
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Job Title</label>
+                                    <input
+                                        type="text"
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.Jobtitle}
+                                        onChange={e => { setAddEmployeeForm(f => ({ ...f, Jobtitle: e.target.value })); setOpenCombo('jobtitle'); }}
+                                        onFocus={() => setOpenCombo('jobtitle')}
+                                        onBlur={() => setTimeout(() => setOpenCombo(c => c === 'jobtitle' ? null : c), 150)}
+                                        placeholder="Select or type"
+                                    />
+                                    {openCombo === 'jobtitle' && (() => {
+                                        const q = addEmployeeForm.Jobtitle.toLowerCase();
+                                        const filtered = jobtitles.filter(j => j.toLowerCase().includes(q));
+                                        return filtered.length > 0 ? (
+                                            <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
+                                                {filtered.map((j, i) => (
+                                                    <li key={i} onMouseDown={() => { setAddEmployeeForm(f => ({ ...f, Jobtitle: j })); setOpenCombo(null); }}
+                                                        className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700">
+                                                        {j}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null;
+                                    })()}
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Job Title</label>
-                                <input
-                                    type="text"
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={addEmployeeForm.Jobtitle}
-                                    onChange={e => setAddEmployeeForm(f => ({ ...f, Jobtitle: e.target.value }))}
-                                    placeholder="Job title (optional)"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">Status</label>
                                 <select
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     value={addEmployeeForm.JobStatus}
                                     onChange={e => setAddEmployeeForm(f => ({ ...f, JobStatus: e.target.value }))}
                                 >
@@ -1591,18 +1628,18 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                 </select>
                             </div>
                         </div>
-                        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
                             <button
                                 onClick={() => setShowAddEmployeeModal(false)}
-                                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                                className="px-3 py-1.5 text-xs rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleAddDeviceUser}
-                                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-2"
+                                className="px-3 py-1.5 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1"
                             >
-                                <PlusCircle className="w-4 h-4" />
+                                <PlusCircle className="w-3.5 h-3.5" />
                                 Save Employee
                             </button>
                         </div>
