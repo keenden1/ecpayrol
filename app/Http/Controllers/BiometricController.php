@@ -80,6 +80,18 @@ class BiometricController extends Controller
 
         $device = BiometricDevice::select(['id', 'name', 'ip_address', 'port'])->findOrFail($validated['device_id']);
 
+        // Block if a sync is already running for this device
+        $running = BiometricSyncLog::where('device_id', $device->id)
+            ->whereIn('status', ['pending', 'fetching'])
+            ->exists();
+
+        if ($running) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$device->name} already has a sync in progress. Wait for it to finish before starting another.",
+            ], 409);
+        }
+
         // Create a sync log record so we can track status
         $log = BiometricSyncLog::create([
             'device_id'     => $device->id,
@@ -91,6 +103,53 @@ class BiometricController extends Controller
 
         $artisan = base_path('artisan');
         $cmd     = "php \"{$artisan}\" biometric:sync-raw {$device->id} {$log->id}";
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen("start /B {$cmd}", "r"));
+        } else {
+            exec("{$cmd} > /dev/null 2>&1 &");
+        }
+
+        return response()->json([
+            'success' => true,
+            'log_id'  => $log->id,
+            'device'  => ['id' => $device->id, 'name' => $device->name],
+        ]);
+    }
+
+    /**
+     * Start a background Python (pyzk) sync — same JSON cache output, alternative ZK library.
+     */
+    public function pythonSyncBackground(Request $request)
+    {
+        $validated = $request->validate([
+            'device_id' => 'required|exists:biometric_devices,id',
+        ]);
+
+        $device = BiometricDevice::select(['id', 'name', 'ip_address', 'port'])->findOrFail($validated['device_id']);
+
+        // Block if a sync is already running for this device (PHP or Python)
+        $running = BiometricSyncLog::where('device_id', $device->id)
+            ->whereIn('status', ['pending', 'fetching'])
+            ->exists();
+
+        if ($running) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$device->name} already has a sync in progress. Wait for it to finish before starting another.",
+            ], 409);
+        }
+
+        $log = BiometricSyncLog::create([
+            'device_id'     => $device->id,
+            'initiated_by'  => auth()->id(),
+            'status'        => 'pending',
+            'current_stage' => 'Queued (Python/pyzk)...',
+            'started_at'    => now(),
+        ]);
+
+        $script = base_path('biometric_sync.py');
+        $cmd    = "python \"{$script}\" {$device->id} {$log->id}";
 
         if (PHP_OS_FAMILY === 'Windows') {
             pclose(popen("start /B {$cmd}", "r"));

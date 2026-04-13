@@ -14,6 +14,7 @@ import {
     XCircle,
     Search,
     Loader,
+    Cpu,
 } from "lucide-react";
 
 const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCacheInfo = {}, departments = [], jobtitles = [] }) => {
@@ -40,6 +41,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
     // Multi-device sync state
     const [syncConfirmDevice, setSyncConfirmDevice] = useState(null); // device waiting for confirm
+    const [pythonSyncConfirmDevice, setPythonSyncConfirmDevice] = useState(null); // python sync confirm
     const [activeSyncs, setActiveSyncs] = useState({});
     // { [deviceId]: { device, progress, stage, isExpanded, status, previewRecords, previewSummary, syncLogId, previewPage, isSaving } }
     // status: 'syncing' | 'preview' | 'no_records'
@@ -296,6 +298,29 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         }
     };
 
+    // Python (pyzk) background sync — same flow as startRawSync but calls the python-sync endpoint
+    const startPythonSync = async (device) => {
+        setPythonSyncConfirmDevice(null);
+        try {
+            const res = await fetch(route("biometric-devices.python-sync"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                body: JSON.stringify({ device_id: device.id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                const jobs = JSON.parse(localStorage.getItem('bgSyncJobs') || '[]');
+                jobs.push({ logId: data.log_id, deviceId: device.id, deviceName: device.name, startedAt: Date.now() });
+                localStorage.setItem('bgSyncJobs', JSON.stringify(jobs));
+                window.dispatchEvent(new Event('bgSyncJobAdded'));
+            } else {
+                toast.error(`${device.name}: ${data.message || 'Failed to start Python sync'}`);
+            }
+        } catch (err) {
+            toast.error(`${device.name}: ${err.message}`);
+        }
+    };
+
     // Fetch Matched Logs — reads from JSON cache (or device), filters by date + matched users, shows preview
     const startFetchLogs = async (device) => {
         const deviceId = device.id;
@@ -409,6 +434,51 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                         >
                             <RefreshCw className="w-4 h-4" />
                             Sync Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // ── Render: Python sync confirmation modal ────────────────────────────────
+    const renderPythonSyncConfirm = () => pythonSyncConfirmDevice && (
+        <div className="fixed z-20 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setPythonSyncConfirmDevice(null)} />
+                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-orange-100">
+                            <Cpu className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">Python Sync — {pythonSyncConfirmDevice.name}</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Fetches all raw attendance logs using <strong>pyzk</strong> (Python) and saves to cache. Runs in the background — you can navigate away freely.
+                            </p>
+                            <p className="mt-1 text-xs text-gray-400">
+                                IP: {pythonSyncConfirmDevice.ip_address} &bull; Port: {pythonSyncConfirmDevice.port}
+                            </p>
+                            {jsonCacheInfo[pythonSyncConfirmDevice.id] && (
+                                <p className="mt-2 text-xs text-orange-600">
+                                    Last synced: {jsonCacheInfo[pythonSyncConfirmDevice.id].fetch_time} &bull; {jsonCacheInfo[pythonSyncConfirmDevice.id].total_logs} logs
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setPythonSyncConfirmDevice(null)}
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >Cancel</button>
+                        <button
+                            type="button"
+                            onClick={() => startPythonSync(pythonSyncConfirmDevice)}
+                            className="px-4 py-2 text-sm rounded-md bg-orange-600 text-white font-medium hover:bg-orange-700 flex items-center gap-2"
+                        >
+                            <Cpu className="w-4 h-4" />
+                            Python Sync
                         </button>
                     </div>
                 </div>
@@ -1124,9 +1194,16 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                 <button
                     onClick={() => setSyncConfirmDevice(device)}
                     className="text-green-600 hover:text-green-900"
-                    title="Sync"
+                    title="Sync (PHP)"
                 >
                     <RefreshCw className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={() => setPythonSyncConfirmDevice(device)}
+                    className="text-orange-600 hover:text-orange-900"
+                    title="Sync (Python/pyzk)"
+                >
+                    <Cpu className="w-5 h-5" />
                 </button>
                 <button
                     onClick={() => handleViewUsers(device)}
@@ -1360,6 +1437,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
             {/* Sync confirmation modal */}
             {renderSyncConfirm()}
+
+            {/* Python sync confirmation modal */}
+            {renderPythonSyncConfirm()}
 
             {/* Fetch Matched Logs modal (with date filter) */}
             {renderFetchLogsModal()}
