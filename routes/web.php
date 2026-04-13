@@ -423,6 +423,10 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         ->name('biometric-devices.fetch-logs');
     Route::post('/biometric-devices/sync-raw', [BiometricController::class, 'syncRaw'])
         ->name('biometric-devices.sync-raw');
+    Route::post('/biometric-devices/sync-raw-background', [BiometricController::class, 'syncRawBackground'])
+        ->name('biometric-devices.sync-raw-background');
+    Route::get('/biometric-devices/sync-raw-status/{logId}', [BiometricController::class, 'syncRawStatus'])
+        ->name('biometric-devices.sync-raw-status');
     Route::get('/biometric-devices/cache-status', [BiometricController::class, 'cacheStatus'])
         ->name('biometric-devices.cache-status');
     Route::post('/biometric-devices/diagnostic', [BiometricController::class, 'diagnosticTest'])

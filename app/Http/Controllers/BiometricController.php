@@ -70,6 +70,64 @@ class BiometricController extends Controller
     }
 
     /**
+     * Start a background raw sync — fires an OS process and returns immediately.
+     */
+    public function syncRawBackground(Request $request)
+    {
+        $validated = $request->validate([
+            'device_id' => 'required|exists:biometric_devices,id',
+        ]);
+
+        $device = BiometricDevice::select(['id', 'name', 'ip_address', 'port'])->findOrFail($validated['device_id']);
+
+        // Create a sync log record so we can track status
+        $log = BiometricSyncLog::create([
+            'device_id'     => $device->id,
+            'initiated_by'  => auth()->id(),
+            'status'        => 'pending',
+            'current_stage' => 'Queued...',
+            'started_at'    => now(),
+        ]);
+
+        $artisan = base_path('artisan');
+        $cmd     = "php \"{$artisan}\" biometric:sync-raw {$device->id} {$log->id}";
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen("start /B {$cmd}", "r"));
+        } else {
+            exec("{$cmd} > /dev/null 2>&1 &");
+        }
+
+        return response()->json([
+            'success' => true,
+            'log_id'  => $log->id,
+            'device'  => ['id' => $device->id, 'name' => $device->name],
+        ]);
+    }
+
+    /**
+     * Poll the status of a background raw sync.
+     */
+    public function syncRawStatus(Request $request, $logId)
+    {
+        $log = BiometricSyncLog::select(['id', 'device_id', 'status', 'total_logs', 'current_stage', 'error_message', 'completed_at'])
+            ->with('device:id,name')
+            ->findOrFail($logId);
+
+        $fetchTime = $log->completed_at?->toDateTimeString();
+
+        return response()->json([
+            'status'        => $log->status,       // pending|fetching|completed|failed
+            'current_stage' => $log->current_stage,
+            'total_logs'    => $log->total_logs,
+            'fetch_time'    => $fetchTime,
+            'error_message' => $log->error_message,
+            'device_id'     => $log->device_id,
+            'device_name'   => $log->device?->name,
+        ]);
+    }
+
+    /**
      * Sync raw logs from device to JSON file only — no processing, no DB save.
      */
     public function syncRaw(Request $request)

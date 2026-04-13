@@ -71,6 +71,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     // JSON cache info per device — seeded from disk on page load { [deviceId]: { exists, fetch_time, total_logs } }
     const [jsonCacheInfo, setJsonCacheInfo] = useState(initialJsonCacheInfo);
     const [isSyncingRaw, setIsSyncingRaw] = useState(false);
+    // Background sync tracker: { id, device, status: 'running'|'done'|'error', message }
+    const [bgSyncs, setBgSyncs] = useState([]);
+    const [bgSyncsExpanded, setBgSyncsExpanded] = useState(true);
 
     // Form data state
     const [formData, setFormData] = useState({
@@ -268,30 +271,28 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         }, 800);
     };
 
-    // Sync — dumps raw logs from device to JSON file, no processing, no preview
+    // Sync — fires background OS process, tracks via polling
     const startRawSync = async (device) => {
-        setIsSyncingRaw(true);
+        setSyncConfirmDevice(null);
         try {
-            const res = await fetch(route("biometric-devices.sync-raw"), {
+            const res = await fetch(route("biometric-devices.sync-raw-background"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
                 body: JSON.stringify({ device_id: device.id }),
             });
             const data = await res.json();
             if (data.success) {
-                setSyncConfirmDevice(null);
-                setJsonCacheInfo(prev => ({
-                    ...prev,
-                    [device.id]: { exists: true, fetch_time: data.fetch_time, total_logs: data.total_logs },
-                }));
-                toast.success(`${device.name} — ${data.total_logs} logs saved to cache`);
+                // Save to localStorage so the floating pill persists across page navigations
+                const jobs = JSON.parse(localStorage.getItem('bgSyncJobs') || '[]');
+                jobs.push({ logId: data.log_id, deviceId: device.id, deviceName: device.name, startedAt: Date.now() });
+                localStorage.setItem('bgSyncJobs', JSON.stringify(jobs));
+                // Dispatch event so AuthenticatedLayout picks it up immediately
+                window.dispatchEvent(new Event('bgSyncJobAdded'));
             } else {
-                toast.error(`${device.name}: ${data.message || "Sync failed"}`);
+                toast.error(`${device.name}: ${data.message || 'Failed to start sync'}`);
             }
         } catch (err) {
             toast.error(`${device.name}: ${err.message}`);
-        } finally {
-            setIsSyncingRaw(false);
         }
     };
 
@@ -374,16 +375,16 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const renderSyncConfirm = () => syncConfirmDevice && (
         <div className="fixed z-20 inset-0 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => !isSyncingRaw && setSyncConfirmDevice(null)} />
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setSyncConfirmDevice(null)} />
                 <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
                     <div className="flex items-start gap-4">
                         <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
-                            <RefreshCw className={`h-5 w-5 text-green-600 ${isSyncingRaw ? 'animate-spin' : ''}`} />
+                            <RefreshCw className="h-5 w-5 text-green-600" />
                         </div>
                         <div>
                             <h3 className="text-lg font-medium text-gray-900">Sync — {syncConfirmDevice.name}</h3>
                             <p className="mt-1 text-sm text-gray-500">
-                                Fetches all raw attendance logs from the device and <strong>saves to cache</strong>. No records are written to the database.
+                                Fetches all raw attendance logs from the device and <strong>saves to cache</strong>. Runs in the background — you can navigate away freely.
                             </p>
                             <p className="mt-1 text-xs text-gray-400">
                                 IP: {syncConfirmDevice.ip_address} &bull; Port: {syncConfirmDevice.port}
@@ -399,17 +400,15 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                         <button
                             type="button"
                             onClick={() => setSyncConfirmDevice(null)}
-                            disabled={isSyncingRaw}
-                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                         >Cancel</button>
                         <button
                             type="button"
                             onClick={() => startRawSync(syncConfirmDevice)}
-                            disabled={isSyncingRaw}
-                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 flex items-center gap-2"
                         >
-                            {isSyncingRaw && <Loader className="w-4 h-4 animate-spin" />}
-                            {isSyncingRaw ? 'Syncing...' : 'Sync Now'}
+                            <RefreshCw className="w-4 h-4" />
+                            Sync Now
                         </button>
                     </div>
                 </div>
