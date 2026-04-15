@@ -1,551 +1,384 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, usePage, router } from '@inertiajs/react';
-import { 
-    LayoutDashboard, 
-    Users, 
-    Clock, 
-    Wallet, 
-    FileText, 
-    Settings, 
-    Building2,
-    UserCog,
-    Calendar,
-    FileBarChart,
-    GraduationCap,
-    CalendarCheck,
-    ChevronLeft,
-    ChevronRight,
-    ClipboardCheck,
-    Radio // Added for LIVE label icon
+import { Link, usePage } from '@inertiajs/react';
+import {
+    LayoutDashboard, Users, Clock, Wallet, FileText,
+    Settings, Building2, UserCog, Calendar, FileBarChart,
+    GraduationCap, CalendarCheck, ChevronLeft, ChevronRight,
+    ClipboardCheck, ChevronDown
 } from 'lucide-react';
-import '../../css/sidebar.css'; // Fixed CSS import path
+import '../../css/sidebar.css';
 
-const MenuItem = ({ icon: Icon, label, items, path, isCollapsed, showLabels, isLive, openMenus, setOpenMenus }) => {
-    // Use parent state to manage dropdown open/close
-    const isSubmenuOpen = openMenus[label] || false;
-    
-    // Handle hover for collapsed menu items with submenus
-    const [isHovering, setIsHovering] = useState(false);
+// ── Active detection ─────────────────────────────────────────────────────────
+function isPathActive(url, path, items) {
+    if (path)  return url === path || url.startsWith(path + '/');
+    if (items) return items.some(s => url === s.path || url.startsWith(s.path + '/'));
+    return false;
+}
 
-    const toggleSubmenu = (e) => {
+// ── Collapsed tooltip ────────────────────────────────────────────────────────
+function Tooltip({ label, children }) {
+    return (
+        <div className="group/tip relative">
+            {children}
+            <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[70]
+                            hidden group-hover/tip:flex items-center gap-0">
+                <div className="w-2 h-2 bg-gray-800 rotate-45 -mr-1 flex-shrink-0" />
+                <div className="bg-gray-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-xl">
+                    {label}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Menu Item ────────────────────────────────────────────────────────────────
+const MenuItem = ({ icon: Icon, label, items, path, isCollapsed, openMenus, setOpenMenus }) => {
+    const { url } = usePage();
+    const active  = isPathActive(url, path, items);
+    const isOpen  = !!openMenus[label];
+
+    const isExt = (u) => u && (u.startsWith('http://') || u.startsWith('https://'));
+
+    const toggle = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
-        if (!isCollapsed) {
-            setOpenMenus(prev => {
-                // Close all other menus and toggle current one
-                const newState = {};
-                newState[label] = !prev[label];
-                return newState;
-            });
-        }
+        setOpenMenus(prev => ({ [label]: !prev[label] }));
     };
 
-    // Helper function to determine if a path is external
-    const isExternalPath = (url) => {
-        const isExternal = url && (url.startsWith('http://') || url.startsWith('https://'));
-        console.log('[Sidebar] isExternalPath check:', { url, isExternal });
-        return isExternal;
-    };
+    // ── Shared classes ──
+    const itemBase = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 select-none';
+    const activeLeaf = 'bg-indigo-600 text-white shadow-sm shadow-indigo-200';
+    const inactiveLeaf = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900';
+    const activeParent = 'bg-indigo-50 text-indigo-700';
+    const inactiveParent = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer';
 
-    // Handle submenu item click - should NOT close the dropdown
-    const handleSubmenuClick = (e) => {
-        // Don't prevent default for navigation, but stop propagation to prevent dropdown toggle
-        e.stopPropagation();
-        // Keep the dropdown open by not modifying openMenus state
-    };
-
+    // ── Leaf (no children) ──
     if (path) {
-        const isExternalLink = isExternalPath(path);
-        console.log('[Sidebar MenuItem]', { label, path, isExternalLink, isLive });
-
-        if (isExternalLink && isLive) {
-            // Use regular anchor tag for external links (LIVE system opens in new tab)
-            console.log('[Sidebar] Rendering as EXTERNAL LINK with target="_blank":', label);
+        const cls = `${itemBase} ${active ? activeLeaf : inactiveLeaf} ${isCollapsed ? 'justify-center' : ''}`;
+        const inner = (
+            <>
+                {Icon && <Icon className="flex-shrink-0 w-[1.1rem] h-[1.1rem]" />}
+                {!isCollapsed && <span className="truncate leading-none">{label}</span>}
+            </>
+        );
+        if (isCollapsed) {
             return (
-                <a
-                    href={path}
-                    className="block mb-1 group relative"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => console.log('[Sidebar] External link clicked:', label, path)}
-                >
-                    <div className={`flex items-center px-4 py-2.5 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200 menu-item ${isLive ? 'bg-red-50 text-red-600' : ''}`}>
-                        {Icon && <Icon className={`w-5 h-5 mr-3 ${isLive ? 'text-red-600 animate-pulse' : ''}`} />}
-                        {(!isCollapsed && showLabels) && (
-                            <div className="flex items-center">
-                                <span className={`flex-1 font-medium ${isLive ? 'text-red-600' : ''}`}>{label}</span>
-                                {isLive && (
-                                    <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-600 text-white rounded-full animate-pulse">
-                                        LIVE
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                        {/* Fixed LIVE indicator for collapsed sidebar */}
-                        {(isCollapsed && isLive) && (
-                            <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 flex items-center bg-red-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap z-50 animate-pulse">
-                                LIVE
-                            </div>
-                        )}
-                    </div>
-                </a>
-            );
-        } else {
-            // Use Inertia Link for internal routes (no new tab)
-            console.log('[Sidebar] Rendering as INERTIA LINK (internal):', label);
-            return (
-                <Link
-                    href={path}
-                    className="block mb-1 group"
-                    onClick={() => console.log('[Sidebar] Inertia link clicked:', label, path)}
-                >
-                    <div className="flex items-center px-4 py-2.5 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200 menu-item">
-                        {Icon && <Icon className="w-5 h-5 mr-3" />}
-                        {(!isCollapsed && showLabels) && (
-                            <span className="flex-1 font-medium">{label}</span>
-                        )}
-                    </div>
-                </Link>
+                <Tooltip label={label}>
+                    {isExt(path)
+                        ? <a href={path} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
+                        : <Link href={path} className={cls}>{inner}</Link>}
+                </Tooltip>
             );
         }
+        return isExt(path)
+            ? <a href={path} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
+            : <Link href={path} className={cls}>{inner}</Link>;
     }
 
-    return (
-        <div 
-            className="mb-1 relative"
-            onMouseEnter={() => isCollapsed && setIsHovering(true)}
-            onMouseLeave={() => isCollapsed && setIsHovering(false)}
-        >
-            <div 
-                className={`flex items-center px-4 py-2.5 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg cursor-pointer transition-all duration-200 menu-item ${isSubmenuOpen ? 'bg-indigo-50 text-indigo-600' : ''}`}
-                onClick={toggleSubmenu}
-            >
-                {Icon && <Icon className="w-5 h-5 mr-3" />}
-                {(!isCollapsed && showLabels) && (
-                    <>
-                        <span className="flex-1 font-medium">{label}</span>
-                        <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''}`} />
-                    </>
-                )}
-            </div>
-            
-            {/* Dropdown for collapsed sidebar on hover */}
-            {isCollapsed && isHovering && items && (
-                <div className="absolute left-full top-0 ml-2 bg-white shadow-lg rounded-lg py-2 z-50 min-w-48 border border-gray-100">
-                    <div className="px-4 py-2 text-sm font-medium text-gray-800 border-b border-gray-100 mb-1">
+    // ── Parent (has children) — collapsed flyout ──
+    if (isCollapsed) {
+        return (
+            <div className="group/fly relative">
+                <div className={`${itemBase} justify-center ${active ? activeParent : inactiveParent}`}>
+                    {Icon && <Icon className="w-[1.1rem] h-[1.1rem] flex-shrink-0" />}
+                </div>
+                {/* Flyout panel */}
+                <div className="pointer-events-none group-hover/fly:pointer-events-auto
+                                absolute left-full top-0 ml-3 z-[70]
+                                opacity-0 group-hover/fly:opacity-100
+                                translate-x-1 group-hover/fly:translate-x-0
+                                transition-all duration-150
+                                bg-white border border-gray-200 rounded-xl shadow-xl min-w-[11rem] py-2 overflow-hidden">
+                    <p className="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 mb-1">
                         {label}
-                    </div>
-                    {items.map((subItem, index) => {
-                        const isExternalLink = isExternalPath(subItem.path);
-                        console.log('[Sidebar Hover Submenu]', { parent: label, subItem: subItem.label, path: subItem.path, isExternalLink });
-
-                        return isExternalLink ? (
-                            <a
-                                key={index}
-                                href={subItem.path}
-                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => {
-                                    console.log('[Sidebar] External hover submenu clicked:', subItem.label, subItem.path);
-                                    // Hide the hover dropdown after clicking external link
-                                    setIsHovering(false);
-                                }}
-                            >
-                                {subItem.label}
-                            </a>
-                        ) : (
-                            <Link
-                                key={index}
-                                href={subItem.path}
-                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
-                                onClick={() => {
-                                    console.log('[Sidebar] Internal hover submenu clicked:', subItem.label, subItem.path);
-                                    // Hide the hover dropdown after clicking internal link
-                                    setIsHovering(false);
-                                }}
-                            >
-                                {subItem.label}
-                            </Link>
-                        );
+                    </p>
+                    {items.map((sub, i) => {
+                        const subActive = url === sub.path || url.startsWith(sub.path + '/');
+                        const subCls = `block px-4 py-2 text-sm transition-colors ${
+                            subActive
+                                ? 'text-indigo-600 bg-indigo-50 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`;
+                        return isExt(sub.path)
+                            ? <a key={i} href={sub.path} target="_blank" rel="noopener noreferrer" className={subCls}>{sub.label}</a>
+                            : <Link key={i} href={sub.path} className={subCls}>{sub.label}</Link>;
                     })}
                 </div>
-            )}
-            
-            {/* Regular dropdown for expanded sidebar */}
-            {isSubmenuOpen && !isCollapsed && items && (
-                <div className="ml-6 mt-1 space-y-1">
-                    {items.map((subItem, index) => {
-                        const isExternalLink = isExternalPath(subItem.path);
-                        console.log('[Sidebar Submenu]', { parent: label, subItem: subItem.label, path: subItem.path, isExternalLink });
+            </div>
+        );
+    }
 
-                        return isExternalLink ? (
-                            <a
-                                key={index}
-                                href={subItem.path}
-                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => {
-                                    console.log('[Sidebar] External submenu clicked:', subItem.label, subItem.path);
-                                    handleSubmenuClick(e);
-                                }}
-                            >
-                                {subItem.label}
-                            </a>
-                        ) : (
-                            <Link
-                                key={index}
-                                href={subItem.path}
-                                className="block px-4 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200"
-                                onClick={(e) => {
-                                    console.log('[Sidebar] Internal submenu clicked:', subItem.label, subItem.path);
-                                    handleSubmenuClick(e);
-                                }}
-                            >
-                                {subItem.label}
-                            </Link>
-                        );
+    // ── Parent — expanded ──
+    return (
+        <div>
+            <div
+                className={`${itemBase} justify-between ${active ? activeParent : inactiveParent}`}
+                onClick={toggle}
+            >
+                <div className="flex items-center gap-2.5">
+                    {Icon && <Icon className="w-[1.1rem] h-[1.1rem] flex-shrink-0" />}
+                    <span className="truncate leading-none">{label}</span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {/* Submenu */}
+            <div className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
+                <div className="ml-3.5 mt-0.5 mb-1 pl-3 border-l-2 border-gray-100 space-y-0.5">
+                    {items.map((sub, i) => {
+                        const subActive = url === sub.path || url.startsWith(sub.path + '/');
+                        const subCls = `block px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            subActive
+                                ? 'text-indigo-700 bg-indigo-50 font-semibold'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                        }`;
+                        return isExt(sub.path)
+                            ? <a key={i} href={sub.path} target="_blank" rel="noopener noreferrer" className={subCls}>{sub.label}</a>
+                            : <Link key={i} href={sub.path} className={subCls}>{sub.label}</Link>;
                     })}
                 </div>
-            )}
+            </div>
         </div>
     );
 };
 
+// ── Sidebar ──────────────────────────────────────────────────────────────────
 const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsCollapsed = () => {}, user }) => {
-    const page = usePage();
-    const { auth } = page.props;
+    const page       = usePage();
+    const { auth }   = page.props;
     const currentUrl = page.url;
-    const [showLabels, setShowLabels] = useState(true);
-    const [userRole, setUserRole] = useState('No Role Assigned');
+
+    const [userRole,  setUserRole]  = useState('');
     const [userRoles, setUserRoles] = useState([]);
     const [openMenus, setOpenMenus] = useState({});
-    const sidebarRef = useRef(null);
-    
-    // Debug and process roles on component mount
+    const sidebarRef                = useRef(null);
+
+    // Resolve roles
     useEffect(() => {
-        console.log('Auth data:', auth);
-        console.log('User object:', auth?.user);
-        console.log('Roles array:', auth?.user?.roles);
-        
-        if (auth?.user) {
-            // Use the roles array if it exists
-            if (Array.isArray(auth.user.roles) && auth.user.roles.length > 0) {
-                setUserRoles(auth.user.roles);
-                setUserRole(auth.user.roles.map(role => role.name).join(', '));
-            } 
-            // Check if user has a role from the getRoleSlug method
-            else if (auth.user.role_slug) {
-                setUserRoles([{ name: auth.user.role_slug, slug: auth.user.role_slug }]);
-                setUserRole(auth.user.role_slug.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
-            }
-            // Fallback: Try using API call
-            else {
-                // Make an API call to get the user's role if needed
-                fetch(`/api/user/${auth.user.id}/roles`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.roles && data.roles.length > 0) {
-                            setUserRoles(data.roles);
-                            setUserRole(data.roles.map(role => role.name).join(', '));
-                        } else {
-                            // If no roles found via API, fallback to default
-                            setUserRole('No Role Assigned');
-                            setUserRoles([]);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching user roles:', error);
-                        // Default to superadmin access during development
-                        setUserRoles([{ name: 'superadmin', slug: 'superadmin' }]);
-                        setUserRole('Super Admin');
-                    });
-            }
+        if (!auth?.user) return;
+        if (Array.isArray(auth.user.roles) && auth.user.roles.length) {
+            setUserRoles(auth.user.roles);
+            setUserRole(auth.user.roles.map(r => r.name).join(', '));
+        } else if (auth.user.role_slug) {
+            setUserRoles([{ name: auth.user.role_slug, slug: auth.user.role_slug }]);
+            setUserRole(auth.user.role_slug.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+        } else {
+            fetch(`/api/user/${auth.user.id}/roles`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.roles?.length) {
+                        setUserRoles(data.roles);
+                        setUserRole(data.roles.map(r => r.name).join(', '));
+                    } else {
+                        setUserRoles([]);
+                        setUserRole('No Role');
+                    }
+                })
+                .catch(() => {
+                    setUserRoles([{ name: 'superadmin', slug: 'superadmin' }]);
+                    setUserRole('Super Admin');
+                });
         }
     }, [auth]);
 
-    // Close dropdowns when clicking outside
+    // Close menus on outside click
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-                setOpenMenus({});
-            }
+        const fn = (e) => {
+            if (sidebarRef.current && !sidebarRef.current.contains(e.target)) setOpenMenus({});
         };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        document.addEventListener('mousedown', fn);
+        return () => document.removeEventListener('mousedown', fn);
     }, []);
 
-    const hasAccess = (allowedRoles) => {
-        // During development or if roles are missing, show all items by default
+    const hasAccess = (allowed) => {
         if (!userRoles.length) return true;
-        
-        return allowedRoles.some(role => 
-            userRoles.some(userRole => 
-                userRole.name?.toLowerCase() === role.toLowerCase() || 
-                userRole.slug?.toLowerCase() === role.toLowerCase()
+        return allowed.some(role =>
+            userRoles.some(ur =>
+                ur.name?.toLowerCase() === role.toLowerCase() ||
+                ur.slug?.toLowerCase() === role.toLowerCase()
             )
         );
     };
 
-    // Determine which dashboard to show based on user role
     const getDashboardRoute = () => {
-        let dashboardPath;
-        if (hasAccess(['superadmin'])) {
-            dashboardPath = '/superadmin/dashboard';
-        } else if (hasAccess(['payroll_officer'])) {
-            dashboardPath = '/payroll/dashboard';
-        } else if (hasAccess(['manager'])) {
-            dashboardPath = '/manager/dashboard';
-        } else if (hasAccess(['finance'])) {
-            dashboardPath = '/finance/dashboard';
-        } else {
-            dashboardPath = '/employee/dashboard';
-        }
-        console.log('[Sidebar] getDashboardRoute():', {
-            userRoles,
-            dashboardPath,
-            hasAccessSuperadmin: hasAccess(['superadmin']),
-            hasAccessPayroll: hasAccess(['payroll_officer']),
-            hasAccessManager: hasAccess(['manager']),
-            hasAccessFinance: hasAccess(['finance'])
-        });
-        return dashboardPath;
+        if (hasAccess(['superadmin']))      return '/superadmin/dashboard';
+        if (hasAccess(['payroll_officer'])) return '/payroll/dashboard';
+        if (hasAccess(['manager']))         return '/manager/dashboard';
+        if (hasAccess(['finance']))         return '/finance/dashboard';
+        return '/employee/dashboard';
     };
 
     const menuItems = [
-        {
-            icon: LayoutDashboard,
-            label: 'Dashboard',
-            path: getDashboardRoute(),
-            allowedRoles: ['superadmin', 'payroll_officer', 'manager', 'finance', 'employee']
-        },
-        {
-            icon: Users,
-            label: 'Employees',
-            allowedRoles: ['superadmin', 'payroll_officer', 'manager'],
-            items: [
-                { label: 'Employee List', path: '/employees' },
-                { label: 'Import Employees', path: '/employees/import' }
-            ]
-        },
-        {
-            icon: ClipboardCheck,
-            label: 'Timesheets',
-            allowedRoles: ['superadmin', 'payroll_officer'],
-            items: [
-                { label: 'DTR', path: '/payroll-summaries-page' },
-                { label: 'Process Attendance', path: '/attendance' },
-                { label: 'Manual Entry', path: '/timesheet/manual-entry' },
-                { label: 'Biometrics', path: '/biometric-devices' },
-                // { label: 'Employee Schedule', path: '/employee-scheduling' },
-                // { label: 'PA2-Integration', path: '/payroll-schedule-integration' },
-                { label: 'Import Attendance', path: '/attendance/import' }
-            ]
-        },
-        {
-            icon: Wallet,
-            label: 'Payroll',
-            allowedRoles: ['superadmin', 'payroll_officer', 'finance'],
-            items: [
-                { label: 'Final Payroll', path: '/final-payrolls' },
-                { label: 'Payroll Summary', path: '/comprehensive-payroll-summaries' },
-                { label: 'Benefits', path: '/benefits' },
-                { label: 'Deductions', path: '/deductions' }
-            ]
-        },
-        {
-            icon: FileText,
-            label: 'Requests',
-            allowedRoles: ['superadmin', 'payroll_officer', 'manager', 'employee'],
-            items: [
-                { label: 'Overtime', path: '/overtimes' },
-                { label: 'Offset', path: '/offsets' },
-                { label: 'Change Restday', path: '/change-off-schedules' },
-                { label: 'Cancel Restday', path: '/cancel-rest-days' },
-                { label: 'Change Time Sched', path: '/time-schedules' },
-                { label: 'SLVL', path: '/slvl' },
-                { label: 'Travel Order', path: '/travel-orders' },
-                { label: 'Retro', path: '/retro' }
-            ]
-        },
-        {
-            icon: Building2,
-            label: 'Manage',
-            allowedRoles: ['superadmin'],
-            items: [
-                { label: 'Line & Section', path: '/manage/line-section' },
-                { label: 'Departments', path: '/manage/departments' },
-                { label: 'Roles And Access', path: '/manage/roles' }
-            ]
-        },
-        {
-            icon: UserCog,
-            label: 'Core HR',
-            allowedRoles: ['superadmin'],
-            items: [
-                { label: 'Promotion', path: '/core-hr/promotion' },
-                { label: 'Award', path: '/core-hr/award' },
-                { label: 'Travel', path: '/core-hr/travel' },
-                { label: 'Transfer', path: '/core-hr/transfer' },
-                { label: 'Resignations', path: '/core-hr/resignations' },
-                { label: 'Complaints', path: '/core-hr/complaints' },
-                { label: 'Warnings', path: '/core-hr/warnings' },
-                { label: 'Terminations', path: '/core-hr/terminations' }
-            ]
-        },
-        {
-            icon: Calendar,
-            label: 'HR Calendar',
-            allowedRoles: ['superadmin', 'payroll_officer'],
-            path: '/hr-calendar'
-        },
-        {
-            icon: FileBarChart,
-            label: 'HR Reports',
-            allowedRoles: ['superadmin', 'payroll_officer'],
-            items: [
-                { label: 'Daily Attendances', path: '/reports/daily-attendance' },
-                { label: 'Monthly Attendance', path: '/reports/monthly-attendance' },
-                { label: 'Training Report', path: '/reports/training' }
-            ]
-        },
-        {
-            icon: GraduationCap,
-            label: 'Training',
-            allowedRoles: ['superadmin'],
-            items: [
-                { label: 'Training Lists', path: '/training/lists' },
-                { label: 'Training Type', path: '/training/types' },
-                { label: 'Trainers', path: '/training/trainers' }
-            ]
-        },
-        {
-            icon: CalendarCheck,
-            label: 'Events & Meetings',
-            allowedRoles: ['superadmin'],
-            items: [
-                { label: 'Events', path: '/events' },
-                { label: 'Meetings', path: '/meetings' }
-            ]
-        },
-        {
-            icon: Settings,
-            label: 'Settings',
-            allowedRoles: ['superadmin'],
-            path: '/settings'
-        }
+        { icon: LayoutDashboard, label: 'Dashboard',        path: getDashboardRoute(), allowedRoles: ['superadmin','payroll_officer','manager','finance','employee'] },
+        { icon: Users,           label: 'Employees',        allowedRoles: ['superadmin','payroll_officer','manager'], items: [
+            { label: 'Employee List',    path: '/employees' },
+            { label: 'Import Employees', path: '/employees/import' },
+        ]},
+        { icon: ClipboardCheck,  label: 'Timesheets',       allowedRoles: ['superadmin','payroll_officer'], items: [
+            { label: 'DTR',                path: '/payroll-summaries-page' },
+            { label: 'Process Attendance', path: '/attendance' },
+            { label: 'Manual Entry',       path: '/timesheet/manual-entry' },
+            { label: 'Biometrics',         path: '/biometric-devices' },
+            { label: 'Import Attendance',  path: '/attendance/import' },
+        ]},
+        { icon: Wallet,          label: 'Payroll',          allowedRoles: ['superadmin','payroll_officer','finance'], items: [
+            { label: 'Final Payroll',   path: '/final-payrolls' },
+            { label: 'Payroll Summary', path: '/comprehensive-payroll-summaries' },
+            { label: 'Benefits',        path: '/benefits' },
+            { label: 'Deductions',      path: '/deductions' },
+        ]},
+        { icon: FileText,        label: 'Requests',         allowedRoles: ['superadmin','payroll_officer','manager','employee'], items: [
+            { label: 'Overtime',          path: '/overtimes' },
+            { label: 'Offset',            path: '/offsets' },
+            { label: 'Change Restday',    path: '/change-off-schedules' },
+            { label: 'Cancel Restday',    path: '/cancel-rest-days' },
+            { label: 'Change Time Sched', path: '/time-schedules' },
+            { label: 'SLVL',              path: '/slvl' },
+            { label: 'Travel Order',      path: '/travel-orders' },
+            { label: 'Retro',             path: '/retro' },
+        ]},
+        { icon: Building2,       label: 'Manage',           allowedRoles: ['superadmin'], items: [
+            { label: 'Line & Section', path: '/manage/line-section' },
+            { label: 'Departments',    path: '/manage/departments' },
+            { label: 'Roles & Access', path: '/manage/roles' },
+        ]},
+        { icon: UserCog,         label: 'Core HR',          allowedRoles: ['superadmin'], items: [
+            { label: 'Promotion',    path: '/core-hr/promotion' },
+            { label: 'Award',        path: '/core-hr/award' },
+            { label: 'Travel',       path: '/core-hr/travel' },
+            { label: 'Transfer',     path: '/core-hr/transfer' },
+            { label: 'Resignations', path: '/core-hr/resignations' },
+            { label: 'Complaints',   path: '/core-hr/complaints' },
+            { label: 'Warnings',     path: '/core-hr/warnings' },
+            { label: 'Terminations', path: '/core-hr/terminations' },
+        ]},
+        { icon: Calendar,        label: 'HR Calendar',      allowedRoles: ['superadmin','payroll_officer'], path: '/hr-calendar' },
+        { icon: FileBarChart,    label: 'HR Reports',       allowedRoles: ['superadmin','payroll_officer'], items: [
+            { label: 'Daily Attendances',  path: '/reports/daily-attendance' },
+            { label: 'Monthly Attendance', path: '/reports/monthly-attendance' },
+            { label: 'Training Report',    path: '/reports/training' },
+        ]},
+        { icon: GraduationCap,   label: 'Training',         allowedRoles: ['superadmin'], items: [
+            { label: 'Training Lists', path: '/training/lists' },
+            { label: 'Training Type',  path: '/training/types' },
+            { label: 'Trainers',       path: '/training/trainers' },
+        ]},
+        { icon: CalendarCheck,   label: 'Events & Meetings', allowedRoles: ['superadmin'], items: [
+            { label: 'Events',   path: '/events' },
+            { label: 'Meetings', path: '/meetings' },
+        ]},
+        { icon: Settings,        label: 'Settings',          allowedRoles: ['superadmin'], path: '/settings' },
     ];
 
-    // Auto-open the dropdown that contains the currently active page
+    // Groups
+    const groups = [
+        { label: 'Main',       keys: ['Dashboard', 'Employees'] },
+        { label: 'Operations', keys: ['Timesheets', 'Payroll', 'Requests'] },
+        { label: 'HR',         keys: ['Manage', 'Core HR', 'HR Calendar', 'HR Reports', 'Training', 'Events & Meetings'] },
+        { label: 'System',     keys: ['Settings'] },
+    ];
+
+    // Auto-open active parent
     useEffect(() => {
-        const activeMenus = {};
+        const active = {};
         menuItems.forEach(item => {
-            if (item.items) {
-                const isActive = item.items.some(subItem =>
-                    currentUrl === subItem.path || currentUrl.startsWith(subItem.path + '/')
-                );
-                if (isActive) {
-                    activeMenus[item.label] = true;
-                }
+            if (item.items?.some(s => currentUrl === s.path || currentUrl.startsWith(s.path + '/'))) {
+                active[item.label] = true;
             }
         });
-        if (Object.keys(activeMenus).length > 0) {
-            setOpenMenus(activeMenus);
-        }
+        if (Object.keys(active).length) setOpenMenus(active);
     }, [currentUrl]);
+
+    const visible = menuItems.filter(i => hasAccess(i.allowedRoles));
 
     return (
         <>
+            {/* Mobile overlay */}
             {open && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
                     onClick={() => setOpen(false)}
                 />
             )}
+
             <aside
                 ref={sidebarRef}
-                className={`fixed top-0 left-0 z-50 h-screen transition-all duration-300 ease-in-out shadow-md ${
-                    open ? 'translate-x-0' : '-translate-x-full'
-                } lg:translate-x-0`}
-                aria-label="Sidebar"
+                className={`
+                    fixed top-16 left-0 z-30
+                    h-[calc(100vh-4rem)]
+                    transition-all duration-300 ease-in-out
+                    ${open ? 'translate-x-0' : '-translate-x-full'}
+                    lg:translate-x-0
+                    ${isCollapsed ? 'w-[4.5rem]' : 'w-64'}
+                `}
             >
-                <div className={`h-full bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out relative overflow-hidden ${isCollapsed ? 'w-20' : 'w-64'}`}>
-                {/* Smoke animation background */}
-                <div className="smoke-animation"></div>
-                <div className="p-4 flex items-center justify-between border-b border-gray-200 relative z-10">
-                    {!isCollapsed && (
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
-                                Dashboard
-                            </h2>
-                            <p className="text-sm text-gray-500">
-                                {userRole}
-                            </p>
-                        </div>
-                    )}
-                    <div className="flex items-center gap-2">
+                <div className="h-full flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden">
+
+                    {/* ── Header ── */}
+                    <div className={`flex items-center border-b border-gray-100 px-3 py-3 flex-shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                         {!isCollapsed && (
-                            <button 
-                                onClick={() => setShowLabels(!showLabels)}
-                                className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-                                aria-label={showLabels ? "Hide labels" : "Show labels"}
-                                title={showLabels ? "Hide labels" : "Show labels"}
-                            >
-                                {/* Icon code removed for brevity */}
-                            </button>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-gray-800 leading-none truncate">Navigation</p>
+                                <p className="text-xs text-gray-400 leading-none mt-1 truncate">{userRole || '—'}</p>
+                            </div>
                         )}
                         <button
-                            onClick={() => {
-                                setIsCollapsed(!isCollapsed);
-                                // Close all dropdowns when collapsing
-                                if (!isCollapsed) {
-                                    setOpenMenus({});
-                                }
-                            }}
-                            className={`p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 relative z-20 ${isCollapsed ? 'mx-auto' : ''}`}
-                            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            onClick={() => { setIsCollapsed(v => !v); if (!isCollapsed) setOpenMenus({}); }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
+                            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                         >
-                            {isCollapsed ? (
-                                <ChevronRight className="w-5 h-5 text-gray-600" />
-                            ) : (
-                                <ChevronLeft className="w-5 h-5 text-gray-600" />
-                            )}
+                            {isCollapsed
+                                ? <ChevronRight className="w-4 h-4" />
+                                : <ChevronLeft  className="w-4 h-4" />}
                         </button>
                     </div>
-                </div>
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-                    <nav className="mt-4 px-2">
-                        {menuItems
-                            .filter(item => hasAccess(item.allowedRoles))
-                            .map((item, index) => (
-                                <MenuItem
-                                    key={index}
-                                    icon={item.icon}
-                                    label={item.label}
-                                    items={item.items}
-                                    path={item.path}
-                                    isCollapsed={isCollapsed}
-                                    showLabels={showLabels}
-                                    isLive={item.isLive}
-                                    openMenus={openMenus}
-                                    setOpenMenus={setOpenMenus}
-                                />
-                            ))}
+
+                    {/* ── Navigation ── */}
+                    <nav className="sidebar-nav flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
+                        {groups.map(group => {
+                            const groupItems = visible.filter(i => group.keys.includes(i.label));
+                            if (!groupItems.length) return null;
+                            return (
+                                <div key={group.label} className="mb-2">
+                                    {/* Group label */}
+                                    {!isCollapsed ? (
+                                        <p className="px-3 mb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                            {group.label}
+                                        </p>
+                                    ) : (
+                                        <div className="mx-2 my-2 h-px bg-gray-100" />
+                                    )}
+                                    <div className="space-y-0.5">
+                                        {groupItems.map((item, i) => (
+                                            <MenuItem
+                                                key={i}
+                                                icon={item.icon}
+                                                label={item.label}
+                                                items={item.items}
+                                                path={item.path}
+                                                isCollapsed={isCollapsed}
+                                                openMenus={openMenus}
+                                                setOpenMenus={setOpenMenus}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </nav>
+
+                    {/* ── Footer ── */}
+                    <div className="flex-shrink-0 border-t border-gray-100 px-3 py-3">
+                        {isCollapsed ? (
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 mx-auto flex items-center justify-center shadow-sm">
+                                <span className="text-white font-black" style={{ fontSize: '0.55rem' }}>EC</span>
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-gray-400 text-center font-medium">© 2025 EC HRIS</p>
+                        )}
+                    </div>
                 </div>
-                <div className="p-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 text-center">
-                        {!isCollapsed && "© 2025 Company Name"}
-                    </p>
-                </div>
-            </div>
-        </aside>
+            </aside>
         </>
     );
 };

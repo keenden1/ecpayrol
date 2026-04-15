@@ -1,119 +1,84 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/Components/Sidebar';
 import { Link, usePage } from '@inertiajs/react';
-import { Menu, X, LogOut, User, Bell, ChevronDown, RefreshCw, CheckCircle, XCircle, ChevronUp } from 'lucide-react';
+import {
+    Menu, X, LogOut, User, Bell,
+    ChevronDown, RefreshCw, CheckCircle, XCircle, ChevronUp
+} from 'lucide-react';
 
 // ── Background Sync Tracker ──────────────────────────────────────────────────
 function BgSyncTracker() {
     const loadJobs = () => {
-        try {
-            return JSON.parse(localStorage.getItem('bgSyncJobs') || '[]');
-        } catch { return []; }
+        try { return JSON.parse(localStorage.getItem('bgSyncJobs') || '[]'); }
+        catch { return []; }
     };
 
-    // Initialize synchronously from localStorage so pill shows immediately on any page
-    const [jobs, setJobs] = useState(() => loadJobs());
+    const [jobs, setJobs]           = useState(() => loadJobs());
     const [collapsed, setCollapsed] = useState(false);
-    const pollRef = useRef(null);
+    const pollRef                   = useRef(null);
 
-    const saveJobs = (jobs) => {
-        localStorage.setItem('bgSyncJobs', JSON.stringify(jobs));
-    };
+    const saveJobs = (j) => localStorage.setItem('bgSyncJobs', JSON.stringify(j));
 
     const pollJobs = async () => {
         const stored = loadJobs();
-        if (stored.length === 0) { setJobs([]); return; }
+        if (!stored.length) { setJobs([]); return; }
 
         const updated = await Promise.all(stored.map(async (job) => {
-            // Already terminal — keep for display, don't re-poll
             if (job.status === 'completed' || job.status === 'failed') return job;
             try {
-                const res = await fetch(`/biometric-devices/sync-raw-status/${job.logId}`, {
-                    headers: { Accept: 'application/json' },
-                });
+                const res  = await fetch(`/biometric-devices/sync-raw-status/${job.logId}`, { headers: { Accept: 'application/json' } });
                 const data = await res.json();
-                
-                // If it just finished, dispatch a refresh event
                 if (data.status === 'completed' || data.status === 'failed') {
-                    window.dispatchEvent(new CustomEvent('bgSyncJobCompleted', { 
-                        detail: { deviceId: job.deviceId, status: data.status } 
-                    }));
+                    window.dispatchEvent(new CustomEvent('bgSyncJobCompleted', { detail: { deviceId: job.deviceId, status: data.status } }));
                 }
-
                 return { ...job, status: data.status, stage: data.current_stage, totalLogs: data.total_logs, error: data.error_message, fetchTime: data.fetch_time };
-            } catch {
-                return job;
-            }
+            } catch { return job; }
         }));
 
         setJobs(updated);
-
-        // Persist terminal jobs for a short time then remove
-        const now = Date.now();
-        const pruned = updated.filter(j => {
-            if (j.status === 'completed' || j.status === 'failed') {
-                return !j.doneAt || (now - j.doneAt) < 8000;
-            }
-            return true;
-        }).map(j => {
-            if ((j.status === 'completed' || j.status === 'failed') && !j.doneAt) {
-                return { ...j, doneAt: now };
-            }
-            return j;
-        });
-
+        const now    = Date.now();
+        const pruned = updated
+            .filter(j => !(j.status === 'completed' || j.status === 'failed') || !j.doneAt || (now - j.doneAt) < 8000)
+            .map(j    => ((j.status === 'completed' || j.status === 'failed') && !j.doneAt) ? { ...j, doneAt: now } : j);
         saveJobs(pruned);
-        if (pruned.length === 0) setJobs([]);
+        if (!pruned.length) setJobs([]);
     };
 
     useEffect(() => {
         pollJobs();
         pollRef.current = setInterval(pollJobs, 3000);
-
-        const onJobAdded = () => { pollJobs(); };
-        window.addEventListener('bgSyncJobAdded', onJobAdded);
-
-        return () => {
-            clearInterval(pollRef.current);
-            window.removeEventListener('bgSyncJobAdded', onJobAdded);
-        };
+        const onAdded   = () => pollJobs();
+        window.addEventListener('bgSyncJobAdded', onAdded);
+        return () => { clearInterval(pollRef.current); window.removeEventListener('bgSyncJobAdded', onAdded); };
     }, []);
 
-    if (jobs.length === 0) return null;
+    if (!jobs.length) return null;
 
     return (
         <div className="fixed bottom-4 right-4 z-50 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
                 <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                    <RefreshCw className="w-3 h-3 text-indigo-500" />
-                    Background Sync
+                    <RefreshCw className="w-3 h-3 text-indigo-500" /> Background Sync
                 </span>
                 <button onClick={() => setCollapsed(c => !c)} className="text-gray-400 hover:text-gray-600">
                     <ChevronUp className={`w-3.5 h-3.5 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
                 </button>
             </div>
-
-            {/* Job list */}
             {!collapsed && (
                 <ul className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
                     {jobs.map(job => (
                         <li key={job.logId} className="px-3 py-2 flex items-start gap-2">
                             <div className="mt-0.5 flex-shrink-0">
-                                {job.status === 'completed'
-                                    ? <CheckCircle className="w-4 h-4 text-green-500" />
-                                    : job.status === 'failed'
-                                    ? <XCircle className="w-4 h-4 text-red-500" />
-                                    : <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />}
+                                {job.status === 'completed' ? <CheckCircle className="w-4 h-4 text-green-500" />
+                                 : job.status === 'failed'  ? <XCircle className="w-4 h-4 text-red-500" />
+                                 : <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-gray-800 truncate">{job.deviceName}</p>
                                 <p className="text-xs text-gray-500 truncate">
-                                    {job.status === 'completed'
-                                        ? `Done — ${job.totalLogs ?? 0} logs cached`
-                                        : job.status === 'failed'
-                                        ? (job.error || 'Sync failed')
-                                        : (job.stage || 'Starting...')}
+                                    {job.status === 'completed' ? `Done — ${job.totalLogs ?? 0} logs cached`
+                                     : job.status === 'failed'  ? (job.error || 'Sync failed')
+                                     : (job.stage || 'Starting...')}
                                 </p>
                             </div>
                         </li>
@@ -123,20 +88,133 @@ function BgSyncTracker() {
         </div>
     );
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
-export default function AuthenticatedLayout({ header, children }) {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false);
+// ── Main Layout ──────────────────────────────────────────────────────────────
+export default function AuthenticatedLayout({ children }) {
+    const [sidebarOpen, setSidebarOpen]   = useState(false);
+    const [isCollapsed, setIsCollapsed]   = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const { auth } = usePage().props;
+    const userMenuRef                     = useRef(null);
+    const { auth }                        = usePage().props;
 
-    if (!auth || !auth.user) {
-        return null;
-    }
+    // Close user menu on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+                setUserMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    if (!auth?.user) return null;
+
+    const initials = auth.user.name
+        ? auth.user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+        : '?';
 
     return (
         <div className="min-h-screen bg-gray-50">
+
+            {/* ══════════════════════════════════════
+                TOP NAVBAR — fixed, full width, z-40
+            ══════════════════════════════════════ */}
+            <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 gap-4 shadow-sm">
+
+                {/* Mobile hamburger */}
+                <button
+                    onClick={() => setSidebarOpen(v => !v)}
+                    className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                    {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+
+                {/* Logo — visible on mobile, hidden on desktop (sidebar has it) */}
+                <div className="flex items-center gap-2.5 lg:hidden">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md">
+                        <span className="text-xs font-black text-white">EC</span>
+                    </div>
+                    <span className="text-sm font-black text-gray-900">EC HRIS</span>
+                </div>
+
+                {/* Desktop: show brand name next to sidebar */}
+                <div className="hidden lg:flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md">
+                        <span className="text-xs font-black text-white">EC</span>
+                    </div>
+                    <div>
+                        <p className="text-sm font-black text-gray-900 leading-none">EC HRIS</p>
+                        <p className="text-xs text-gray-400 leading-none mt-0.5">Human Resource System</p>
+                    </div>
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Right side */}
+                <div className="flex items-center gap-2">
+
+                    {/* Bell */}
+                    <button className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+                        <Bell size={18} />
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                    </button>
+
+                    {/* User menu */}
+                    <div className="relative" ref={userMenuRef}>
+                        <button
+                            onClick={() => setUserMenuOpen(v => !v)}
+                            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0 shadow-md">
+                                {auth.user.photo_path
+                                    ? <img src={`/storage/${auth.user.photo_path}`} alt={auth.user.name} className="w-full h-full object-cover" />
+                                    : initials}
+                            </div>
+                            <div className="hidden sm:block text-left">
+                                <p className="text-sm font-semibold text-gray-800 leading-none">{auth.user.name}</p>
+                                <p className="text-xs text-gray-400 leading-none mt-0.5">
+                                    {auth.user.roles?.[0]?.name ?? 'User'}
+                                </p>
+                            </div>
+                            <ChevronDown size={14} className={`text-gray-400 transition-transform hidden sm:block ${userMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {userMenuOpen && (
+                            <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 overflow-hidden z-50">
+                                {/* User info header */}
+                                <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{auth.user.name}</p>
+                                    <p className="text-xs text-gray-400 truncate">{auth.user.email}</p>
+                                </div>
+                                <Link
+                                    href={route('profile.edit')}
+                                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                    onClick={() => setUserMenuOpen(false)}
+                                >
+                                    <User size={15} /> Profile
+                                </Link>
+                                <div className="border-t border-gray-100 mt-1 pt-1">
+                                    <Link
+                                        href={route('logout')}
+                                        method="post"
+                                        as="button"
+                                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                                        onClick={() => setUserMenuOpen(false)}
+                                    >
+                                        <LogOut size={15} /> Sign Out
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
+
+            {/* ══════════════════════════════════════
+                SIDEBAR — starts BELOW the navbar
+            ══════════════════════════════════════ */}
             <Sidebar
                 open={sidebarOpen}
                 setOpen={setSidebarOpen}
@@ -145,72 +223,11 @@ export default function AuthenticatedLayout({ header, children }) {
                 user={auth.user}
             />
 
-            <div className={`transition-all duration-300 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-                <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-                    <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-                        <button
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="lg:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
-                        >
-                            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-                        </button>
-
-                        <div className="flex-1" />
-
-                        <div className="flex items-center gap-4">
-                            <button className="p-2 rounded-md text-gray-600 hover:bg-gray-100 relative">
-                                <Bell size={20} />
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                            </button>
-
-                            <div className="relative">
-                                <button
-                                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                    className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100"
-                                >
-                                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-medium overflow-hidden">
-                                        {auth.user.photo_path ? (
-                                            <img
-                                                src={`/storage/${auth.user.photo_path}`}
-                                                alt={auth.user.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            auth.user.name.charAt(0)
-                                        )}
-                                    </div>
-                                    <span className="hidden sm:block text-sm font-medium text-gray-700">
-                                        {auth.user.name}
-                                    </span>
-                                    <ChevronDown size={16} className="text-gray-500" />
-                                </button>
-
-                                {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200">
-                                        <Link
-                                            href={route('profile.edit')}
-                                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >
-                                            <User size={16} />
-                                            Profile
-                                        </Link>
-                                        <Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                            className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >
-                                            <LogOut size={16} />
-                                            Logout
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <main className="p-4 sm:p-6 lg:p-8">
+            {/* ══════════════════════════════════════
+                MAIN CONTENT — offset top + left
+            ══════════════════════════════════════ */}
+            <div className={`transition-all duration-300 pt-16 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
+                <main className="p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-4rem)]">
                     {children}
                 </main>
             </div>
