@@ -179,6 +179,27 @@ function DashboardMockup() {
 /* ─────────────────────────────────────────────
    Main Page
 ───────────────────────────────────────────── */
+/* ─── Loading nav button ──────────────────────────────────────────────────── */
+function NavBtn({ href, children, className = '' }) {
+    const [loading, setLoading] = useState(false);
+    const handleClick = (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setTimeout(() => { window.location.href = href; }, 120);
+    };
+    return (
+        <button onClick={handleClick} disabled={loading}
+            className={`inline-flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-80 disabled:cursor-default ${className}`}>
+            {loading
+                ? <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                  </svg>
+                : children}
+        </button>
+    );
+}
+
 export default function Welcome({ auth, systemVersion }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -287,19 +308,19 @@ export default function Welcome({ auth, systemVersion }) {
                         ))}
                         <div className="h-5 w-px bg-white/20 mx-1" />
                         {auth?.user ? (
-                            <a href="/dashboard"
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-md shadow-indigo-500/25">
+                            <NavBtn href="/dashboard"
+                                className={`px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/25`}>
                                 Dashboard <ArrowRight className="h-4 w-4" />
-                            </a>
+                            </NavBtn>
                         ) : (
-                            <a href="/login"
-                                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                            <NavBtn href="/login"
+                                className={`px-5 py-2.5 rounded-xl text-sm font-semibold ${
                                     scrolled
                                         ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/25'
                                         : 'bg-white/15 text-white hover:bg-white/25 border border-white/25 backdrop-blur-sm'
                                 }`}>
                                 Log In
-                            </a>
+                            </NavBtn>
                         )}
                     </nav>
 
@@ -320,10 +341,10 @@ export default function Welcome({ auth, systemVersion }) {
                                 {link}
                             </a>
                         ))}
-                        <a href={auth?.user ? '/dashboard' : '/login'}
-                            className="block text-center px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm">
+                        <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                            className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm">
                             {auth?.user ? 'Dashboard' : 'Log In'}
-                        </a>
+                        </NavBtn>
                     </div>
                 </div>
             </header>
@@ -380,12 +401,12 @@ export default function Welcome({ auth, systemVersion }) {
                             {/* CTAs */}
                             <div className="flex flex-wrap items-center gap-4 mb-12"
                                 style={{ animation: 'heroFadeUp 0.7s ease 0.3s both' }}>
-                                <a href={auth?.user ? '/dashboard' : '/login'}
-                                    className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:-translate-y-0.5"
+                                <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                                    className="px-7 py-3.5 rounded-xl font-bold text-sm text-white hover:-translate-y-0.5"
                                     style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 8px 32px rgba(79,70,229,0.4)' }}>
-                                    {auth?.user ? 'Open Dashboard' : 'Sign in'}
-                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                                </a>
+                                    {auth?.user ? 'Open Dashboard' : 'Get Started'}
+                                    <ArrowRight className="h-4 w-4" />
+                                </NavBtn>
                             </div>
 
                             {/* Trust row */}
@@ -581,11 +602,11 @@ export default function Welcome({ auth, systemVersion }) {
                         <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
                             Join organizations already using EC HRIS to manage their workforce smarter, faster, and with full compliance.
                         </p>
-                        <a href={auth?.user ? '/dashboard' : '/login'}
-                            className="group inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-white text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition-all duration-200 shadow-2xl hover:-translate-y-0.5">
+                        <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                            className="px-8 py-4 rounded-xl bg-white text-indigo-700 font-bold text-sm hover:bg-indigo-50 shadow-2xl hover:-translate-y-0.5">
                             {auth?.user ? 'Open Dashboard' : 'Log in to EC HRIS'}
-                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </a>
+                            <ArrowRight className="h-4 w-4" />
+                        </NavBtn>
                     </Reveal>
                 </div>
             </section>
