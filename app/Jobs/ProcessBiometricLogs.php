@@ -72,63 +72,43 @@ class ProcessBiometricLogs implements ShouldQueue
                 $cached = json_decode(file_get_contents($cachePath), true);
                 $rawLogsFromDevice = $cached['logs'] ?? [];
             } else {
-                // Connect to device
-                $zk = new ZKTeco($device->ip_address, $device->port);
+                // Use Python/pyzk to fetch logs from device
+                $this->updateSyncLog([
+                    'status'        => 'fetching',
+                    'current_stage' => 'Fetching logs via Python (pyzk)...',
+                ]);
 
-                $this->updateSyncLog(['current_stage' => 'Establishing connection...']);
+                $pythonScript = base_path('biometric_sync.py');
+                $command = 'python ' . escapeshellarg($pythonScript)
+                    . ' ' . (int) $device->id
+                    . ' ' . (int) $this->syncLog->id
+                    . ' 2>&1';
 
-                $connectTimeout = 10;
-                $connected = false;
-                $connectStart = microtime(true);
+                $output     = [];
+                $returnCode = 0;
+                exec($command, $output, $returnCode);
 
-                while (!$connected && (microtime(true) - $connectStart) < $connectTimeout) {
-                    $connected = $zk->connect();
-                    if (!$connected) {
-                        usleep(500000); // 500ms
-                    }
+                if ($returnCode !== 0) {
+                    throw new \Exception(
+                        'Python fetch failed (exit ' . $returnCode . '): ' . implode("\n", $output)
+                    );
                 }
 
-                if (!$connected) {
-                    throw new \Exception('Failed to connect to device after ' . $connectTimeout . ' seconds');
+                // Python wrote the cache — read it
+                if (!file_exists($cachePath)) {
+                    throw new \Exception(
+                        'Python script completed but cache file was not found: ' . $cachePath
+                    );
                 }
 
-                // Fetch logs — retry up to 5x if device returns 0 (large log stores can cause the device to dump empty)
-                $maxFetchAttempts = 5;
-                $rawLogsFromDevice = [];
+                $cached            = json_decode(file_get_contents($cachePath), true);
+                $rawLogsFromDevice = $cached['logs'] ?? [];
 
-                for ($attempt = 1; $attempt <= $maxFetchAttempts; $attempt++) {
-                    $this->updateSyncLog([
-                        'status' => 'fetching',
-                        'current_stage' => $attempt === 1
-                            ? 'Retrieving attendance logs from device...'
-                            : "Device returned 0 logs — retrying ({$attempt}/{$maxFetchAttempts})...",
-                    ]);
-
-                    $rawLogsFromDevice = $zk->getAttendance();
-
-                    if (count($rawLogsFromDevice) > 0) {
-                        break;
-                    }
-
-                    if ($attempt < $maxFetchAttempts) {
-                        $zk->disconnect();
-                        sleep(4);
-                        $zk->connect();
-                    }
-                }
-
-                $zk->disconnect();
-
-                // Persist successful dump as cache for future use
-                if (count($rawLogsFromDevice) > 0) {
-                    file_put_contents($cachePath, json_encode([
-                        'device_id'   => $device->id,
-                        'device_name' => $device->name,
-                        'fetch_time'  => now()->toDateTimeString(),
-                        'total_logs'  => count($rawLogsFromDevice),
-                        'logs'        => $rawLogsFromDevice,
-                    ], JSON_PRETTY_PRINT));
-                }
+                // Python marked the log as completed — reset so PHP can continue processing
+                $this->updateSyncLog([
+                    'status'        => 'processing',
+                    'current_stage' => 'Python fetch complete — processing ' . count($rawLogsFromDevice) . ' logs...',
+                ]);
             }
 
             $this->saveRawLogsToFile($rawLogsFromDevice, $device, 'raw_unfiltered');

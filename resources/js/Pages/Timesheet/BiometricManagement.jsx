@@ -338,7 +338,6 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         const extras = {};
         if (fetchStartDate) extras.start_date = fetchStartDate;
         if (fetchEndDate) extras.end_date = fetchEndDate;
-        if (fetchUseLimit) extras.limit = 100;
         if (fetchUseCached && jsonCacheInfo[deviceId]?.exists) extras.use_cache = true;
 
         setActiveSyncs(prev => {
@@ -380,6 +379,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
             setTimeout(() => {
                 if (data.success && data.preview) {
+                    if (!extras.use_cache) {
+                        router.reload({ only: ['jsonCacheInfo'] });
+                    }
                     updateSync(deviceId, {
                         status: 'preview',
                         isExpanded: true,
@@ -389,6 +391,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                         previewPage: 1,
                     });
                 } else if (data.success) {
+                    if (!extras.use_cache) {
+                        router.reload({ only: ['jsonCacheInfo'] });
+                    }
                     updateSync(deviceId, { status: 'no_records', isExpanded: true, previewSummary: data.summary ?? {} });
                 } else {
                     toast.error(`${device.name}: ${data.message || "Unknown error"}`);
@@ -1189,13 +1194,6 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                     <ServerCrash className="w-5 h-5" />
                 </button>
 
-                <button
-                    onClick={() => setSyncConfirmDevice(device)}
-                    className="text-green-600 hover:text-green-900"
-                    title="Sync (PHP)"
-                >
-                    <RefreshCw className="w-5 h-5" />
-                </button>
                 <button
                     onClick={() => setPythonSyncConfirmDevice(device)}
                     className="text-orange-600 hover:text-orange-900"
