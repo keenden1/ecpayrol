@@ -27,7 +27,7 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
             'photoUrl' => $user->photo_path
-                ? Storage::url($user->photo_path)
+                ? Storage::disk('public')->url($user->photo_path)
                 : null,
         ]);
     }
@@ -47,7 +47,7 @@ class ProfileController extends Controller
         if ($request->hasFile('photo')) {
             // Delete old photo if exists
             if ($user->photo_path) {
-                Storage::delete($user->photo_path);
+                Storage::disk('public')->delete($user->photo_path);
             }
             $user->photo_path = $request->file('photo')->store('profile-photos', 'public');
         }
@@ -88,7 +88,7 @@ class ProfileController extends Controller
         Auth::logout();
 
         if ($user->photo_path) {
-            Storage::delete($user->photo_path);
+            Storage::disk('public')->delete($user->photo_path);
         }
 
         $user->delete();
