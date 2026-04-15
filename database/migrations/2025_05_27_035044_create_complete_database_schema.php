@@ -11,17 +11,17 @@ return new class extends Migration
     public function up()
     {
         // 1. Users table (should be first due to foreign key relationships)
-        // Schema::create('users', function (Blueprint $table) {
-        //     $table->id();
-        //     $table->string('name');
-        //     $table->string('email')->unique();
-        //     $table->timestamp('email_verified_at')->nullable();
-        //     $table->string('password');
-        //     $table->string('employee_idno')->nullable();
-        //     $table->boolean('is_employee')->default(false);
-        //     $table->rememberToken();
-        //     $table->timestamps();
-        // });
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->string('employee_idno')->nullable();
+            $table->boolean('is_employee')->default(false);
+            $table->rememberToken();
+            $table->timestamps();
+        });
 
         // 2. Roles table
         Schema::create('roles', function (Blueprint $table) {
