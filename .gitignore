@@ -29,6 +29,9 @@ New folder/
 # Composer
 composer.phar
 
+# Claude Code
+.claude/
+
 # IDE
 .idea/
 .vscode/
