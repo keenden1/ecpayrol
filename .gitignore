@@ -10,6 +10,7 @@ New folder/
 /node_modules/
 
 # Laravel generated
+/public/image
 /public/hot
 /public/storage
 /storage/*.key

@@ -180,7 +180,7 @@ function DashboardMockup() {
    Main Page
 ───────────────────────────────────────────── */
 /* ─── Loading nav button ──────────────────────────────────────────────────── */
-function NavBtn({ href, children, className = '' }) {
+function NavBtn({ href, children, className = '', style }) {
     const [loading, setLoading] = useState(false);
     const handleClick = (e) => {
         e.preventDefault();
@@ -188,7 +188,7 @@ function NavBtn({ href, children, className = '' }) {
         setTimeout(() => { window.location.href = href; }, 120);
     };
     return (
-        <button onClick={handleClick} disabled={loading}
+        <button onClick={handleClick} disabled={loading} style={style}
             className={`inline-flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-80 disabled:cursor-default ${className}`}>
             {loading
                 ? <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">

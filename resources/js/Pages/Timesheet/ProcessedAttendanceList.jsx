@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Search, Calendar, Filter, Edit, RefreshCw, Clock, AlertTriangle, CheckCircle, Download, Trash2, X, Users, FileText, Eye, Moon, Sun, AlertCircle, CheckCircle2, Info, Calculator, Car, Upload, Calendar as CalendarIcon, Target, Send, Save, AlertOctagon } from 'lucide-react';
+import { Search, Calendar, Filter, Edit, RefreshCw, Clock, AlertTriangle, CheckCircle, Download, Trash2, X, Users, FileText, Eye, Moon, Sun, AlertCircle, CheckCircle2, Info, Calculator, Car, Upload, Calendar as CalendarIcon, Target, Send, Save, AlertOctagon, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/Components/ui/alert';
 import { Button } from '@/Components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -55,7 +55,7 @@ const EditableCell = ({ value, onChange, type = 'text', fieldName, recordId, cla
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className={`w-full px-1 py-0.5 text-sm border border-blue-500 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${className}`}
+        className={`w-full px-1 py-0.5 text-sm border border-indigo-500 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 ${className}`}
         onClick={(e) => e.stopPropagation()}
       />
     );
@@ -64,7 +64,7 @@ const EditableCell = ({ value, onChange, type = 'text', fieldName, recordId, cla
   return (
     <div
       onDoubleClick={handleDoubleClick}
-      className={`cursor-pointer hover:bg-blue-50 px-1 py-0.5 rounded min-h-[24px] ${className}`}
+      className={`cursor-pointer hover:bg-indigo-50 px-1 py-0.5 rounded min-h-[24px] ${className}`}
       title="Double-click to edit"
     >
       {value || '-'}
@@ -1936,574 +1936,251 @@ const handleAutoRecalculate = async (showMessage = false) => {
   applyFilters();
 }, [dateFilter, departmentFilter, editsOnlyFilter, nightShiftFilter, postingStatusFilter, problemsOnlyFilter]);
 
+  // ── shared button helpers ────────────────────────────────────────────────────
+  const actionBtn = (color, onClick, disabled, children, title = '') => (
+    <button onClick={onClick} disabled={disabled} title={title}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors disabled:opacity-50 ${color}`}>
+      {children}
+    </button>
+  );
+
   return (
     <AuthenticatedLayout user={auth.user}>
       <Head title="Processed Attendance List" />
-      <div className="max-w-7xl mx-auto">
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-6">
-              {/* Header Text Section */}
-              <div className="mb-4">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                  Processed Attendance Records (Non-Posted Only)
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600">
-                  View and manage non-posted attendance records with manual sync control and payroll posting.
-                </p>
-                <p className="text-xs sm:text-sm text-blue-600 mt-1">
-                  💡 <strong>Inline Editing:</strong> Double-click any cell to edit directly. Click "Save Changes" when done. Use "Sync Data" to manually sync.
-                </p>
-                <p className="text-xs sm:text-sm text-amber-600 mt-1">
-                  ⚠️ Auto-sync is disabled. Edited cells appear with yellow background. Save changes before leaving.
-                </p>
-                {recalculated_count > 0 && (
-                  <p className="text-xs sm:text-sm text-green-600 mt-1">
-                    ✅ Recalculated {recalculated_count} records on load
-                  </p>
-                )}
-              </div>
-              
-              {/* Action Buttons Section */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* POST Button - Primary Action */}
-                <Button
-                  onClick={() => setShowPostModal(true)}
-                  disabled={posting}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 text-xs sm:text-sm"
-                >
-                  {posting ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Posting...</span>
-                      <span className="sm:hidden">Post...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">POST to Payroll</span>
-                      <span className="sm:hidden">POST</span>
-                    </>
-                  )}
-                </Button>
+      <div className="max-w-7xl mx-auto space-y-5">
 
-                <Button
-                  onClick={handleDetectDtrProblems}
-                  disabled={detectingProblems || loading}
-                  variant="outline"
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white border-red-600 text-xs sm:text-sm"
-                  title="Detect DTR problems in current view"
-                >
-                  {detectingProblems ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Detecting...</span>
-                      <span className="sm:hidden">Det...</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">Detect DTR Problems</span>
-                      <span className="sm:hidden">DTR Check</span>
-                    </>
+          {/* ── Page Header ──────────────────────────────────────────────────── */}
+          <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg">
+            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+            <div className="relative">
+              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                <div>
+                  <p className="text-indigo-200 text-xs font-medium mb-1">Timesheet</p>
+                  <h1 className="text-xl font-bold text-white">Processed Attendance Records</h1>
+                  <p className="text-indigo-200 text-xs mt-1">Non-posted records only · Double-click a row to edit · Hold 1s to view details</p>
+                  {recalculated_count > 0 && (
+                    <p className="text-emerald-300 text-xs mt-1">✓ Recalculated {recalculated_count} records on load</p>
                   )}
-                </Button>
+                </div>
 
-                <Button
-                  onClick={() => handleAutoRecalculate(true)}
-                  disabled={recalculating || loading} // FIXED: Also disable when loading
-                  variant="outline"
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600 text-xs sm:text-sm"
-                  title="Manually recalculate late/undertime for current view"
-                >
-                  {recalculating ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Recalculating...</span>
-                      <span className="sm:hidden">Calc...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Calculator className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">Recalculate</span>
-                      <span className="sm:hidden">Calc</span>
-                    </>
-                  )}
-                </Button>
+                {/* Action toolbar */}
+                <div className="flex flex-col gap-2 items-end">
 
-                <Button
-                  onClick={handleDownloadTemplate}
-                  disabled={exporting}
-                  variant="outline"
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 text-xs sm:text-sm"
-                >
-                  {exporting ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Downloading...</span>
-                      <span className="sm:hidden">Down...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">Download</span>
-                      <span className="sm:hidden">Down</span>
-                    </>
-                  )}
-                </Button>
+                  {/* ── Row 1: Primary workflow actions ── */}
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {/* POST — most prominent */}
+                    {actionBtn('bg-emerald-500 hover:bg-emerald-600', () => setShowPostModal(true), posting,
+                      posting ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Posting…</> : <><Send className="w-3.5 h-3.5" />POST to Payroll</>
+                    )}
 
-                <Button
-                  onClick={() => setShowImportModal(true)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 text-xs sm:text-sm"
-                >
-                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  Import
-                </Button>
+                    <div className="w-px h-5 bg-white/30 hidden sm:block" />
 
-                <Button
-                  onClick={() => setShowHolidayModal(true)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 text-xs sm:text-sm"
-                >
-                  <Target className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Set Holiday</span>
-                  <span className="sm:hidden">Holiday</span>
-                </Button>
-                
-                <Button
-                  onClick={handleExport}
-                  disabled={exporting}
-                  variant="outline"
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 text-xs sm:text-sm"
-                >
-                  {exporting ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Exporting...</span>
-                      <span className="sm:hidden">Exp...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      Export
-                    </>
-                  )}
-                </Button>
-                
-                {selectedIds.length > 0 && (
-                  <Button
-                    onClick={() => {
-                      setDeleteMode('selected');
-                      setShowDeleteModal(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="bg-red-600 hover:bg-red-700 text-white border-red-600 text-xs sm:text-sm"
-                  >
-                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    <span className="hidden sm:inline">Delete ({selectedIds.length})</span>
-                    <span className="sm:hidden">Del ({selectedIds.length})</span>
-                  </Button>
-                )}
-                
-                <Button
-                  onClick={() => {
-                    setDeleteMode('range');
-                    setShowDeleteModal(true);
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white border-red-600 text-xs sm:text-sm"
-                >
-                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Delete Range</span>
-                  <span className="sm:hidden">Del Range</span>
-                </Button>
-                
-                <Button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
-                >
-                  {syncing ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                      <span className="hidden sm:inline">Syncing...</span>
-                      <span className="sm:hidden">Sync...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">Sync Data</span>
-                      <span className="sm:hidden">Sync</span>
-                    </>
-                  )}
-                </Button>
+                    {/* Detect DTR */}
+                    {actionBtn('bg-red-500 hover:bg-red-600', handleDetectDtrProblems, detectingProblems || loading,
+                      detectingProblems ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Detecting…</> : <><AlertTriangle className="w-3.5 h-3.5" />Detect DTR Problems</>,
+                      'Detect DTR problems in current view'
+                    )}
+                    {/* Recalculate */}
+                    {actionBtn('bg-violet-500 hover:bg-violet-600', () => handleAutoRecalculate(true), recalculating || loading,
+                      recalculating ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Recalculating…</> : <><Calculator className="w-3.5 h-3.5" />Recalculate</>,
+                      'Manually recalculate late/undertime'
+                    )}
+                    {/* Sync */}
+                    {actionBtn('bg-white/20 hover:bg-white/30', handleSync, syncing,
+                      syncing ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Syncing…</> : <><RefreshCw className="w-3.5 h-3.5" />Sync Data</>
+                    )}
 
-                {/* SAVE CHANGES BUTTON - Prominent when there are unsaved changes */}
-                {hasUnsavedChanges && (
-                  <>
-                    <Button
-                      onClick={() => setShowSaveConfirmModal(true)}
-                      disabled={savingChanges}
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm animate-pulse"
-                    >
-                      {savingChanges ? (
-                        <>
-                          <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
-                          <span className="hidden sm:inline">Saving...</span>
-                          <span className="sm:hidden">Save...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                          <span className="hidden sm:inline">Save Changes ({Object.keys(editedRecords).length})</span>
-                          <span className="sm:hidden">Save ({Object.keys(editedRecords).length})</span>
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={handleDiscardChanges}
-                      disabled={savingChanges}
-                      variant="outline"
-                      size="sm"
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs sm:text-sm"
-                    >
-                      <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="hidden sm:inline">Discard</span>
-                    </Button>
-                  </>
-                )}
+                    {/* Save / Discard (unsaved) */}
+                    {hasUnsavedChanges && (
+                      <>
+                        <div className="w-px h-5 bg-white/30 hidden sm:block" />
+                        {actionBtn('bg-emerald-400 hover:bg-emerald-500 animate-pulse', () => setShowSaveConfirmModal(true), savingChanges,
+                          savingChanges ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Saving…</> : <><Save className="w-3.5 h-3.5" />Save ({Object.keys(editedRecords).length})</>
+                        )}
+                        <button onClick={handleDiscardChanges} disabled={savingChanges}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors disabled:opacity-50">
+                          <X className="w-3.5 h-3.5" /> Discard
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── Row 2: Utility & file actions ── */}
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {/* File ops */}
+                    {actionBtn('bg-sky-500 hover:bg-sky-600', handleDownloadTemplate, exporting,
+                      exporting ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Downloading…</> : <><Download className="w-3.5 h-3.5" />Download</>
+                    )}
+                    {actionBtn('bg-indigo-400 hover:bg-indigo-500', () => setShowImportModal(true), false,
+                      <><Upload className="w-3.5 h-3.5" />Import</>
+                    )}
+                    {actionBtn('bg-teal-500 hover:bg-teal-600', handleExport, exporting,
+                      exporting ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Exporting…</> : <><FileText className="w-3.5 h-3.5" />Export</>
+                    )}
+
+                    <div className="w-px h-5 bg-white/30 hidden sm:block" />
+
+                    {/* Set Holiday */}
+                    {actionBtn('bg-amber-500 hover:bg-amber-600', () => setShowHolidayModal(true), false,
+                      <><Target className="w-3.5 h-3.5" />Set Holiday</>
+                    )}
+
+                    <div className="w-px h-5 bg-white/30 hidden sm:block" />
+
+                    {/* Delete selected */}
+                    {selectedIds.length > 0 && actionBtn('bg-red-500 hover:bg-red-600', () => { setDeleteMode('selected'); setShowDeleteModal(true); }, false,
+                      <><Trash2 className="w-3.5 h-3.5" />Delete ({selectedIds.length})</>
+                    )}
+                    {/* Delete range */}
+                    {actionBtn('bg-white/10 hover:bg-white/20 border border-white/30', () => { setDeleteMode('range'); setShowDeleteModal(true); }, false,
+                      <><Trash2 className="w-3.5 h-3.5" />Delete Range</>
+                    )}
+                  </div>
+
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Unsaved Changes Warning Banner */}
+            {/* Unsaved Changes Banner */}
             {hasUnsavedChanges && (
-              <Alert className="mb-4 border-amber-400 bg-amber-50">
-                <AlertOctagon className="h-4 w-4 mr-2 text-amber-600" />
-                <AlertDescription className="text-amber-800 flex items-center justify-between">
-                  <span>
-                    <strong>You have {Object.keys(editedRecords).length} unsaved change(s).</strong> Double-click any cell to edit. Click "Save Changes" to save all edits.
-                  </span>
-                  <div className="flex space-x-2 ml-4">
-                    <Button
-                      onClick={() => setShowSaveConfirmModal(true)}
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      <Save className="h-3 w-3 mr-1" />
-                      Save All
-                    </Button>
-                    <Button
-                      onClick={handleDiscardChanges}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Discard
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="mb-4 border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                <AlertDescription className="text-green-800">{success}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Show recalculation status */}
-            {recalculating && (
-              <Alert className="mb-4 border-purple-200 bg-purple-50">
-                <Calculator className="h-4 w-4 mr-2 text-purple-600 animate-pulse" />
-                <AlertDescription className="text-purple-800">
-                  Recalculating attendance metrics for accurate late/undertime display...
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Show posting status */}
-            {posting && (
-              <Alert className="mb-4 border-green-200 bg-green-50">
-                <Send className="h-4 w-4 mr-2 text-green-600 animate-pulse" />
-                <AlertDescription className="text-green-800">
-                  Posting attendance records to payroll summaries...
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Filters Card */}
-            <Card className="mb-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Filters</span>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <span>Manual Sync Mode</span>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-xs text-gray-500">(Use "Sync Data" button)</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <input
-                      type="text"
-                      placeholder="Search by ID or Name..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="date"
-                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={dateFilter}
-                        onChange={(e) => setDateFilter(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <select
-                      className="w-full pl-4 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      value={departmentFilter}
-                      onChange={(e) => setDepartmentFilter(e.target.value)}
-                    >
-                      <option value="">All Departments</option>
-                      {departments.map((dept) => (
-                        <option key={dept} value={dept}>
-                          {dept}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <select
-                      className="w-full pl-4 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      value={postingStatusFilter}
-                      onChange={(e) => setPostingStatusFilter(e.target.value)}
-                    >
-                      <option value="">All Status</option>
-                      <option value="posted">Posted</option>
-                      <option value="not_posted">Not Posted</option>
-                    </select>
-                  </div>
+              <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                <div className="flex items-center gap-2 text-amber-800 text-sm">
+                  <AlertOctagon className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                  <span><strong>{Object.keys(editedRecords).length} unsaved change(s).</strong> Click "Save Changes" to save all edits.</span>
                 </div>
-                
-                {/* Second row of filters */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-                        checked={editsOnlyFilter}
-                        onChange={(e) => setEditsOnlyFilter(e.target.checked)}
-                      />
-                      <span className="text-gray-700">Edited Records Only</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-5 w-5 text-red-600 rounded focus:ring-red-500"
-                        checked={problemsOnlyFilter}
-                        onChange={(e) => setProblemsOnlyFilter(e.target.checked)}
-                      />
-                      <div className="flex items-center space-x-1">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <span className="text-gray-700">Problems Only</span>
-                      </div>
-                    </label>
-                  </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowSaveConfirmModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                    <Save className="w-3.5 h-3.5" /> Save All
+                  </button>
+                  <button onClick={handleDiscardChanges} className="px-3 py-1.5 border border-amber-300 text-amber-700 text-xs font-semibold rounded-lg hover:bg-amber-100 transition-colors">Discard</button>
                 </div>
-                
-                {/* <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={resetFilters}>Reset</Button>
-                  <Button onClick={applyFilters}>
-                    <Filter className="h-4 w-4 mr-2" />
-                    Apply Filters
-                  </Button>
-                </div> */}
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <Users className="h-8 w-8 text-blue-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Total Records</p>
-                      <p className="text-2xl font-bold text-gray-900">{attendances.length}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {error      && <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-700"><AlertTriangle className="w-4 h-4 flex-shrink-0" />{error}</div>}
+            {success    && <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-700"><CheckCircle className="w-4 h-4 flex-shrink-0" />{success}</div>}
+            {recalculating && <div className="flex items-center gap-2 px-4 py-3 bg-violet-50 border border-violet-200 rounded-2xl text-sm text-violet-700"><Calculator className="w-4 h-4 flex-shrink-0 animate-pulse" />Recalculating attendance metrics…</div>}
+            {posting    && <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-700"><Send className="w-4 h-4 flex-shrink-0 animate-pulse" />Posting attendance records to payroll summaries…</div>}
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-8 w-8 text-red-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Problem Records</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {attendances.filter(att => {
-                          const problems = detectRecordProblems(att);
-                          return problems && problems.length > 0;
-                        }).length}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <Edit className="h-8 w-8 text-orange-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Edited Records</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {attendances.filter(att => att.source === 'manual_edit').length}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <Moon className="h-8 w-8 text-purple-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Night Shifts</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {attendances.filter(att => att.is_nightshift).length}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-8 w-8 text-green-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Selected</p>
-                      <p className="text-2xl font-bold text-gray-900">{selectedIds.length}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center">
-                    <FileText className="h-8 w-8 text-purple-500" />
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Current Page</p>
-                      <p className="text-2xl font-bold text-gray-900">{currentPage} of {totalPages}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* ── Filters ────────────────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" />Filters</p>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+                  Manual Sync Mode
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input type="text" placeholder="Search by ID or Name…"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input type="date"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
+                </div>
+                <select className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+                  <option value="">All Departments</option>
+                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  value={postingStatusFilter} onChange={(e) => setPostingStatusFilter(e.target.value)}>
+                  <option value="">All Status</option>
+                  <option value="posted">Posted</option>
+                  <option value="not_posted">Not Posted</option>
+                </select>
+              </div>
+              <div className="flex flex-wrap gap-5">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={editsOnlyFilter} onChange={(e) => setEditsOnlyFilter(e.target.checked)} />
+                  Edited Records Only
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-500"
+                    checked={problemsOnlyFilter} onChange={(e) => setProblemsOnlyFilter(e.target.checked)} />
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> Problems Only
+                </label>
+              </div>
             </div>
 
-            {/* Table container */}
-            <div className="bg-white rounded-lg shadow h-[70vh] flex flex-col w-full">
+            {/* ── Summary Stats ──────────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+              {[
+                { icon: Users,         label: 'Total Records',   value: attendances.length,                                                                       color: 'bg-indigo-500',  top: 'bg-indigo-500'  },
+                { icon: AlertTriangle, label: 'Problem Records', value: attendances.filter(a => detectRecordProblems(a).length > 0).length,                       color: 'bg-red-500',     top: 'bg-red-500'     },
+                { icon: Edit,          label: 'Edited Records',  value: attendances.filter(a => a.source === 'manual_edit').length,                               color: 'bg-amber-500',   top: 'bg-amber-500'   },
+                { icon: Moon,          label: 'Night Shifts',    value: attendances.filter(a => a.is_nightshift).length,                                          color: 'bg-violet-500',  top: 'bg-violet-500'  },
+                { icon: CheckCircle,   label: 'Selected',        value: selectedIds.length,                                                                       color: 'bg-emerald-500', top: 'bg-emerald-500' },
+                { icon: FileText,      label: 'Current Page',    value: `${currentPage} / ${totalPages}`,                                                        color: 'bg-sky-500',     top: 'bg-sky-500'     },
+              ].map(({ icon: Icon, label, value, color, top }) => (
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className={`h-1 ${top}`} />
+                  <div className="p-3 flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                      <Icon className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Table ──────────────────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-[70vh] flex flex-col overflow-hidden">
               {loading ? (
-                <div className="flex justify-center items-center h-full">
-                  <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
-                  <span className="ml-2 text-lg">Loading...</span>
+                <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                  <RefreshCw className="w-7 h-7 text-indigo-500 animate-spin" />
+                  <p className="text-sm text-gray-500">Loading records…</p>
                 </div>
               ) : attendances.length === 0 ? (
-                <div className="text-center py-12 flex-1 flex flex-col justify-center">
-                  <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No attendance records found</h3>
-                  <p className="text-gray-500">Try adjusting your filters or adding new attendance data.</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
+                    <Clock className="w-8 h-8 text-indigo-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-700 mb-1">No attendance records found</p>
+                  <p className="text-xs text-gray-400">Try adjusting your filters or adding new attendance data.</p>
                 </div>
               ) : (
                 <>
                   <div className="flex-1 overflow-hidden flex flex-col">
                     <div className="overflow-x-auto flex-1">
                       <table className="min-w-full divide-y divide-gray-200 h-full">
-                        <thead className="bg-gray-50 sticky top-0 z-10">
+                        <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                         <tr>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <input
-                              type="checkbox"
-                              className="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                              checked={selectAll}
-                              onChange={(e) => handleSelectAll(e.target.checked)}
-                            />
+                          <th className="px-2 py-2.5 text-left">
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              checked={selectAll} onChange={(e) => handleSelectAll(e.target.checked)} />
                           </th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dept</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time In</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Break Out</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Break In</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Out</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Late/Under</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Night Shift</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OT</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Travel</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SLVL</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CT</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CS</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Holiday</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offset</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rest Day</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retro</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center space-x-1">
-                              <Car className="h-4 w-4" />
-                              <span>Trip</span>
-                            </div>
-                          </th>
-                          {/* ADD THESE NEW COLUMNS */}
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OT Reg</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OT Spl</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center space-x-1">
-                              <AlertTriangle className="h-4 w-4 text-red-500" />
-                              <span>DTR Status</span>
-                            </div>
-                          </th>
-                          <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          {['Employee','Dept','Date','Time In','Break Out','Break In','Time Out','Late/Under','Night Shift','Hours','OT','Travel','SLVL','CT','CS','Holiday','Offset','Rest Day','Retro'].map(h => (
+                            <th key={h} className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"><span className="flex items-center gap-1"><Car className="w-3 h-3" />Trip</span></th>
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">OT Reg</th>
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">OT Spl</th>
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Source</th>
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                          <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"><span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-red-500" />DTR</span></th>
+                          <th className="px-2 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                         </tr>
                       </thead>
-                        <tbody className="bg-white divide-y divide-gray-200 overflow-y-auto">
+                        <tbody className="bg-white divide-y divide-gray-50 overflow-y-auto">
                           {attendances.map((attendance) => (
-                            <tr 
-                                key={attendance.id} 
-                                className={`hover:bg-blue-50 cursor-pointer transition-colors select-none ${
-                                  attendance.source === 'manual_edit' ? 'bg-red-50' : ''
-                                } ${isHolding ? 'bg-blue-100' : ''} ${
+                            <tr
+                                key={attendance.id}
+                                className={`hover:bg-indigo-50/40 cursor-pointer transition-colors select-none ${
+                                  attendance.source === 'manual_edit' ? 'bg-red-50/60' : ''
+                                } ${isHolding ? 'bg-indigo-100/40' : ''} ${
                                   (() => {
                                     const problems = detectRecordProblems(attendance);
                                     return problems && problems.length > 0 ? 'border-l-4 border-red-400' : '';
@@ -2733,36 +2410,19 @@ const handleAutoRecalculate = async (showMessage = false) => {
                                   {renderProblemsTooltip(attendance)}
                                 </div>
                               </td>
-                              <td 
-                                className="px-2 py-4 whitespace-nowrap text-right text-sm font-medium"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="flex justify-end space-x-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAttendance(attendance);
-                                      setShowInfoModal(true);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900"
-                                    type="button"
-                                    title="View Details"
-                                  >
-                                    <Info className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
+                              <td className="px-2 py-3 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-end gap-1">
+                                  <button type="button" title="View Details"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedAttendance(attendance); setShowInfoModal(true); }}
+                                    className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors">
+                                    <Info className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button type="button" title="Edit Attendance"
                                     onClick={(e) => handleEditClick(e, attendance)}
                                     disabled={isEditingRef.current}
-                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    type="button"
-                                    title="Edit Attendance"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
+                                    className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors disabled:opacity-40">
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -2773,169 +2433,60 @@ const handleAutoRecalculate = async (showMessage = false) => {
                   </div>
 
                   {/* Pagination */}
-                  <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 bg-white">
-                    <div className="flex-1 flex justify-between sm:hidden">
-                      <Button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Next
-                      </Button>
-                    </div>
-                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm text-gray-700">
-                          Showing page <span className="font-medium">{currentPage}</span> of{' '}
-                          <span className="font-medium">{totalPages}</span>
-                        </p>
-                      </div>
-                      <div>
-                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                          <Button
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-l-md"
-                          >
-                            First
-                          </Button>
-                          <Button
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage === 1}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Previous
-                          </Button>
-                          
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            const pageNum = currentPage <= 3 
-                              ? i + 1 
-                              : (currentPage >= totalPages - 2 
-                                ? totalPages - 4 + i 
-                                : currentPage - 2 + i);
-                            
-                            if (pageNum > 0 && pageNum <= totalPages) {
-                              return (
-                                <Button
-                                  key={pageNum}
-                                  onClick={() => setCurrentPage(pageNum)}
-                                  variant={currentPage === pageNum ? "default" : "outline"}
-                                  size="sm"
-                                  className={currentPage === pageNum ? "bg-blue-500 text-white" : ""}
-                                >
-                                  {pageNum}
-                                </Button>
-                              );
-                            }
-                            return null;
-                          })}
-                          
-                          <Button
-                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Next
-                          </Button>
-                          <Button
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-r-md"
-                          >
-                            Last
-                          </Button>
-                        </nav>
-                      </div>
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 flex-shrink-0">
+                    <p className="text-xs text-gray-500">Page <span className="font-semibold text-gray-800">{currentPage}</span> of <span className="font-semibold text-gray-800">{totalPages}</span></p>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors">First</button>
+                      <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pg = currentPage <= 3 ? i + 1 : (currentPage >= totalPages - 2 ? totalPages - 4 + i : currentPage - 2 + i);
+                        if (pg < 1 || pg > totalPages) return null;
+                        return <button key={pg} onClick={() => setCurrentPage(pg)} className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${currentPage === pg ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{pg}</button>;
+                      })}
+                      <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"><ChevronRightIcon className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors">Last</button>
                     </div>
                   </div>
                 </>
               )}
             </div>
-          </div>
-        </div>
 
       {/* DTR Problems Modal */}
           {showProblemsModal && problemSummary && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-              <div className="relative bg-white rounded-lg shadow-lg max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-6 border-b">
-                  <h2 className="text-xl font-semibold text-gray-800">DTR Problems Detection</h2>
-                  <button
-                    onClick={() => {
-                      setShowProblemsModal(false);
-                      setProblemRecords([]);
-                      setProblemSummary(null);
-                    }}
-                    className="text-gray-500 hover:text-gray-700"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" />
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-500 to-rose-600 flex-shrink-0 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-white" /></div>
+                    <h2 className="text-base font-bold text-white">DTR Problems Detection</h2>
+                  </div>
+                  <button onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); }}
+                    className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="p-6">
-                  {/* Summary Section */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <FileText className="h-8 w-8 text-blue-500" />
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-600">Total Records</p>
-                          <p className="text-2xl font-bold text-gray-900">{problemSummary.total_records}</p>
+                <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { icon: FileText,      label: 'Total Records',   value: problemSummary.total_records, color: 'bg-indigo-500', top: 'bg-indigo-500' },
+                      { icon: AlertTriangle, label: 'Problem Records', value: problemSummary.problem_records, color: 'bg-red-500', top: 'bg-red-500' },
+                      { icon: CheckCircle,   label: 'Clean Records',   value: problemSummary.total_records - problemSummary.problem_records, color: 'bg-emerald-500', top: 'bg-emerald-500' },
+                      { icon: Calculator,    label: 'Success Rate',    value: `${problemSummary.total_records > 0 ? Math.round(((problemSummary.total_records - problemSummary.problem_records) / problemSummary.total_records) * 100) : 0}%`, color: 'bg-violet-500', top: 'bg-violet-500' },
+                    ].map(({ icon: Icon, label, value, color, top }) => (
+                      <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className={`h-1 ${top}`} />
+                        <div className="p-4 flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                            <Icon className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <AlertTriangle className="h-8 w-8 text-red-500" />
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-600">Problem Records</p>
-                          <p className="text-2xl font-bold text-gray-900">{problemSummary.problem_records}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-8 w-8 text-green-500" />
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-600">Clean Records</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {problemSummary.total_records - problemSummary.problem_records}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <Calculator className="h-8 w-8 text-purple-500" />
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                          <p className="text-2xl font-bold text-gray-900">
-                            {problemSummary.total_records > 0 
-                              ? Math.round(((problemSummary.total_records - problemSummary.problem_records) / problemSummary.total_records) * 100)
-                              : 0}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
                   {/* Problem Types Breakdown */}
@@ -3029,16 +2580,12 @@ const handleAutoRecalculate = async (showMessage = false) => {
                   )}
 
                   <div className="flex justify-end mt-6">
-                    <Button
-                      onClick={() => {
-                        setShowProblemsModal(false);
-                        setProblemRecords([]);
-                        setProblemSummary(null);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    <button
+                      onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); }}
+                      className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                     >
                       Close
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3071,21 +2618,16 @@ const handleAutoRecalculate = async (showMessage = false) => {
 
       {/* POST Modal */}
       {showPostModal && (
-  <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-    <div className="relative bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center p-6 border-b">
-        <h2 className="text-xl font-semibold text-gray-800">POST to Payroll</h2>
-        <button
-          onClick={() => {
-            setShowPostModal(false);
-            setPostPreview(null);
-            setError(''); // Clear errors when closing
-          }}
-          className="text-gray-500 hover:text-gray-700"
-          aria-label="Close"
-          disabled={posting}
-        >
-          <X className="h-5 w-5" />
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 flex-shrink-0 rounded-t-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center"><Send className="w-5 h-5 text-white" /></div>
+          <h2 className="text-base font-bold text-white">POST to Payroll</h2>
+        </div>
+        <button onClick={() => { setShowPostModal(false); setPostPreview(null); setError(''); }} disabled={posting}
+          className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors disabled:opacity-50">
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -3253,20 +2795,16 @@ const handleAutoRecalculate = async (showMessage = false) => {
 
       {/* Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">Import Attendance Data</h2>
-              <button
-                onClick={() => {
-                  setShowImportModal(false);
-                  setImportFile(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-                aria-label="Close"
-                disabled={importing}
-              >
-                <X className="h-5 w-5" />
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center"><Upload className="w-5 h-5 text-white" /></div>
+                <h2 className="text-base font-bold text-white">Import Attendance Data</h2>
+              </div>
+              <button onClick={() => { setShowImportModal(false); setImportFile(null); }} disabled={importing}
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors disabled:opacity-50">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -3330,25 +2868,17 @@ const handleAutoRecalculate = async (showMessage = false) => {
 
       {/* Holiday Modal */}
       {showHolidayModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">Set Holiday</h2>
-              <button
-                onClick={() => {
-                  setShowHolidayModal(false);
-                  setHolidayData({
-                    date: '',
-                    multiplier: '2.0',
-                    department: '',
-                    employee_ids: []
-                  });
-                }}
-                className="text-gray-500 hover:text-gray-700"
-                aria-label="Close"
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center"><Target className="w-5 h-5 text-white" /></div>
+                <h2 className="text-base font-bold text-white">Set Holiday</h2>
+              </div>
+              <button onClick={() => { setShowHolidayModal(false); setHolidayData({ date: '', multiplier: '2.0', department: '', employee_ids: [] }); }}
                 disabled={settingHoliday}
-              >
-                <X className="h-5 w-5" />
+                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors disabled:opacity-50">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -3674,6 +3204,7 @@ const handleAutoRecalculate = async (showMessage = false) => {
           </div>
         </div>
       )}
+      </div>
     </AuthenticatedLayout>
   );
 };
