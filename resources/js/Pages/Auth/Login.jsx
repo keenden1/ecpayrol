@@ -15,10 +15,12 @@ const brandFeatures = [
 const Login = () => {
     const [formData, setFormData]   = useState({ email: '', password: '', remember: false });
     const [errors, setErrors]       = useState({});
-    const [processing, setProcessing] = useState(false);
-    const [status, setStatus]       = useState('');
-    const [showPass, setShowPass]   = useState(false);
-    const [mounted, setMounted]     = useState(false);
+    const [processing, setProcessing]   = useState(false);
+    const [status, setStatus]           = useState('');
+    const [showPass, setShowPass]       = useState(false);
+    const [mounted, setMounted]         = useState(false);
+    const [forgotLoading, setForgotLoading]     = useState(false);
+    const [registerLoading, setRegisterLoading] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -38,44 +40,64 @@ const Login = () => {
         return errs;
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
+        // Show spinner immediately — let the browser paint it before we run anything
         setProcessing(true);
         setErrors({});
         setStatus('');
 
-        const errs = validateForm();
-        if (Object.keys(errs).length) { setErrors(errs); setProcessing(false); return; }
+        requestAnimationFrame(() => {
+            setTimeout(async () => {
+                const errs = validateForm();
+                if (Object.keys(errs).length) {
+                    setErrors(errs);
+                    setProcessing(false);
+                    return;
+                }
 
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        try {
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                body: JSON.stringify({ email: formData.email, password: formData.password, remember: formData.remember ? 1 : 0 }),
-            });
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                        },
+                        body: JSON.stringify({
+                            email: formData.email,
+                            password: formData.password,
+                            remember: formData.remember ? 1 : 0,
+                        }),
+                    });
 
-            if (response.ok) {
-                sessionStorage.setItem('loginSuccess', '1');
-                window.location.href = '/dashboard';
-                return;
-            }
+                    if (response.ok) {
+                        sessionStorage.setItem('loginSuccess', '1');
+                        // Keep spinner while page navigates
+                        window.location.href = '/dashboard';
+                        return;
+                    }
 
-            const data = await response.json().catch(() => null);
-            if (response.status === 422 && data?.errors) {
-                const mapped = {};
-                Object.entries(data.errors).forEach(([f, m]) => { mapped[f] = Array.isArray(m) ? m[0] : m; });
-                setErrors(mapped);
-            } else if (response.status === 419) {
-                setErrors({ submit: 'Session expired. Please refresh the page and try again.' });
-            } else {
-                setErrors({ submit: data?.message || 'These credentials do not match our records.' });
-            }
-        } catch {
-            setErrors({ submit: 'A network error occurred. Please check your connection.' });
-        } finally {
-            setProcessing(false);
-        }
+                    const data = await response.json().catch(() => null);
+                    if (response.status === 422 && data?.errors) {
+                        const mapped = {};
+                        Object.entries(data.errors).forEach(([f, m]) => {
+                            mapped[f] = Array.isArray(m) ? m[0] : m;
+                        });
+                        setErrors(mapped);
+                    } else if (response.status === 419) {
+                        setErrors({ submit: 'Session expired. Please refresh and try again.' });
+                    } else {
+                        setErrors({ submit: data?.message || 'These credentials do not match our records.' });
+                    }
+                } catch {
+                    setErrors({ submit: 'A network error occurred. Please check your connection.' });
+                } finally {
+                    setProcessing(false);
+                }
+            }, 50); // 50ms — enough for React to flush + browser to paint the spinner
+        });
     };
 
     const handleChange = (e) => {
@@ -258,9 +280,15 @@ const Login = () => {
                                     </label>
                                     <button
                                         type="button"
-                                        onClick={() => window.location.href = '/forgot-password'}
-                                        className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
-                                        Forgot password?
+                                        disabled={forgotLoading}
+                                        onClick={() => {
+                                            setForgotLoading(true);
+                                            setTimeout(() => { window.location.href = '/forgot-password'; }, 80);
+                                        }}
+                                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors disabled:opacity-70">
+                                        {forgotLoading
+                                            ? <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                                            : 'Forgot password?'}
                                     </button>
                                 </div>
                                 <div className="relative">
@@ -318,15 +346,17 @@ const Login = () => {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="group w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                                onMouseDown={() => setProcessing(true)}
+                                className="group w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
                                 style={{
-                                    background: processing ? '#6366f1' : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
                                     boxShadow: processing ? 'none' : '0 6px 24px rgba(79,70,229,0.35)',
+                                    opacity: processing ? 0.85 : 1,
                                 }}
                             >
                                 {processing ? (
                                     <>
-                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                                         </svg>
@@ -347,8 +377,15 @@ const Login = () => {
                                 New employee?{' '}
                                 <button
                                     type="button"
-                                    onClick={() => window.location.href = route('employee.register')}
-                                    className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
+                                    disabled={registerLoading}
+                                    onClick={() => {
+                                        setRegisterLoading(true);
+                                        setTimeout(() => { window.location.href = route('employee.register'); }, 80);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 font-semibold transition-colors disabled:opacity-70">
+                                    {registerLoading
+                                        ? <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                                        : null}
                                     Register your account
                                 </button>
                             </p>
