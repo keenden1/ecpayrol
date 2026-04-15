@@ -120,7 +120,7 @@ export default function AuthenticatedLayout({ children }) {
             {/* ══════════════════════════════════════
                 TOP NAVBAR — fixed, full width, z-40
             ══════════════════════════════════════ */}
-            <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 gap-4 shadow-sm">
+            <header className={`fixed top-0 right-0 z-40 h-16 bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 gap-4 shadow-sm transition-all duration-300 ${isCollapsed ? 'left-0 lg:left-[4.5rem]' : 'left-0 lg:left-64'}`}>
 
                 {/* Mobile hamburger */}
                 <button
@@ -136,17 +136,6 @@ export default function AuthenticatedLayout({ children }) {
                         <span className="text-xs font-black text-white">EC</span>
                     </div>
                     <span className="text-sm font-black text-gray-900">EC HRIS</span>
-                </div>
-
-                {/* Desktop: show brand name next to sidebar */}
-                <div className="hidden lg:flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md">
-                        <span className="text-xs font-black text-white">EC</span>
-                    </div>
-                    <div>
-                        <p className="text-sm font-black text-gray-900 leading-none">EC HRIS</p>
-                        <p className="text-xs text-gray-400 leading-none mt-0.5">Human Resource System</p>
-                    </div>
                 </div>
 
                 {/* Spacer */}

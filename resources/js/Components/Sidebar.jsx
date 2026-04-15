@@ -304,8 +304,8 @@ const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsC
             <aside
                 ref={sidebarRef}
                 className={`
-                    fixed top-16 left-0 z-30
-                    h-[calc(100vh-4rem)]
+                    fixed top-0 left-0 z-30
+                    h-screen
                     transition-all duration-300 ease-in-out
                     ${open ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
@@ -313,6 +313,19 @@ const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsC
                 `}
             >
                 <div className="h-full flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden">
+
+                    {/* ── Branding ── */}
+                    <div className={`flex items-center gap-3 border-b border-gray-200 flex-shrink-0 h-16 px-4 ${isCollapsed ? 'justify-center px-0' : ''}`}>
+                        <div className="flex-shrink-0 h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md">
+                            <span className="text-xs font-black text-white tracking-tighter">EC</span>
+                        </div>
+                        {!isCollapsed && (
+                            <div className="min-w-0">
+                                <p className="text-sm font-black text-gray-900 leading-none">EC HRIS</p>
+                                <p className="text-xs text-gray-400 leading-none mt-1">Human Resource System</p>
+                            </div>
+                        )}
+                    </div>
 
                     {/* ── Header ── */}
                     <div className={`flex items-center border-b border-gray-100 px-3 py-3 flex-shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>

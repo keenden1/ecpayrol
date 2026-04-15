@@ -27,10 +27,3 @@
     background: #a5b4cc;
 }
 
-/* ─── Mobile: sidebar starts below 64px navbar ───────────────────────────── */
-@media (max-width: 1023px) {
-    aside[aria-label="Sidebar"] {
-        top: 4rem;
-        height: calc(100vh - 4rem);
-    }
-}
