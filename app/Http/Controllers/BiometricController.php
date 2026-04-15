@@ -673,6 +673,7 @@ public function addDeviceUserAsEmployee(Request $request)
         'Department'=> 'nullable|string|max:100',
         'Jobtitle'  => 'nullable|string|max:100',
         'JobStatus' => 'nullable|string|in:Active,Inactive',
+        'Gender'    => 'nullable|string|in:Male,Female',
     ]);
 
     try {
@@ -684,6 +685,7 @@ public function addDeviceUserAsEmployee(Request $request)
             'Department' => $validated['Department'] ?? '',
             'Jobtitle'   => $validated['Jobtitle'] ?? '',
             'JobStatus'  => $validated['JobStatus'] ?? 'Active',
+            'Gender'     => $validated['Gender'] ?? '',
         ]);
 
         return response()->json([

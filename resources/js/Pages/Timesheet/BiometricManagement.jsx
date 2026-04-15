@@ -152,8 +152,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const openFetchLogsModal = (device) => {
         setFetchStartDate('');
         setFetchEndDate('');
-        setFetchUseLimit(false);
-        setFetchUseCached(false);
+        setFetchUseCached(!!jsonCacheInfo[device.id]?.exists);
         setFetchLogsDevice(device);
     };
 
@@ -536,19 +535,6 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                 onChange={e => setFetchEndDate(e.target.value)}
                                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
                             />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">
-                                Limit <span className="text-gray-400 font-normal">(for testing)</span>
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => setFetchUseLimit(v => !v)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${fetchUseLimit ? 'bg-green-500' : 'bg-gray-200'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fetchUseLimit ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
                         </div>
 
                         <p className="text-xs text-gray-500">
