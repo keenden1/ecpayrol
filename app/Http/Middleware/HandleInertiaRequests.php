@@ -35,6 +35,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'photo_path' => $request->user()->photo_path,
                     'roles' => $request->user()->roles->map(fn($role) => [
                         'id' => $role->id,
                         'name' => $role->name,

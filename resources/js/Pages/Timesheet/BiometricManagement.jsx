@@ -39,6 +39,16 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const [scanResults, setScanResults] = useState([]);
     const [scanProgress, setScanProgress] = useState(0);
 
+    // Refresh device list when background jobs complete
+    useEffect(() => {
+        const handleSyncCompleted = (e) => {
+            // Partial reload of the 'devices' and 'jsonCacheInfo' props
+            router.reload({ only: ['devices', 'jsonCacheInfo'] });
+        };
+        window.addEventListener('bgSyncJobCompleted', handleSyncCompleted);
+        return () => window.removeEventListener('bgSyncJobCompleted', handleSyncCompleted);
+    }, []);
+
     // Multi-device sync state
     const [syncConfirmDevice, setSyncConfirmDevice] = useState(null); // device waiting for confirm
     const [pythonSyncConfirmDevice, setPythonSyncConfirmDevice] = useState(null); // python sync confirm
@@ -691,7 +701,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                                         <thead className="bg-gray-50 sticky top-0">
                                             <tr>
-                                                {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
+                                                {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
                                                     <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                                 ))}
                                             </tr>
@@ -703,6 +713,8 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                                     <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
                                                     <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.attendance_date}</td>
                                                     <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_in ? r.time_in.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">{r.break_in ? r.break_in.split(' ')[1]?.slice(0,5) : '—'}</td>
+                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">{r.break_out ? r.break_out.split(' ')[1]?.slice(0,5) : '—'}</td>
                                                     <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_out ? r.time_out.split(' ')[1]?.slice(0,5) : '—'}</td>
                                                     <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.hours_worked ?? '—'}</td>
                                                     <td className="px-3 py-1.5 whitespace-nowrap">
@@ -1402,7 +1414,14 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                                     {device.last_sync
                                                         ? new Date(
                                                               device.last_sync,
-                                                          ).toLocaleString()
+                                                          ).toLocaleString('en-US', {
+                                                              month: 'short',
+                                                              day: 'numeric',
+                                                              year: 'numeric',
+                                                              hour: 'numeric',
+                                                              minute: '2-digit',
+                                                              hour12: true,
+                                                          })
                                                         : "Never"}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">

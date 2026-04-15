@@ -32,6 +32,14 @@ function BgSyncTracker() {
                     headers: { Accept: 'application/json' },
                 });
                 const data = await res.json();
+                
+                // If it just finished, dispatch a refresh event
+                if (data.status === 'completed' || data.status === 'failed') {
+                    window.dispatchEvent(new CustomEvent('bgSyncJobCompleted', { 
+                        detail: { deviceId: job.deviceId, status: data.status } 
+                    }));
+                }
+
                 return { ...job, status: data.status, stage: data.current_stage, totalLogs: data.total_logs, error: data.error_message, fetchTime: data.fetch_time };
             } catch {
                 return job;
@@ -160,8 +168,16 @@ export default function AuthenticatedLayout({ header, children }) {
                                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                                     className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100"
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-medium">
-                                        {auth.user.name.charAt(0)}
+                                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-medium overflow-hidden">
+                                        {auth.user.photo_path ? (
+                                            <img
+                                                src={`/storage/${auth.user.photo_path}`}
+                                                alt={auth.user.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            auth.user.name.charAt(0)
+                                        )}
                                     </div>
                                     <span className="hidden sm:block text-sm font-medium text-gray-700">
                                         {auth.user.name}

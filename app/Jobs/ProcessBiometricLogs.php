@@ -623,31 +623,58 @@ class ProcessBiometricLogs implements ShouldQueue
 
     private function processLogsWithOptimizedPatternRecognition($logs): array
     {
+        // Group logs by employee+date so we can assign statuses by position
+        $byEmployeeDate = [];
+        foreach ($logs as $log) {
+            $empId = $log['id'] ?? $log['uid'] ?? 'unknown';
+            $date  = date('Y-m-d', strtotime($log['timestamp']));
+            $byEmployeeDate[$empId][$date][] = $log;
+        }
+
         $processedLogs = [];
 
-        foreach ($logs as $log) {
-            if (isset($log['state']) && $log['state'] !== null) {
-                switch ((int)$log['state']) {
-                    case 0:
-                        $log['actual_status'] = 'Clock In';
-                        break;
-                    case 1:
-                        $log['actual_status'] = 'Clock Out';
-                        break;
-                    case 2:
-                        $log['actual_status'] = 'Break In';
-                        break;
-                    case 3:
-                        $log['actual_status'] = 'Break Out';
-                        break;
-                    default:
-                        $log['actual_status'] = 'Clock In';
-                }
-            } else {
-                $log['actual_status'] = 'Clock In';
-            }
+        foreach ($byEmployeeDate as $empId => $dates) {
+            foreach ($dates as $date => $dayLogs) {
+                // Sort by timestamp ascending
+                usort($dayLogs, fn($a, $b) => strtotime($a['timestamp']) - strtotime($b['timestamp']));
 
-            $processedLogs[] = $log;
+                $count = count($dayLogs);
+
+                foreach ($dayLogs as $i => $log) {
+                    // Always use positional pattern.
+                    // Device sends generic 0/1 for all taps (not break-specific),
+                    // so explicit type fields are unreliable for determining break vs clock out.
+                    // Pattern: 1st=In, 2nd=LunchOut(BreakIn), 3rd=LunchIn(BreakOut), 4th=Out
+                    switch ($count) {
+                        case 1:
+                            $hour = (int)date('H', strtotime($log['timestamp']));
+                            $log['actual_status'] = $hour < 12 ? 'Clock In' : 'Clock Out';
+                            $log['missing_punch'] = true;
+                            break;
+                        case 2:
+                            $log['actual_status'] = $i === 0 ? 'Clock In' : 'Clock Out';
+                            break;
+                        case 3:
+                            $statuses = ['Clock In', 'Break In', 'Clock Out'];
+                            $log['actual_status'] = $statuses[$i];
+                            break;
+                        case 4:
+                            $statuses = ['Clock In', 'Break In', 'Break Out', 'Clock Out'];
+                            $log['actual_status'] = $statuses[$i];
+                            break;
+                        default:
+                            if ($i === 0) {
+                                $log['actual_status'] = 'Clock In';
+                            } elseif ($i === $count - 1) {
+                                $log['actual_status'] = 'Clock Out';
+                            } else {
+                                $log['actual_status'] = $i % 2 === 1 ? 'Break In' : 'Break Out';
+                            }
+                    }
+
+                    $processedLogs[] = $log;
+                }
+            }
         }
 
         return $processedLogs;

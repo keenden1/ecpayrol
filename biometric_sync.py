@@ -133,8 +133,8 @@ def main():
                     'uid':       att.uid,
                     'id':        str(att.user_id),
                     'timestamp': ts.strftime('%Y-%m-%d %H:%M:%S') if ts else None,
-                    'status':    att.status,
-                    'punch':     att.punch,
+                    'state':     att.status, # Matches PHP library "state"
+                    'type':      att.punch,  # Matches PHP library "type"
                 })
 
             fetch_time = now_str()
@@ -145,13 +145,14 @@ def main():
             cache_path = os.path.join(cache_dir, f'cache_device_{dev_id}_raw.json')
 
             with open(cache_path, 'w', encoding='utf-8') as f:
+                # Removed indent=2 for significantly faster writing of large datasets
                 json.dump({
                     'device_id':   dev_id,
                     'device_name': dev_name,
                     'fetch_time':  fetch_time,
                     'total_logs':  total,
                     'logs':        raw_logs,
-                }, f, indent=2, ensure_ascii=False)
+                }, f, ensure_ascii=False)
 
             # ── 5. Detect unmatched employees ────────────────────────────────
             # Collect unique biometric user IDs present in the attendance logs
