@@ -1,114 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import {
+    CheckCircle, AlertCircle, Eye, EyeOff,
+    Users, Clock, DollarSign, Shield, ArrowRight, Zap
+} from 'lucide-react';
 
-const BackgroundPattern = () => (
-    <>
-        {/* Abstract wave pattern */}
-        <div className="fixed inset-0 z-0">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style={{ stopColor: '#3b82f6', stopOpacity: 0.2 }} />
-                        <stop offset="100%" style={{ stopColor: '#4f46e5', stopOpacity: 0.3 }} />
-                    </linearGradient>
-                    
-                    <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" 
-                              className="stroke-blue-200/20 dark:stroke-blue-800/20" />
-                    </pattern>
-                </defs>
-
-                <rect width="100" height="100" fill="url(#grid)" />
-                
-                <path className="translate-y-1/2" fill="url(#grad1)">
-                    <animate attributeName="d" 
-                            dur="20s" 
-                            repeatCount="indefinite" 
-                            values="
-                                M 0 50 C 20 40, 40 60, 60 50 S 80 40, 100 50 L 100 100 L 0 100 Z;
-                                M 0 50 C 30 45, 50 55, 70 45 S 90 45, 100 50 L 100 100 L 0 100 Z;
-                                M 0 50 C 20 40, 40 60, 60 50 S 80 40, 100 50 L 100 100 L 0 100 Z"
-                    />
-                </path>
-                
-                <path className="translate-y-1/3" fill="url(#grad1)" opacity="0.7">
-                    <animate attributeName="d" 
-                            dur="15s" 
-                            repeatCount="indefinite" 
-                            values="
-                                M 0 60 C 30 55, 50 65, 70 55 S 90 55, 100 60 L 100 100 L 0 100 Z;
-                                M 0 60 C 20 50, 40 70, 60 60 S 80 50, 100 60 L 100 100 L 0 100 Z;
-                                M 0 60 C 30 55, 50 65, 70 55 S 90 55, 100 60 L 100 100 L 0 100 Z"
-                    />
-                </path>
-            </svg>
-        </div>
-
-        <div className="fixed inset-0 z-0 overflow-hidden">
-            {[...Array(5)].map((_, i) => (
-                <div
-                    key={i}
-                    className="absolute rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-500/10 
-                              animate-float backdrop-blur-3xl"
-                    style={{
-                        width: `${Math.random() * 200 + 100}px`,
-                        height: `${Math.random() * 200 + 100}px`,
-                        left: `${Math.random() * 100}%`,
-                        top: `${Math.random() * 100}%`,
-                        animationDelay: `${i * 1.5}s`,
-                        animationDuration: `${Math.random() * 10 + 20}s`
-                    }}
-                />
-            ))}
-        </div>
-    </>
-);
+/* ─── Brand Panel features list ── */
+const brandFeatures = [
+    { icon: Users,      label: 'Employee Management',  sub: 'Centralized HR records' },
+    { icon: DollarSign, label: 'Payroll Processing',   sub: 'BIR & statutory compliant' },
+    { icon: Clock,      label: 'Time & Attendance',    sub: 'Biometric integration' },
+    { icon: Shield,     label: 'Roles & Access',       sub: 'Granular permissions' },
+];
 
 const Login = () => {
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        remember: false
-    });
-    const [errors, setErrors] = useState({});
+    const [formData, setFormData]   = useState({ email: '', password: '', remember: false });
+    const [errors, setErrors]       = useState({});
     const [processing, setProcessing] = useState(false);
-    const [status, setStatus] = useState('');
+    const [status, setStatus]       = useState('');
+    const [showPass, setShowPass]   = useState(false);
+    const [mounted, setMounted]     = useState(false);
 
     useEffect(() => {
-        // Check for flash messages from session
+        setMounted(true);
         const flashStatus = document.querySelector('meta[name="status"]')?.getAttribute('content');
-        if (flashStatus) {
-            setStatus(flashStatus);
-        }
-        
-        // Check for success message from session storage (after redirect)
+        if (flashStatus) setStatus(flashStatus);
         const loginSuccess = sessionStorage.getItem('loginSuccess');
-        if (loginSuccess) {
-            setStatus('Successfully logged in!');
-            sessionStorage.removeItem('loginSuccess');
-        }
+        if (loginSuccess) { setStatus('Successfully logged in!'); sessionStorage.removeItem('loginSuccess'); }
     }, []);
 
-    const validateEmail = (email) => {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    };
+    const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     const validateForm = () => {
-        const newErrors = {};
-        
-        if (!formData.email) {
-            newErrors.email = 'Email is required';
-        } else if (!validateEmail(formData.email)) {
-            newErrors.email = 'Please enter a valid email address';
-        }
-
-        if (!formData.password) {
-            newErrors.password = 'Password is required';
-        }
-
-        return newErrors;
+        const errs = {};
+        if (!formData.email)                   errs.email    = 'Email is required';
+        else if (!validateEmail(formData.email)) errs.email  = 'Please enter a valid email address';
+        if (!formData.password)                errs.password = 'Password is required';
+        return errs;
     };
 
     const handleSubmit = async (e) => {
@@ -117,28 +44,15 @@ const Login = () => {
         setErrors({});
         setStatus('');
 
-        const newErrors = validateForm();
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            setProcessing(false);
-            return;
-        }
+        const errs = validateForm();
+        if (Object.keys(errs).length) { setErrors(errs); setProcessing(false); return; }
 
         const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
         try {
             const response = await fetch('/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    remember: formData.remember ? 1 : 0,
-                }),
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ email: formData.email, password: formData.password, remember: formData.remember ? 1 : 0 }),
             });
 
             if (response.ok) {
@@ -148,13 +62,9 @@ const Login = () => {
             }
 
             const data = await response.json().catch(() => null);
-
             if (response.status === 422 && data?.errors) {
-                // Laravel validation errors
                 const mapped = {};
-                Object.entries(data.errors).forEach(([field, messages]) => {
-                    mapped[field] = Array.isArray(messages) ? messages[0] : messages;
-                });
+                Object.entries(data.errors).forEach(([f, m]) => { mapped[f] = Array.isArray(m) ? m[0] : m; });
                 setErrors(mapped);
             } else if (response.status === 419) {
                 setErrors({ submit: 'Session expired. Please refresh the page and try again.' });
@@ -162,7 +72,7 @@ const Login = () => {
                 setErrors({ submit: data?.message || 'These credentials do not match our records.' });
             }
         } catch {
-            setErrors({ submit: 'A network error occurred. Please check your connection and try again.' });
+            setErrors({ submit: 'A network error occurred. Please check your connection.' });
         } finally {
             setProcessing(false);
         }
@@ -170,134 +80,286 @@ const Login = () => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-        
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
     };
 
     return (
-        <div className="min-h-screen relative bg-gradient-to-br from-gray-50 via-gray-100 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12 overflow-hidden">
-            <BackgroundPattern />
-            
-            <div className="w-full max-w-md z-10">
-                <div className="flex justify-center mb-8">
-                    <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform hover:scale-105 transition-all duration-300">
-                        <span className="text-2xl font-bold">EC</span>
-                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-30"></div>
+        <div className="min-h-screen flex bg-white overflow-hidden">
+
+            {/* ══════════════════════════════
+                LEFT — Brand Panel
+            ══════════════════════════════ */}
+            <div className="hidden lg:flex lg:w-[52%] relative flex-col justify-between p-12 overflow-hidden bg-gradient-to-br from-slate-900 via-[#1e1b4b] to-[#2d1b69]">
+
+                {/* Grid texture */}
+                <div className="absolute inset-0 pointer-events-none"
+                    style={{
+                        backgroundImage: `linear-gradient(rgba(99,102,241,0.12) 1px, transparent 1px),
+                                          linear-gradient(90deg, rgba(99,102,241,0.12) 1px, transparent 1px)`,
+                        backgroundSize: '56px 56px',
+                    }} />
+
+                {/* Glow blobs */}
+                <div className="absolute top-0 right-0 w-[480px] h-[480px] bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[360px] h-[360px] bg-violet-700/15 rounded-full blur-[80px] pointer-events-none" />
+
+                {/* Top line accent */}
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+
+                {/* Logo */}
+                <div className={`relative z-10 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                    <a href="/" className="inline-flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-900/50">
+                            <span className="text-sm font-black text-white tracking-tighter">EC</span>
+                        </div>
+                        <div>
+                            <p className="text-white font-black text-lg leading-none">EC HRIS</p>
+                            <p className="text-indigo-300/70 text-xs leading-none mt-0.5">Human Resource System</p>
+                        </div>
+                    </a>
+                </div>
+
+                {/* Center copy */}
+                <div className={`relative z-10 transition-all duration-700 delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-400/25 text-indigo-300 text-xs font-semibold uppercase tracking-widest mb-6">
+                        <Zap className="h-3 w-3" />
+                        Complete HR Platform
+                    </div>
+
+                    <h2 className="text-4xl xl:text-5xl font-black text-white leading-tight mb-4">
+                        Manage Your<br />
+                        <span style={{
+                            background: 'linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                        }}>
+                            Workforce Smarter
+                        </span>
+                    </h2>
+                    <p className="text-slate-400 text-base leading-relaxed mb-10 max-w-sm">
+                        From payroll to attendance, leave to performance — everything your HR team needs in one place.
+                    </p>
+
+                    {/* Feature list */}
+                    <div className="space-y-4">
+                        {brandFeatures.map((f, i) => (
+                            <div key={f.label}
+                                className={`flex items-center gap-4 transition-all duration-500 ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}
+                                style={{ transitionDelay: `${200 + i * 80}ms` }}>
+                                <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center backdrop-blur-sm">
+                                    <f.icon className="h-4.5 w-4.5 text-indigo-300" style={{ height: '1.125rem', width: '1.125rem' }} />
+                                </div>
+                                <div>
+                                    <p className="text-white text-sm font-semibold leading-none mb-0.5">{f.label}</p>
+                                    <p className="text-slate-400 text-xs">{f.sub}</p>
+                                </div>
+                                <CheckCircle className="h-4 w-4 text-emerald-400 ml-auto flex-shrink-0" />
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl">
-                    <CardHeader>
-                        <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                            Welcome Back
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                {/* Bottom trust badges */}
+                <div className={`relative z-10 transition-all duration-700 delay-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {['BIR Compliant', 'SSS · PhilHealth · HDMF', 'Biometric Ready'].map(t => (
+                            <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/8 border border-white/10 text-slate-300 text-xs font-medium">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                {t}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* ══════════════════════════════
+                RIGHT — Login Form
+            ══════════════════════════════ */}
+            <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-12 bg-gray-50 relative overflow-hidden">
+
+                {/* Subtle background pattern */}
+                <div className="absolute inset-0 pointer-events-none opacity-40"
+                    style={{
+                        backgroundImage: `radial-gradient(circle, #e0e7ff 1px, transparent 1px)`,
+                        backgroundSize: '32px 32px',
+                    }} />
+
+                {/* Mobile logo */}
+                <div className="lg:hidden mb-8 flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg">
+                        <span className="text-xs font-black text-white">EC</span>
+                    </div>
+                    <span className="text-lg font-black text-gray-900">EC HRIS</span>
+                </div>
+
+                {/* Form card */}
+                <div className={`relative z-10 w-full max-w-md transition-all duration-700 delay-150 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+
+                    {/* Card */}
+                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/80 border border-gray-100 p-8">
+
+                        {/* Heading */}
+                        <div className="mb-8">
+                            <h1 className="text-2xl font-black text-gray-900 mb-1">Welcome back</h1>
+                            <p className="text-gray-400 text-sm">Sign in to your EC HRIS account</p>
+                        </div>
+
+                        {/* Status message */}
                         {status && (
-                            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center text-green-600 dark:text-green-400">
-                                <CheckCircle className="h-5 w-5 mr-2" />
-                                <span className="text-sm">{status}</span>
+                            <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
+                                <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <span>{status}</span>
                             </div>
                         )}
 
+                        {/* Submit error */}
                         {errors.submit && (
-                            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/30 rounded-lg flex items-center text-red-600 dark:text-red-400">
-                                <AlertCircle className="h-5 w-5 mr-2" />
-                                <span className="text-sm">{errors.submit}</span>
+                            <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                <span>{errors.submit}</span>
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+
+                            {/* Email */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Email
+                                <label htmlFor="email" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                    Email Address
                                 </label>
                                 <input
+                                    id="email"
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-2 rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:border-transparent transition-all duration-200 ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
+                                    placeholder="you@company.com"
                                     autoComplete="username"
                                     autoFocus
+                                    className={`w-full px-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-300 bg-white transition-all duration-200 outline-none
+                                        ${errors.email
+                                            ? 'border-red-300 ring-2 ring-red-100 focus:border-red-400'
+                                            : 'border-gray-200 hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
+                                        }`}
                                 />
                                 {errors.email && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+                                    <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />{errors.email}
+                                    </p>
                                 )}
                             </div>
 
+                            {/* Password */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Password
-                                </label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className={`w-full px-4 py-2 rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:border-transparent transition-all duration-200 ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
-                                    autoComplete="current-password"
-                                />
+                                <div className="flex items-center justify-between mb-2">
+                                    <label htmlFor="password" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Password
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.location.href = '/forgot-password'}
+                                        className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
+                                        Forgot password?
+                                    </button>
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        type={showPass ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        placeholder="••••••••"
+                                        autoComplete="current-password"
+                                        className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm text-gray-900 placeholder-gray-300 bg-white transition-all duration-200 outline-none
+                                            ${errors.password
+                                                ? 'border-red-300 ring-2 ring-red-100 focus:border-red-400'
+                                                : 'border-gray-200 hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
+                                            }`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPass(v => !v)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5">
+                                        {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
                                 {errors.password && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+                                    <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />{errors.password}
+                                    </p>
                                 )}
                             </div>
 
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="remember"
-                                    name="remember"
-                                    checked={formData.remember}
-                                    onChange={handleChange}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                />
-                                <label htmlFor="remember" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                                    Remember me
+                            {/* Remember me */}
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        id="remember"
+                                        name="remember"
+                                        checked={formData.remember}
+                                        onChange={handleChange}
+                                        className="sr-only peer"
+                                    />
+                                    <label htmlFor="remember"
+                                        className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border-2 border-gray-200 bg-white peer-checked:border-indigo-600 peer-checked:bg-indigo-600 transition-all duration-150">
+                                        <CheckCircle className="h-3 w-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" style={{ display: formData.remember ? 'block' : 'none' }} />
+                                        {formData.remember && <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                    </label>
+                                </div>
+                                <label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer select-none">
+                                    Keep me signed in for 30 days
                                 </label>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <button
-                                    type="button"
-                                    onClick={() => window.location.href = '/forgot-password'}
-                                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                                >
-                                    Forgot your password?
-                                </button>
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="group w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                                style={{
+                                    background: processing ? '#6366f1' : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                    boxShadow: processing ? 'none' : '0 6px 24px rgba(79,70,229,0.35)',
+                                }}
+                            >
+                                {processing ? (
+                                    <>
+                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                                        </svg>
+                                        Signing in…
+                                    </>
+                                ) : (
+                                    <>
+                                        Sign In
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                    </>
+                                )}
+                            </button>
+                        </form>
 
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 transition-all duration-200"
-                                >
-                                    {processing ? 'Logging in...' : 'Log in'}
-                                </button>
-                            </div>
-                            
-                            <div className="text-center pt-2">
-                                <span className="text-sm text-gray-600 dark:text-gray-400">Don't have an account? </span>
+                        {/* Register link */}
+                        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                            <p className="text-sm text-gray-400">
+                                New employee?{' '}
                                 <button
                                     type="button"
                                     onClick={() => window.location.href = route('employee.register')}
-                                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline ml-1"
-                                >
-                                    Register as an employee
+                                    className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
+                                    Register your account
                                 </button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Below card note */}
+                    <p className="mt-6 text-center text-xs text-gray-400">
+                        Protected by enterprise-grade security. Your data is safe.
+                    </p>
+                </div>
             </div>
         </div>
     );

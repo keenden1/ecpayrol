@@ -383,7 +383,7 @@ export default function Welcome({ auth, systemVersion }) {
                                 <a href={auth?.user ? '/dashboard' : '/login'}
                                     className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:-translate-y-0.5"
                                     style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 8px 32px rgba(79,70,229,0.4)' }}>
-                                    {auth?.user ? 'Open Dashboard' : 'Get Started Free'}
+                                    {auth?.user ? 'Open Dashboard' : 'Sign in'}
                                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                                 </a>
                             </div>
