@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/Components/Sidebar';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import {
     Menu, X, LogOut, User, Bell,
     ChevronDown, RefreshCw, CheckCircle, XCircle, ChevronUp
@@ -89,13 +89,55 @@ function BgSyncTracker() {
     );
 }
 
+// ── Logout Confirmation Modal ────────────────────────────────────────────────
+function LogoutModal({ onCancel, onConfirm, processing }) {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+
+            {/* Dialog */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-modal-in">
+                {/* Icon */}
+                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-50 mx-auto mb-4">
+                    <LogOut className="h-6 w-6 text-red-500" />
+                </div>
+
+                <h2 className="text-lg font-black text-gray-900 text-center mb-1">Sign Out</h2>
+                <p className="text-sm text-gray-500 text-center mb-6">
+                    Are you sure you want to sign out of your account?
+                </p>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={processing}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
+                        {processing
+                            ? <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                            : <LogOut className="h-4 w-4" />}
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Main Layout ──────────────────────────────────────────────────────────────
 export default function AuthenticatedLayout({ children }) {
-    const [sidebarOpen, setSidebarOpen]   = useState(false);
-    const [isCollapsed, setIsCollapsed]   = useState(false);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const userMenuRef                     = useRef(null);
-    const { auth }                        = usePage().props;
+    const [sidebarOpen, setSidebarOpen]       = useState(false);
+    const [isCollapsed, setIsCollapsed]       = useState(false);
+    const [userMenuOpen, setUserMenuOpen]     = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const userMenuRef                         = useRef(null);
+    const { auth }                            = usePage().props;
+    const { post, processing }                = useForm();
 
     // Close user menu on outside click
     useEffect(() => {
@@ -185,15 +227,12 @@ export default function AuthenticatedLayout({ children }) {
                                     <User size={15} /> Profile
                                 </Link>
                                 <div className="border-t border-gray-100 mt-1 pt-1">
-                                    <Link
-                                        href={route('logout')}
-                                        method="post"
-                                        as="button"
+                                    <button
                                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                                        onClick={() => setUserMenuOpen(false)}
+                                        onClick={() => { setUserMenuOpen(false); setShowLogoutModal(true); }}
                                     >
                                         <LogOut size={15} /> Sign Out
-                                    </Link>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -222,6 +261,23 @@ export default function AuthenticatedLayout({ children }) {
             </div>
 
             <BgSyncTracker />
+
+            {/* Logout confirmation modal */}
+            {showLogoutModal && (
+                <LogoutModal
+                    onCancel={() => setShowLogoutModal(false)}
+                    onConfirm={() => post(route('logout'))}
+                    processing={processing}
+                />
+            )}
+
+            <style>{`
+                @keyframes modal-in {
+                    from { opacity: 0; transform: scale(0.93) translateY(8px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                .animate-modal-in { animation: modal-in 0.2s ease both; }
+            `}</style>
         </div>
     );
 }

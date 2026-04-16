@@ -131,14 +131,8 @@ const Login = () => {
 
                 {/* Logo */}
                 <div className={`relative z-10 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-                    <a href="/" className="inline-flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-900/50">
-                            <span className="text-sm font-black text-white tracking-tighter">EC</span>
-                        </div>
-                        <div>
-                            <p className="text-white font-black text-lg leading-none">EC HRIS</p>
-                            <p className="text-indigo-300/70 text-xs leading-none mt-0.5">Human Resource System</p>
-                        </div>
+                    <a href="/" className="inline-flex items-center">
+                        <img src="/image/logo.png" alt="Eljin Corp" className="h-12 w-auto" />
                     </a>
                 </div>
 
@@ -208,11 +202,8 @@ const Login = () => {
                     }} />
 
                 {/* Mobile logo */}
-                <div className="lg:hidden mb-8 flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg">
-                        <span className="text-xs font-black text-white">EC</span>
-                    </div>
-                    <span className="text-lg font-black text-gray-900">EC HRIS</span>
+                <div className="lg:hidden mb-8">
+                    <img src="/image/logo.png" alt="Eljin Corp" className="h-10 w-auto" />
                 </div>
 
                 {/* Form card */}

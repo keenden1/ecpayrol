@@ -1313,127 +1313,130 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Biometric Device Management" />
-            <div className="max-w-7xl mx-auto">
-                <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div className="p-6 bg-white border-b border-gray-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-semibold text-gray-800">
-                                Biometric Device Management
-                            </h2>
-                            <div className="flex space-x-2">
-                                <button
-                                    className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:shadow-outline-gray transition ease-in-out duration-150"
-                                    onClick={() => handleTestConnectionClick()}
-                                >
-                                    <ServerCrash className="w-4 h-4 mr-2" />
-                                    Test Connection
-                                </button>
+            <div className="max-w-7xl mx-auto space-y-6">
 
-                                <button
-                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:shadow-outline-gray transition ease-in-out duration-150"
-                                    onClick={handleAddDevice}
-                                >
-                                    <PlusCircle className="w-4 h-4 mr-2" />
-                                    Add Device
-                                </button>
-                            </div>
+                {/* ── Page Header ── */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-[#0D2E6E] flex items-center justify-center shadow-sm flex-shrink-0">
+                            <Cpu className="h-5 w-5 text-white" />
                         </div>
+                        <div>
+                            <h1 className="text-xl font-black text-gray-900 leading-tight">Biometric Device Management</h1>
+                            <p className="text-sm text-gray-400 leading-none mt-0.5">Manage and monitor connected biometric devices</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleTestConnectionClick()}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"
+                        >
+                            <ServerCrash className="w-4 h-4 text-gray-500" />
+                            Test Connection
+                        </button>
+                        <button
+                            onClick={handleAddDevice}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0D2E6E] text-white text-sm font-semibold hover:bg-[#0a2257] shadow-sm transition-all"
+                        >
+                            <PlusCircle className="w-4 h-4" />
+                            Add Device
+                        </button>
+                    </div>
+                </div>
 
-                        {/* Devices Table */}
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                {/* ── Devices Table Card ── */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+
+                    {/* Stats bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 border-b border-gray-100">
+                        {[
+                            { label: 'Total Devices',   value: deviceList.length },
+                            { label: 'Active',          value: deviceList.filter(d => d.status === 'active').length,   color: 'text-emerald-600' },
+                            { label: 'Inactive',        value: deviceList.filter(d => d.status !== 'active').length,   color: 'text-red-500' },
+                            { label: 'Synced Today',    value: deviceList.filter(d => d.last_sync && new Date(d.last_sync).toDateString() === new Date().toDateString()).length },
+                        ].map(s => (
+                            <div key={s.label} className="px-5 py-4">
+                                <p className="text-xs text-gray-400 font-medium mb-1">{s.label}</p>
+                                <p className={`text-2xl font-black ${s.color || 'text-gray-800'}`}>{s.value}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead>
+                                <tr className="bg-gray-50 border-b border-gray-100">
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Device</th>
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IP Address</th>
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Port</th>
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
+                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {!deviceList || deviceList.length === 0 ? (
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Name
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            IP Address
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Port
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Location
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Last Sync
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
-                                        </th>
+                                        <td colSpan="7" className="px-5 py-16 text-center">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center">
+                                                    <Cpu className="h-7 w-7 text-gray-300" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-500">No devices found</p>
+                                                <p className="text-xs text-gray-400">Click <span className="font-semibold">Add Device</span> to register a biometric device.</p>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {!deviceList || deviceList.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan="7"
-                                                className="px-6 py-4 whitespace-nowrap text-center text-gray-500"
-                                            >
-                                                No devices found. Click "Add
-                                                Device" to add a new biometric
-                                                device.
+                                ) : (
+                                    deviceList.map((device) => (
+                                        <tr key={device.id} className="hover:bg-gray-50/60 transition-colors group">
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-lg bg-[#0D2E6E]/8 flex items-center justify-center flex-shrink-0">
+                                                        <Cpu className="h-4 w-4 text-[#0D2E6E]" />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-900">{device.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className="text-sm text-gray-600 font-mono">{device.ip_address}</span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className="text-sm text-gray-600 font-mono">{device.port}</span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className="text-sm text-gray-600">{device.location}</span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className="text-sm text-gray-500">
+                                                    {device.last_sync
+                                                        ? new Date(device.last_sync).toLocaleString('en-US', {
+                                                              month: 'short', day: 'numeric', year: 'numeric',
+                                                              hour: 'numeric', minute: '2-digit', hour12: true,
+                                                          })
+                                                        : <span className="text-gray-400 italic">Never</span>}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                    device.status === 'active'
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                        : 'bg-red-50 text-red-600 border border-red-200'
+                                                }`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${device.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                    {device.status === 'active' ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-right">
+                                                {renderDeviceActions(device)}
                                             </td>
                                         </tr>
-                                    ) : (
-                                        deviceList.map((device) => (
-                                            <tr key={device.id}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {device.name}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {device.ip_address}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {device.port}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {device.location}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {device.last_sync
-                                                        ? new Date(
-                                                              device.last_sync,
-                                                          ).toLocaleString('en-US', {
-                                                              month: 'short',
-                                                              day: 'numeric',
-                                                              year: 'numeric',
-                                                              hour: 'numeric',
-                                                              minute: '2-digit',
-                                                              hour12: true,
-                                                          })
-                                                        : "Never"}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                            device.status ===
-                                                            "active"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : "bg-red-100 text-red-800"
-                                                        }`}
-                                                    >
-                                                        {device.status ===
-                                                        "active"
-                                                            ? "Active"
-                                                            : "Inactive"}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    {renderDeviceActions(
-                                                        device,
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
