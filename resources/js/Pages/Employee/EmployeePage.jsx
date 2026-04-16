@@ -796,7 +796,7 @@ const EmployeeList = ({
     }
 
     return (
-        <div className="overflow-x-auto">
+        <div>
             <table className="w-full table-fixed">
                 <thead className="sticky top-0 z-10 bg-white">
                     <tr className="border-b border-gray-100">
@@ -1349,7 +1349,7 @@ const EmployeePage = ({
                             </p>
                         )}
                     </div>
-                    <div style={{ maxHeight: "58vh", overflowY: "auto" }}>
+                    <div style={{ maxHeight: "58vh", overflowY: "auto", overflowX: "auto" }}>
                         <EmployeeList
                             employees={filteredEmployees}
                             onView={handleView}

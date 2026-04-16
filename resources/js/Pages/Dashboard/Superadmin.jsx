@@ -48,7 +48,7 @@ export default function SuperadminDashboard() {
                             <a href="/employees" className="block px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100">
                                 Manage Employees
                             </a>
-                            <a href="/payroll-summaries" className="block px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100">
+                            <a href="/comprehensive-payroll-summaries" className="block px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100">
                                 View Payroll
                             </a>
                         </div>

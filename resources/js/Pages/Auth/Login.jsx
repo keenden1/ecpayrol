@@ -26,8 +26,6 @@ const Login = () => {
         setMounted(true);
         const flashStatus = document.querySelector('meta[name="status"]')?.getAttribute('content');
         if (flashStatus) setStatus(flashStatus);
-        const loginSuccess = sessionStorage.getItem('loginSuccess');
-        if (loginSuccess) { setStatus('Successfully logged in!'); sessionStorage.removeItem('loginSuccess'); }
     }, []);
 
     const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -73,7 +71,6 @@ const Login = () => {
                     });
 
                     if (response.ok) {
-                        sessionStorage.setItem('loginSuccess', '1');
                         // Navigate to wherever the server redirected us (role-based dashboard)
                         window.location.href = response.url || '/dashboard';
                         return;
@@ -333,7 +330,6 @@ const Login = () => {
                                     />
                                     <label htmlFor="remember"
                                         className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border-2 border-gray-200 bg-white peer-checked:border-indigo-600 peer-checked:bg-indigo-600 transition-all duration-150">
-                                        <CheckCircle className="h-3 w-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" style={{ display: formData.remember ? 'block' : 'none' }} />
                                         {formData.remember && <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                     </label>
                                 </div>
