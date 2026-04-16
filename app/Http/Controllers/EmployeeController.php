@@ -135,7 +135,7 @@ class EmployeeController extends Controller
             'CivilStatus' => 'nullable|string',
             'Birthdate' => 'nullable|date',
             'ContactNo' => 'nullable|string',
-            'Email' => 'required|email|unique:employees,Email,' . $id,
+            'Email' => 'nullable|email|unique:employees,Email,' . $id,
             'PresentAddress' => 'nullable|string',
             'PermanentAddress' => 'nullable|string',
             'EmerContactName' => 'nullable|string',

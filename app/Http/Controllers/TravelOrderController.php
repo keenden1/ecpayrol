@@ -70,29 +70,63 @@ class TravelOrderController extends Controller
             // No additional filtering needed
         }
         
+        // Apply search/filter params (used by AJAX calls from CoreHR/Travel page)
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $travelOrdersQuery->where(function ($q) use ($search) {
+                $q->where('destination', 'like', "%{$search}%")
+                  ->orWhere('purpose', 'like', "%{$search}%")
+                  ->orWhereHas('employee', function ($eq) use ($search) {
+                      $eq->where('Fname', 'like', "%{$search}%")
+                         ->orWhere('Lname', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $travelOrdersQuery->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('from_date')) {
+            $travelOrdersQuery->where('start_date', '>=', $request->input('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $travelOrdersQuery->where('end_date', '<=', $request->input('to_date'));
+        }
+
         // Sort by latest first
         $travelOrdersQuery->orderBy('created_at', 'desc');
-        
-        // Get active employees for the form
+
+        // Get the list of travel orders
+        $travelOrders = $travelOrdersQuery->get();
+
+        // Return JSON for AJAX requests (e.g. CoreHR/Travel page)
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'travelOrders' => $travelOrders,
+                'departments' => $departments,
+                'userRoles' => $userRoles,
+            ]);
+        }
+
+        // Get active employees for the form (only needed for full Inertia page)
         $employees = Employee::where('JobStatus', 'Active')
             ->whereHas('department', function($query) {
                 $query->where('is_active', true);
             })
             ->orderBy('Lname')
             ->get();
-            
+
         // Check if a specific travel order is selected for viewing
         $selectedId = $request->input('selected');
         $selectedTravelOrder = null;
-        
+
         if ($selectedId) {
             $selectedTravelOrder = TravelOrder::with(['employee', 'creator', 'approver', 'forceApprover'])
                 ->find($selectedId);
         }
-        
-        // Get the list of travel orders
-        $travelOrders = $travelOrdersQuery->get();
-        
+
         return inertia('TravelOrder/TravelOrderPage', [
             'auth' => [
                 'user' => $user,
