@@ -1164,6 +1164,13 @@ Route::middleware(['auth', 'verified', 'role:superadmin,hrd_manager'])->group(fu
     Route::delete('/awards/{id}', [AwardController::class, 'destroy'])->name('awards.destroy');
     Route::get('/awards/export', [AwardController::class, 'export'])->name('awards.export');
 
+    // Travel Routes
+    Route::get('/core-hr/travel', function () {
+        return Inertia::render('CoreHR/Travel', [
+            'auth' => ['user' => Auth::user()]
+        ]);
+    })->name('core-hr.travel');
+
     // Transfer Routes
     Route::get('/core-hr/transfer', function () {
         return Inertia::render('CoreHR/Transfer', [
