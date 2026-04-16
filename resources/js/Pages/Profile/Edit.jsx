@@ -38,6 +38,7 @@ export default function Edit({ mustVerifyEmail, status, photoUrl }) {
     });
 
     const [previewUrl, setPreviewUrl] = useState(photoUrl || null);
+    const [imgError, setImgError] = useState(false);
     const [showCurrentPass, setShowCurrentPass] = useState(false);
     const [showNewPass, setShowNewPass] = useState(false);
     const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -47,6 +48,7 @@ export default function Edit({ mustVerifyEmail, status, photoUrl }) {
         const file = e.target.files[0];
         if (!file) return;
         setProfileData('photo', file);
+        setImgError(false);
         setPreviewUrl(URL.createObjectURL(file));
     };
 
@@ -89,8 +91,13 @@ export default function Edit({ mustVerifyEmail, status, photoUrl }) {
                             <div className="flex items-end gap-4 -mt-12 mb-6">
                                 <div className="relative">
                                     <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-indigo-100 flex items-center justify-center">
-                                        {previewUrl ? (
-                                            <img src={previewUrl} alt="Profile" className="w-full h-full object-cover" />
+                                        {previewUrl && !imgError ? (
+                                            <img
+                                                src={previewUrl}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover"
+                                                onError={() => setImgError(true)}
+                                            />
                                         ) : (
                                             <span className="text-3xl font-bold text-indigo-600">
                                                 {user?.name?.charAt(0)?.toUpperCase() ?? '?'}

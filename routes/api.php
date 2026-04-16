@@ -84,21 +84,18 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/api/permissions', function () {
-        // Get all permissions from database
-        $permissions = Permission::all();
-        
-        // Transform permissions to the expected format
-        $permissions = $permissions->map(function($permission) {
-            return [
-                'id' => $permission->id,
-                'name' => $permission->name,
-                'category' => $permission->category
-            ];
-        });
-        
-        return response()->json([
-            'data' => $permissions
-        ]);
+        try {
+            $permissions = Permission::all()->map(function($permission) {
+                return [
+                    'id'       => $permission->id,
+                    'name'     => $permission->name,
+                    'category' => $permission->category ?? null,
+                ];
+            });
+            return response()->json(['data' => $permissions]);
+        } catch (\Exception $e) {
+            return response()->json(['data' => []]);
+        }
     });
 
     Route::post('/api/roles', function (Request $request) {

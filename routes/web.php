@@ -41,6 +41,7 @@ use App\Http\Controllers\EventsController;
 use App\Http\Controllers\HrCalendarController;
 use App\Http\Controllers\CancelRestDayController;
 use App\Http\Controllers\PayrollScheduleController;
+use App\Http\Controllers\Manage\UserManagementController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -1095,6 +1096,13 @@ Route::middleware(['auth', 'verified', 'role:superadmin,hrd_manager'])->prefix('
             'auth' => ['user' => Auth::user()]
         ]);
     })->name('manage.roles');
+});
+
+Route::middleware(['auth', 'verified', 'role:superadmin'])->prefix('manage')->group(function () {
+    Route::get('/users',          [UserManagementController::class, 'index'])  ->name('manage.users');
+    Route::post('/users',         [UserManagementController::class, 'store'])  ->name('manage.users.store');
+    Route::put('/users/{id}',     [UserManagementController::class, 'update']) ->name('manage.users.update');
+    Route::delete('/users/{id}',  [UserManagementController::class, 'destroy'])->name('manage.users.destroy');
 });
 
 /*

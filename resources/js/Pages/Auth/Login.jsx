@@ -74,8 +74,8 @@ const Login = () => {
 
                     if (response.ok) {
                         sessionStorage.setItem('loginSuccess', '1');
-                        // Keep spinner while page navigates
-                        window.location.href = '/dashboard';
+                        // Navigate to wherever the server redirected us (role-based dashboard)
+                        window.location.href = response.url || '/dashboard';
                         return;
                     }
 
@@ -346,7 +346,6 @@ const Login = () => {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                onMouseDown={() => setProcessing(true)}
                                 className="group w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
                                 style={{
                                     background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',

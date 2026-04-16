@@ -82,9 +82,10 @@ function NotifItem({ notification }) {
 
 /* ── Event Item ──────────────────────────────────────────────────────────────── */
 function EventItem({ event }) {
-    const d = event.date ? new Date(event.date) : null;
-    const day   = d ? d.getDate() : '—';
-    const month = d ? d.toLocaleString('default', { month: 'short' }) : '';
+    const d     = event.date ? new Date(event.date) : null;
+    const valid = d && !isNaN(d.getTime());
+    const day   = valid ? String(d.getDate()) : '—';
+    const month = valid ? d.toLocaleString('default', { month: 'short' }) : '';
 
     return (
         <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group">

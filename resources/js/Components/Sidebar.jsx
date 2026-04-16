@@ -241,6 +241,7 @@ const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsC
             { label: 'Line & Section', path: '/manage/line-section' },
             { label: 'Departments',    path: '/manage/departments' },
             { label: 'Roles & Access', path: '/manage/roles' },
+            { label: 'Staff / Users',  path: '/manage/users' },
         ]},
         { icon: UserCog,         label: 'Core HR',          allowedRoles: ['superadmin'], items: [
             { label: 'Promotion',    path: '/core-hr/promotion' },

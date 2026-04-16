@@ -13,6 +13,12 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
+                'name' => 'Test Admin',
+                'email' => 'test@gmail.com',
+                'password' => 'password',
+                'role' => 'superadmin'
+            ],
+            [
                 'name' => 'Super Admin',
                 'email' => 'superadmin@hrms.com',
                 'password' => 'password',
