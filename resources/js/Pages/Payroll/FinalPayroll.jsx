@@ -812,26 +812,26 @@ const FinalPayroll = ({ auth }) => {
             <Head title="Final Payroll" />
             <div className="max-w-7xl mx-auto">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                                Final Payroll
-                            </h1>
-                            <p className="text-sm text-blue-600 mt-1">
-                                💡 Tip: Double-click any row to view detailed
-                                payroll information
-                            </p>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                onClick={handleGeneration}
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                                <PlusCircle className="h-4 w-4 mr-1" />
-                                Generate
-                            </Button>
+                    {/* Header */}
+                    <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
+                        <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+                        <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                            <div>
+                                <p className="text-indigo-200 text-xs font-medium mb-1">Payroll</p>
+                                <h1 className="text-xl font-bold text-white">Final Payroll</h1>
+                                <p className="text-indigo-200 text-xs mt-1">
+                                    Double-click any row to view detailed payroll information
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleGeneration}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
+                                >
+                                    <PlusCircle className="w-3.5 h-3.5" />
+                                    Generate
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1009,74 +1009,26 @@ const FinalPayroll = ({ auth }) => {
 
                     {/* Summary Statistics */}
                     {statistics && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <Users className="h-8 w-8 text-blue-500" />
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">
-                                                Total Employees
-                                            </p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {statistics.total_employees ||
-                                                    0}
-                                            </p>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                            {[
+                                { icon: Users,      label: 'Total Employees', value: statistics.total_employees || 0,                          color: 'bg-indigo-500',  top: 'bg-indigo-500'  },
+                                { icon: DollarSign, label: 'Total Net Pay',   value: formatCurrency(statistics.total_net_pay),                  color: 'bg-emerald-500', top: 'bg-emerald-500' },
+                                { icon: TrendingUp, label: 'Total Gross',     value: formatCurrency(statistics.total_gross_earnings),           color: 'bg-amber-500',   top: 'bg-amber-500'   },
+                                { icon: AlertCircle,label: 'Total Deductions',value: formatCurrency(statistics.total_deductions),               color: 'bg-red-500',     top: 'bg-red-500'     },
+                            ].map(({ icon: Icon, label, value, color, top }) => (
+                                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className={`h-1 ${top}`} />
+                                    <div className="p-3 flex items-center gap-3">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                                            <Icon className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <DollarSign className="h-8 w-8 text-green-500" />
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">
-                                                Total Net Pay
-                                            </p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {formatCurrency(
-                                                    statistics.total_net_pay,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <TrendingUp className="h-8 w-8 text-orange-500" />
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">
-                                                Total Gross
-                                            </p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {formatCurrency(
-                                                    statistics.total_gross_earnings,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <AlertCircle className="h-8 w-8 text-red-500" />
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">
-                                                Total Deductions
-                                            </p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {formatCurrency(
-                                                    statistics.total_deductions,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            ))}
                         </div>
                     )}
 

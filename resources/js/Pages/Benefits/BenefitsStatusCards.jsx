@@ -1,49 +1,29 @@
 import React from 'react';
-import { Card, CardContent } from '@/Components/ui/card';
-import { 
-    FileText, 
-    Check, 
-    AlertCircle 
-} from 'lucide-react';
-
-const StatusCard = ({ title, count, icon, bgColor, textColor }) => (
-    <Card className={`${bgColor} shadow-sm`}>
-        <CardContent className="p-6 flex justify-between items-center">
-            <div>
-                <p className={`text-sm font-medium ${textColor}`}>{title}</p>
-                <p className="text-2xl font-bold">{count}</p>
-            </div>
-            <div className={`p-3 rounded-full ${bgColor.replace("bg-", "bg-opacity-20")}`}>
-                {icon}
-            </div>
-        </CardContent>
-    </Card>
-);
+import { FileText, Check, AlertCircle } from 'lucide-react';
 
 const BenefitsStatusCards = ({ total, posted, pending }) => {
+    const cards = [
+        { icon: FileText,     label: 'Total Benefits',   value: total,   color: 'bg-indigo-500', top: 'bg-indigo-500'  },
+        { icon: Check,        label: 'Posted Benefits',  value: posted,  color: 'bg-emerald-500', top: 'bg-emerald-500' },
+        { icon: AlertCircle,  label: 'Pending Benefits', value: pending, color: 'bg-amber-500',   top: 'bg-amber-500'   },
+    ];
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <StatusCard 
-                title="Total Benefits" 
-                count={total}
-                icon={<FileText className="h-6 w-6 text-indigo-600" />}
-                bgColor="bg-white"
-                textColor="text-gray-600"
-            />
-            <StatusCard 
-                title="Posted Benefits" 
-                count={posted}
-                icon={<Check className="h-6 w-6 text-green-600" />}
-                bgColor="bg-white" 
-                textColor="text-gray-600"
-            />
-            <StatusCard 
-                title="Pending Benefits" 
-                count={pending}
-                icon={<AlertCircle className="h-6 w-6 text-yellow-600" />}
-                bgColor="bg-white"
-                textColor="text-gray-600"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            {cards.map(({ icon: Icon, label, value, color, top }) => (
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className={`h-1 ${top}`} />
+                    <div className="p-3 flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                            <Icon className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 };

@@ -897,68 +897,57 @@ const HrCalendar = () => {
                         )}
 
                         {/* Header Section */}
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
+                            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+                            <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center">
-                                        <CalendarDays className="h-6 w-6 mr-2 text-indigo-600" />
-                                        HR Calendar
-                                    </h1>
-                                    <p className="text-gray-600">
+                                    <p className="text-indigo-200 text-xs font-medium mb-1">HR Management</p>
+                                    <h1 className="text-xl font-bold text-white">HR Calendar</h1>
+                                    <p className="text-indigo-200 text-xs mt-1">
                                         View and manage all your meetings and events in one place.
                                     </p>
                                 </div>
-                                <div className="flex items-center space-x-3">
-                                    <Button
+                                <div className="flex items-center gap-2">
+                                    <button
                                         onClick={() => router.visit('/events', { data: { openEventForm: true } })}
-                                        className="bg-purple-600 hover:bg-purple-700 shadow-sm"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-purple-500 hover:bg-purple-600 transition-colors"
                                     >
-                                        <Calendar className="h-4 w-4 mr-2" />
+                                        <Calendar className="w-3.5 h-3.5" />
                                         Create Event
-                                    </Button>
-                                    <Button
+                                    </button>
+                                    <button
                                         onClick={() => router.visit('/meetings', { data: { openMeetingForm: true } })}
-                                        className="bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors"
                                     >
-                                        <Users className="h-4 w-4 mr-2" />
+                                        <Users className="w-3.5 h-3.5" />
                                         Schedule Meeting
-                                    </Button>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                            <SummaryCard 
-                                icon={<Calendar className="h-5 w-5 text-indigo-600" />} 
-                                title="Total Events" 
-                                count={counts.total}
-                                color="#6366f1" // indigo
-                            />
-                            <SummaryCard 
-                                icon={<Calendar className="h-5 w-5 text-emerald-600" />} 
-                                title="Scheduled" 
-                                count={counts.scheduled}
-                                color="#10b981" // emerald
-                            />
-                            <SummaryCard 
-                                icon={<CheckCircle className="h-5 w-5 text-blue-600" />} 
-                                title="Completed" 
-                                count={counts.completed}
-                                color="#3b82f6" // blue
-                            />
-                            <SummaryCard 
-                                icon={<XCircle className="h-5 w-5 text-red-600" />} 
-                                title="Cancelled" 
-                                count={counts.cancelled}
-                                color="#ef4444" // red
-                            />
-                            <SummaryCard 
-                                icon={<AlertTriangle className="h-5 w-5 text-amber-600" />} 
-                                title="Postponed" 
-                                count={counts.postponed}
-                                color="#f59e0b" // amber
-                            />
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+                            {[
+                                { icon: CalendarDays, label: 'Total Events', value: counts.total,     color: 'bg-indigo-500',  top: 'bg-indigo-500'  },
+                                { icon: Calendar,     label: 'Scheduled',    value: counts.scheduled, color: 'bg-emerald-500', top: 'bg-emerald-500' },
+                                { icon: CheckCircle,  label: 'Completed',    value: counts.completed, color: 'bg-sky-500',     top: 'bg-sky-500'     },
+                                { icon: XCircle,      label: 'Cancelled',    value: counts.cancelled, color: 'bg-red-500',     top: 'bg-red-500'     },
+                                { icon: AlertTriangle,label: 'Postponed',    value: counts.postponed, color: 'bg-amber-500',   top: 'bg-amber-500'   },
+                            ].map(({ icon: Icon, label, value, color, top }) => (
+                                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className={`h-1 ${top}`} />
+                                    <div className="p-3 flex items-center gap-3">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                                            <Icon className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Filter Section */}

@@ -480,53 +480,57 @@ const DeductionsPage = ({ employees: initialEmployees, cutoff: initialCutoff, mo
                         )}
 
                         {/* Header Section */}
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                                    Employee Deductions Management
-                                </h1>
-                                <p className="text-gray-600">
-                                    Manage employee deductions including advances, charges, meals, and miscellaneous deductions.
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Button
-                                    onClick={() => setShowImportModal(true)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
-                                >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Import
-                                </Button>
-                                <Button
-                                    onClick={exportToExcel}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Export
-                                </Button>
-                                <Button
-                                    onClick={createBulkDeductions}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create All
-                                </Button>
-                                <Button
-                                    onClick={deleteAllNotPostedDeductions}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center"
-                                    disabled={status?.pendingCount === 0}
-                                >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete All Not Posted
-                                </Button>
-                                <Button
-                                    onClick={postAllDeductions}
-                                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center"
-                                    disabled={status?.pendingCount === 0}
-                                >
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Post All
-                                </Button>
+                        <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
+                            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+                            <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-indigo-200 text-xs font-medium mb-1">Payroll</p>
+                                    <h1 className="text-xl font-bold text-white">Employee Deductions Management</h1>
+                                    <p className="text-indigo-200 text-xs mt-1">
+                                        Manage employee deductions including advances, charges, meals, and miscellaneous deductions.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-2 items-end">
+                                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                                        <button
+                                            onClick={() => setShowImportModal(true)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            Import
+                                        </button>
+                                        <button
+                                            onClick={exportToExcel}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            Export
+                                        </button>
+                                        <button
+                                            onClick={createBulkDeductions}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/20 hover:bg-white/30 transition-colors"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                            Create All
+                                        </button>
+                                        <button
+                                            onClick={deleteAllNotPostedDeductions}
+                                            disabled={status?.pendingCount === 0}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            Delete All Not Posted
+                                        </button>
+                                        <button
+                                            onClick={postAllDeductions}
+                                            disabled={status?.pendingCount === 0}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-50"
+                                        >
+                                            <Save className="w-3.5 h-3.5" />
+                                            Post All
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         

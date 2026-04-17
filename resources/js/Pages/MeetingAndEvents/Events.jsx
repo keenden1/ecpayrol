@@ -1898,68 +1898,54 @@ const EventPage = ({ events: initialEvents, counts = {}, currentStatus = 'all', 
                         )}
 
                         {/* Header Section */}
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                                    Event Management
-                                </h1>
-                                <p className="text-gray-600">
-                                    Create and manage company events.
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <Button
-                                    onClick={handleExport}
-                                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors duration-200 flex items-center"
-                                >
-                                    <FileText className="w-5 h-5 mr-2" />
-                                    Export to Excel
-                                </Button>
-                                
-                                <Button
-                                    onClick={() => {
-                                        setFormMode('create');
-                                        setSelectedEvent(null);
-                                        setIsFormOpen(true);
-                                    }}
-                                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors duration-200 flex items-center"
-                                >
-                                    <Plus className="w-5 h-5 mr-2" />
-                                    Create Event
-                                </Button>
+                        <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
+                            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+                            <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-indigo-200 text-xs font-medium mb-1">HR Management</p>
+                                    <h1 className="text-xl font-bold text-white">Event Management</h1>
+                                    <p className="text-indigo-200 text-xs mt-1">Create and manage company events.</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleExport}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors"
+                                    >
+                                        <FileText className="w-3.5 h-3.5" />
+                                        Export to Excel
+                                    </button>
+                                    <button
+                                        onClick={() => { setFormMode('create'); setSelectedEvent(null); setIsFormOpen(true); }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Create Event
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        
+
                         {/* Status Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                            <StatusCard 
-                                title="Total Events" 
-                                count={eventCounts.total}
-                                icon={<Calendar className="h-6 w-6 text-indigo-600" />}
-                                bgColor="bg-white"
-                                textColor="text-gray-600"
-                            />
-                            <StatusCard 
-                                title="Scheduled" 
-                                count={eventCounts.scheduled}
-                                icon={<Clock className="h-6 w-6 text-green-600" />}
-                                bgColor="bg-white"
-                                textColor="text-gray-600"
-                            />
-                            <StatusCard 
-                                title="Completed" 
-                                count={eventCounts.completed}
-                                icon={<CheckCircle className="h-6 w-6 text-blue-600" />}
-                                bgColor="bg-white" 
-                                textColor="text-gray-600"
-                            />
-                            <StatusCard 
-                                title="Cancelled" 
-                                count={eventCounts.cancelled}
-                                icon={<XCircle className="h-6 w-6 text-red-600" />}
-                                bgColor="bg-white"
-                                textColor="text-gray-600"
-                            />
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                            {[
+                                { icon: Calendar,    label: 'Total Events', value: eventCounts.total,     color: 'bg-indigo-500',  top: 'bg-indigo-500'  },
+                                { icon: Clock,       label: 'Scheduled',    value: eventCounts.scheduled, color: 'bg-emerald-500', top: 'bg-emerald-500' },
+                                { icon: CheckCircle, label: 'Completed',    value: eventCounts.completed, color: 'bg-sky-500',     top: 'bg-sky-500'     },
+                                { icon: XCircle,     label: 'Cancelled',    value: eventCounts.cancelled, color: 'bg-red-500',     top: 'bg-red-500'     },
+                            ].map(({ icon: Icon, label, value, color, top }) => (
+                                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className={`h-1 ${top}`} />
+                                    <div className="p-3 flex items-center gap-3">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                                            <Icon className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Filters */}
