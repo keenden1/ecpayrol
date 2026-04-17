@@ -50,7 +50,7 @@ class AuthenticatedSessionController extends Controller
             'finance' => 'finance.dashboard',
             'employee' => 'employee.dashboard',
             'manager' => 'manager.dashboard',
-            default => 'dashboard'
+            default => 'employee.dashboard'
         };
 
         return redirect()->intended(route($dashboardRoute));

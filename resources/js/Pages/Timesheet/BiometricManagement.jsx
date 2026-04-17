@@ -111,6 +111,12 @@ const BiometricManagement = ({
     const [fetchAllEndDate, setFetchAllEndDate] = useState("");
     const [fetchAllUseCachedMap, setFetchAllUseCachedMap] = useState({});
 
+    // Auto-fetch schedule config
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [scheduleEnabled, setScheduleEnabled] = useState(false);
+    const [scheduleTime, setScheduleTime] = useState('23:00');
+    const [scheduleSaving, setScheduleSaving] = useState(false);
+
     // Form data state
     const [formData, setFormData] = useState({
         name: "",
@@ -557,6 +563,39 @@ const BiometricManagement = ({
         }
     };
 
+    // Load schedule config from server on mount
+    useEffect(() => {
+        fetch(route('biometric-devices.schedule-config.get'), { headers: { Accept: 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                setScheduleEnabled(!!data.enabled);
+                setScheduleTime(data.time || '23:00');
+            })
+            .catch(() => {});
+    }, []);
+
+    const saveScheduleConfig = async () => {
+        setScheduleSaving(true);
+        try {
+            const res = await fetch(route('biometric-devices.schedule-config.save'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+                body: JSON.stringify({ enabled: scheduleEnabled, time: scheduleTime }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Schedule ${scheduleEnabled ? 'enabled at ' + scheduleTime : 'disabled'}.`);
+                setShowScheduleModal(false);
+            } else {
+                toast.error(data.message || 'Failed to save schedule.');
+            }
+        } catch {
+            toast.error('Network error saving schedule.');
+        } finally {
+            setScheduleSaving(false);
+        }
+    };
+
     const startFetchAllLogs = () => {
         setShowFetchAllModal(false);
         const activeDevices = deviceList.filter((d) => d.status === "active");
@@ -710,6 +749,75 @@ const BiometricManagement = ({
         );
 
     // ── Render: fetch matched logs modal (with date filter) ───────────────────
+    const renderScheduleModal = () => showScheduleModal && (
+        <div className="fixed z-20 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setShowScheduleModal(false)} />
+                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-sm w-full p-6">
+                    <div className="flex items-start gap-4 mb-5">
+                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-violet-100">
+                            <Cpu className="h-5 w-5 text-violet-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">Auto-Fetch Schedule</h3>
+                            <p className="text-sm text-gray-500 mt-0.5">Set the daily time to automatically fetch logs from all devices</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* Enable / Disable toggle */}
+                        <div className="flex items-center justify-between bg-gray-50 rounded-md px-4 py-3">
+                            <div>
+                                <p className="text-sm font-medium text-gray-700">Enable auto-fetch</p>
+                                <p className="text-xs text-gray-400">Runs daily at the specified time</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setScheduleEnabled(v => !v)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${scheduleEnabled ? 'bg-violet-600' : 'bg-gray-200'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${scheduleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+
+                        {/* Time picker */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Run time <span className="text-gray-400 font-normal">(24-hour format)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={e => setScheduleTime(e.target.value)}
+                                disabled={!scheduleEnabled}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                            />
+                            {scheduleEnabled && (
+                                <p className="mt-1 text-xs text-gray-400">
+                                    Next run: every day at <span className="font-medium text-gray-600">{scheduleTime}</span>
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowScheduleModal(false)}
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >Cancel</button>
+                        <button
+                            type="button"
+                            onClick={saveScheduleConfig}
+                            disabled={scheduleSaving}
+                            className="px-4 py-2 text-sm rounded-md bg-violet-600 text-white font-medium hover:bg-violet-700 disabled:opacity-50"
+                        >{scheduleSaving ? 'Saving…' : 'Save Schedule'}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderFetchAllModal = () =>
         showFetchAllModal && (
             <div className="fixed z-20 inset-0 overflow-y-auto">
@@ -2058,62 +2166,77 @@ const BiometricManagement = ({
             <Head title="Biometric Device Management" />
             <div className="max-w-7xl mx-auto">
                 <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div className="p-6 bg-white border-b border-gray-200">
-                        <div className="flex justify-between items-center mb-6">
+                    <div className="p-3 sm:p-6 bg-white border-b border-gray-200">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
                             <h2 className="text-xl font-semibold text-gray-800">
                                 Biometric Device Management
                             </h2>
-                            <div className="flex space-x-2">
+                            <div className="flex flex-wrap gap-2">
                                 <button
-                                    className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:shadow-outline-gray transition ease-in-out duration-150"
+                                    className="inline-flex items-center px-3 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none transition ease-in-out duration-150"
                                     onClick={() => handleTestConnectionClick()}
+                                    title="Test Connection"
                                 >
-                                    <ServerCrash className="w-4 h-4 mr-2" />
-                                    Test Connection
+                                    <ServerCrash className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Test Connection</span>
                                 </button>
 
                                 <button
-                                    className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150"
+                                    className="inline-flex items-center px-3 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:outline-none transition ease-in-out duration-150"
                                     onClick={() => setShowFetchAllModal(true)}
+                                    title="Fetch All Devices"
                                 >
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Fetch All Devices
+                                    <RefreshCw className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Fetch All Devices</span>
                                 </button>
 
                                 <button
-                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:shadow-outline-gray transition ease-in-out duration-150"
-                                    onClick={handleAddDevice}
+                                    className="inline-flex items-center px-3 py-2 bg-violet-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-violet-700 focus:outline-none transition ease-in-out duration-150"
+                                    onClick={() => setShowScheduleModal(true)}
+                                    title={scheduleEnabled ? `Auto-fetch at ${scheduleTime}` : 'Auto-fetch disabled'}
                                 >
-                                    <PlusCircle className="w-4 h-4 mr-2" />
-                                    Add Device
+                                    <Cpu className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Schedule</span>
+                                    {scheduleEnabled && (
+                                        <span className="ml-1.5 px-1.5 py-0.5 rounded bg-white/20 text-white text-xs font-bold">{scheduleTime}</span>
+                                    )}
+                                </button>
+
+                                <button
+                                    className="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none transition ease-in-out duration-150"
+                                    onClick={handleAddDevice}
+                                    title="Add Device"
+                                >
+                                    <PlusCircle className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Add Device</span>
                                 </button>
                             </div>
                         </div>
 
                         {/* Devices Table */}
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Name
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             IP Address
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Port
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Location
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Last Sync
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Status
                                         </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
@@ -2123,64 +2246,49 @@ const BiometricManagement = ({
                                         <tr>
                                             <td
                                                 colSpan="7"
-                                                className="px-6 py-4 whitespace-nowrap text-center text-gray-500"
+                                                className="px-4 py-8 text-center text-sm text-gray-500"
                                             >
-                                                No devices found. Click "Add
-                                                Device" to add a new biometric
-                                                device.
+                                                No devices found. Click "Add Device" to add a new biometric device.
                                             </td>
                                         </tr>
                                     ) : (
                                         deviceList.map((device) => (
-                                            <tr key={device.id}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            <tr key={device.id} className="hover:bg-gray-50">
+                                                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     {device.name}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {device.ip_address}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="hidden md:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {device.port}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="hidden md:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {device.location}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="hidden sm:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {device.last_sync
-                                                        ? new Date(
-                                                              device.last_sync,
-                                                          ).toLocaleString(
-                                                              "en-US",
-                                                              {
-                                                                  month: "short",
-                                                                  day: "numeric",
-                                                                  year: "numeric",
-                                                                  hour: "numeric",
-                                                                  minute: "2-digit",
-                                                                  hour12: true,
-                                                              },
-                                                          )
+                                                        ? new Date(device.last_sync).toLocaleString("en-US", {
+                                                              month: "short",
+                                                              day: "numeric",
+                                                              year: "numeric",
+                                                              hour: "numeric",
+                                                              minute: "2-digit",
+                                                              hour12: true,
+                                                          })
                                                         : "Never"}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                            device.status ===
-                                                            "active"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : "bg-red-100 text-red-800"
-                                                        }`}
-                                                    >
-                                                        {device.status ===
-                                                        "active"
-                                                            ? "Active"
-                                                            : "Inactive"}
+                                                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                        device.status === "active"
+                                                            ? "bg-green-100 text-green-800"
+                                                            : "bg-red-100 text-red-800"
+                                                    }`}>
+                                                        {device.status === "active" ? "Active" : "Inactive"}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    {renderDeviceActions(
-                                                        device,
-                                                    )}
+                                                <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    {renderDeviceActions(device)}
                                                 </td>
                                             </tr>
                                         ))
@@ -2199,6 +2307,7 @@ const BiometricManagement = ({
             {renderPythonSyncConfirm()}
 
             {/* Fetch Matched Logs modal (with date filter) */}
+            {renderScheduleModal()}
             {renderFetchAllModal()}
             {renderFetchLogsModal()}
 

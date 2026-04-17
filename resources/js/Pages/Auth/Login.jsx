@@ -76,7 +76,7 @@ const Login = () => {
 
                     if (response.ok) {
                         sessionStorage.setItem('loginSuccess', '1');
-                        window.location.href = response.url || '/dashboard';
+                        window.location.href = response.url || '/employee/dashboard';
                         return;
                     }
 

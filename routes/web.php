@@ -110,8 +110,6 @@ Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
 */
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
     Route::get('/superadmin/dashboard', [\App\Http\Controllers\Dashboard\SuperadminDashboardController::class, 'index'])
         ->name('superadmin.dashboard');
 
@@ -435,6 +433,12 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         ->name('biometric-devices.cache-status');
     Route::post('/biometric-devices/diagnostic', [BiometricController::class, 'diagnosticTest'])
         ->name('biometric-devices.diagnostic');
+    Route::get('/biometric-devices/schedule-config', [BiometricController::class, 'getScheduleConfig'])
+        ->name('biometric-devices.schedule-config.get');
+    Route::post('/biometric-devices/schedule-config', [BiometricController::class, 'saveScheduleConfig'])
+        ->name('biometric-devices.schedule-config.save');
+    Route::post('/biometric-devices/cancel-syncs', [BiometricController::class, 'cancelSyncs'])
+        ->name('biometric-devices.cancel-syncs');
     Route::post('/biometric-devices/scan-network', [BiometricController::class, 'scanNetwork'])
         ->name('biometric-devices.scan-network');
     Route::get('/biometric-devices/sync-progress', [BiometricController::class, 'getSyncProgress'])

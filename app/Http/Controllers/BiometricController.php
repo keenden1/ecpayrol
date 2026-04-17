@@ -3397,4 +3397,53 @@ protected function performNetworkScan($scanId, $subnet, $port)
         
         return $recommendations;
     }
+
+    // ── Auto-fetch schedule config ────────────────────────────────────────────
+
+    public function cancelSyncs(Request $request)
+    {
+        $validated = $request->validate([
+            'log_ids'   => 'required|array',
+            'log_ids.*' => 'integer|exists:biometric_sync_logs,id',
+        ]);
+
+        BiometricSyncLog::whereIn('id', $validated['log_ids'])
+            ->whereIn('status', ['pending', 'fetching'])
+            ->update([
+                'status'        => 'failed',
+                'error_message' => 'Cancelled by user',
+                'completed_at'  => now(),
+            ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function getScheduleConfig()
+    {
+        $path   = storage_path('app/biometric_schedule.json');
+        $config = file_exists($path)
+            ? json_decode(file_get_contents($path), true)
+            : ['enabled' => false, 'time' => '23:00'];
+
+        return response()->json($config);
+    }
+
+    public function saveScheduleConfig(Request $request)
+    {
+        $validated = $request->validate([
+            'enabled' => 'required|boolean',
+            'time'    => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
+        ]);
+
+        // Validate time range
+        [$h, $m] = explode(':', $validated['time']);
+        if ((int)$h > 23 || (int)$m > 59) {
+            return response()->json(['success' => false, 'message' => 'Invalid time value.'], 422);
+        }
+
+        $path = storage_path('app/biometric_schedule.json');
+        file_put_contents($path, json_encode($validated, JSON_PRETTY_PRINT));
+
+        return response()->json(['success' => true, 'config' => $validated]);
+    }
 }

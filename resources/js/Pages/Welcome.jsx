@@ -322,7 +322,7 @@ export default function Welcome({ auth, systemVersion }) {
                         ))}
                         <div className="h-5 w-px bg-gray-200 mx-1" />
                         {auth?.user ? (
-                            <NavBtn href="/dashboard"
+                            <NavBtn href="/employee/dashboard"
                                 className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-[#0D2E6E] hover:bg-[#0a2257] text-white shadow-sm">
                                 Dashboard <ArrowRight className="h-4 w-4" />
                             </NavBtn>
@@ -351,7 +351,7 @@ export default function Welcome({ auth, systemVersion }) {
                                 {link}
                             </a>
                         ))}
-                        <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                        <NavBtn href={auth?.user ? '/employee/dashboard' : '/login'}
                             className="w-full px-4 py-2.5 rounded-lg bg-[#0D2E6E] text-white font-semibold text-sm">
                             {auth?.user ? 'Dashboard' : 'Log In'}
                         </NavBtn>
@@ -389,7 +389,7 @@ export default function Welcome({ auth, systemVersion }) {
 
                             <div className="flex flex-wrap items-center gap-4 mb-12"
                                 style={{ animation: 'fadeUp 0.7s ease 0.3s both' }}>
-                                <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                                <NavBtn href={auth?.user ? '/employee/dashboard' : '/login'}
                                     className="px-7 py-3.5 rounded-lg font-bold text-sm text-white bg-[#0D2E6E] hover:bg-[#0a2257] shadow-lg shadow-[#0D2E6E]/20 hover:-translate-y-0.5 transition-all">
                                     {auth?.user ? 'Open Dashboard' : 'Get Started'}
                                     <ArrowRight className="h-4 w-4" />
@@ -598,7 +598,7 @@ export default function Welcome({ auth, systemVersion }) {
                         <p className="text-blue-100 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
                             Join organizations already using EC HRIS to manage their workforce smarter, faster, and with full compliance.
                         </p>
-                        <NavBtn href={auth?.user ? '/dashboard' : '/login'}
+                        <NavBtn href={auth?.user ? '/employee/dashboard' : '/login'}
                             className="px-8 py-3.5 rounded-lg bg-white text-[#0D2E6E] font-bold text-sm hover:bg-blue-50 shadow-lg hover:-translate-y-0.5 transition-all">
                             {auth?.user ? 'Open Dashboard' : 'Log in to EC HRIS'}
                             <ArrowRight className="h-4 w-4" />
