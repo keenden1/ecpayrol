@@ -93,7 +93,7 @@ const MenuItem = ({ icon: Icon, label, items, path, isCollapsed, openMenus, setO
                         {label}
                     </p>
                     {items.map((sub, i) => {
-                        const subActive = url === sub.path || url.startsWith(sub.path + '/');
+                        const subActive = url === sub.path || url.startsWith(sub.path + '?');
                         const subCls = `block px-4 py-2 text-sm transition-colors ${
                             subActive
                                 ? 'text-indigo-600 bg-indigo-50 font-semibold'
@@ -126,7 +126,7 @@ const MenuItem = ({ icon: Icon, label, items, path, isCollapsed, openMenus, setO
             <div className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
                 <div className="ml-3.5 mt-0.5 mb-1 pl-3 border-l-2 border-gray-100 space-y-0.5">
                     {items.map((sub, i) => {
-                        const subActive = url === sub.path || url.startsWith(sub.path + '/');
+                        const subActive = url === sub.path || url.startsWith(sub.path + '?');
                         const subCls = `block px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                             subActive
                                 ? 'text-indigo-700 bg-indigo-50 font-semibold'

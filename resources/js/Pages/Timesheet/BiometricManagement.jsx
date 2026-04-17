@@ -114,7 +114,9 @@ const BiometricManagement = ({
     // Auto-fetch schedule config
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [scheduleEnabled, setScheduleEnabled] = useState(false);
+    const [scheduleType, setScheduleType] = useState('daily'); // 'daily' | 'interval'
     const [scheduleTime, setScheduleTime] = useState('23:00');
+    const [scheduleInterval, setScheduleInterval] = useState(60); // minutes
     const [scheduleSaving, setScheduleSaving] = useState(false);
 
     // Form data state
@@ -569,7 +571,9 @@ const BiometricManagement = ({
             .then(r => r.json())
             .then(data => {
                 setScheduleEnabled(!!data.enabled);
+                setScheduleType(data.schedule_type || 'daily');
                 setScheduleTime(data.time || '23:00');
+                setScheduleInterval(data.interval || 60);
             })
             .catch(() => {});
     }, []);
@@ -580,11 +584,14 @@ const BiometricManagement = ({
             const res = await fetch(route('biometric-devices.schedule-config.save'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken() },
-                body: JSON.stringify({ enabled: scheduleEnabled, time: scheduleTime }),
+                body: JSON.stringify({ enabled: scheduleEnabled, schedule_type: scheduleType, time: scheduleTime, interval: scheduleInterval }),
             });
             const data = await res.json();
             if (data.success) {
-                toast.success(`Schedule ${scheduleEnabled ? 'enabled at ' + scheduleTime : 'disabled'}.`);
+                const desc = !scheduleEnabled ? 'disabled'
+                    : scheduleType === 'interval' ? `every ${scheduleInterval >= 60 ? (scheduleInterval/60)+'h' : scheduleInterval+'m'}`
+                    : `daily at ${scheduleTime}`;
+                toast.success(`Schedule ${desc}.`);
                 setShowScheduleModal(false);
             } else {
                 toast.error(data.message || 'Failed to save schedule.');
@@ -769,7 +776,11 @@ const BiometricManagement = ({
                         <div className="flex items-center justify-between bg-gray-50 rounded-md px-4 py-3">
                             <div>
                                 <p className="text-sm font-medium text-gray-700">Enable auto-fetch</p>
-                                <p className="text-xs text-gray-400">Runs daily at the specified time</p>
+                                <p className="text-xs text-gray-400">
+                                    {scheduleType === 'interval'
+                                        ? `Runs every ${scheduleInterval >= 60 ? (scheduleInterval/60)+(scheduleInterval===60?'hour':'hours') : scheduleInterval+' mins'}`
+                                        : 'Runs daily at the specified time'}
+                                </p>
                             </div>
                             <button
                                 type="button"
@@ -780,24 +791,72 @@ const BiometricManagement = ({
                             </button>
                         </div>
 
-                        {/* Time picker */}
+                        {/* Schedule type selector */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Run time <span className="text-gray-400 font-normal">(24-hour format)</span>
-                            </label>
-                            <input
-                                type="time"
-                                value={scheduleTime}
-                                onChange={e => setScheduleTime(e.target.value)}
-                                disabled={!scheduleEnabled}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
-                            />
-                            {scheduleEnabled && (
-                                <p className="mt-1 text-xs text-gray-400">
-                                    Next run: every day at <span className="font-medium text-gray-600">{scheduleTime}</span>
-                                </p>
-                            )}
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Schedule type</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[['daily','Daily (once a day)'],['interval','Interval (repeat)']].map(([val, lbl]) => (
+                                    <button
+                                        key={val}
+                                        type="button"
+                                        disabled={!scheduleEnabled}
+                                        onClick={() => setScheduleType(val)}
+                                        className={`px-3 py-2 rounded-md text-sm border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                            scheduleType === val
+                                                ? 'bg-violet-600 text-white border-violet-600'
+                                                : 'bg-white text-gray-600 border-gray-300 hover:border-violet-400'
+                                        }`}
+                                    >{lbl}</button>
+                                ))}
+                            </div>
                         </div>
+
+                        {/* Daily: time picker */}
+                        {scheduleType === 'daily' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Run time <span className="text-gray-400 font-normal">(24-hour format)</span>
+                                </label>
+                                <input
+                                    type="time"
+                                    value={scheduleTime}
+                                    onChange={e => setScheduleTime(e.target.value)}
+                                    disabled={!scheduleEnabled}
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                />
+                                {scheduleEnabled && (
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Runs every day at <span className="font-medium text-gray-600">{scheduleTime}</span>
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Interval: picker */}
+                        {scheduleType === 'interval' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Repeat every</label>
+                                <select
+                                    value={scheduleInterval}
+                                    onChange={e => setScheduleInterval(Number(e.target.value))}
+                                    disabled={!scheduleEnabled}
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <option value={60}>Every 1 hour</option>
+                                    <option value={120}>Every 2 hours</option>
+                                    <option value={180}>Every 3 hours</option>
+                                    <option value={360}>Every 6 hours</option>
+                                    <option value={720}>Every 12 hours</option>
+                                </select>
+                                {scheduleEnabled && (
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Runs every <span className="font-medium text-gray-600">
+                                            {scheduleInterval >= 60 ? (scheduleInterval/60)+(scheduleInterval===60?' hour':' hours') : scheduleInterval+' minutes'}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="mt-5 flex justify-end gap-2">
