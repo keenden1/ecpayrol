@@ -3,7 +3,8 @@ import { Head, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     Shield, Users, Plus, Edit2, Trash2, X, Save,
-    Search, ChevronDown, ChevronUp, Check, AlertCircle
+    Search, ChevronDown, ChevronUp, Check, AlertCircle,
+    LayoutGrid, Minus
 } from 'lucide-react';
 import axios from 'axios';
 import ConfirmModal from '@/Components/ConfirmModal';
@@ -41,6 +42,157 @@ function Alert({ message, type, onClose }) {
                 {message}
             </div>
             <button onClick={onClose}><X className="w-4 h-4" /></button>
+        </div>
+    );
+}
+
+/* ── Role Matrix ────────────────────────────────────────────────────────────── */
+const ROLES = [
+    { key: 'superadmin',      label: 'Super Admin',      color: 'bg-violet-500' },
+    { key: 'payroll_officer', label: 'Payroll Officer',  color: 'bg-blue-500'   },
+    { key: 'finance',         label: 'Finance',          color: 'bg-emerald-500'},
+    { key: 'manager',         label: 'Manager',          color: 'bg-amber-500'  },
+    { key: 'employee',        label: 'Employee',         color: 'bg-gray-400'   },
+];
+
+const MODULES = [
+    { group: 'General', items: [
+        { label: 'Dashboard',          roles: ['superadmin','payroll_officer','finance','manager','employee'] },
+    ]},
+    { group: 'Employee Management', items: [
+        { label: 'Employee List',      roles: ['superadmin','payroll_officer','manager'] },
+        { label: 'Import Employees',   roles: ['superadmin','payroll_officer','manager'] },
+    ]},
+    { group: 'Timesheets', items: [
+        { label: 'DTR',                roles: ['superadmin','payroll_officer'] },
+        { label: 'Process Attendance', roles: ['superadmin','payroll_officer'] },
+        { label: 'Manual Entry',       roles: ['superadmin','payroll_officer'] },
+        { label: 'Biometrics',         roles: ['superadmin','payroll_officer'] },
+        { label: 'Import Attendance',  roles: ['superadmin','payroll_officer'] },
+    ]},
+    { group: 'Payroll', items: [
+        { label: 'Final Payroll',      roles: ['superadmin','payroll_officer','finance'] },
+        { label: 'Payroll Summary',    roles: ['superadmin','payroll_officer','finance'] },
+        { label: 'Benefits',           roles: ['superadmin','payroll_officer','finance'] },
+        { label: 'Deductions',         roles: ['superadmin','payroll_officer','finance'] },
+    ]},
+    { group: 'Self-Service', items: [
+        { label: 'My Attendance',      roles: ['employee'] },
+        { label: 'My Payroll',         roles: ['employee'] },
+    ]},
+    { group: 'Requests', items: [
+        { label: 'Overtime',           roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Offset',             roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Change Restday',     roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Cancel Restday',     roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Change Time Sched',  roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'SLVL',               roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Travel Order',       roles: ['superadmin','payroll_officer','manager','employee'] },
+        { label: 'Official Business',  roles: ['superadmin','payroll_officer','manager','employee'] },
+    ]},
+    { group: 'Manage', items: [
+        { label: 'User Management',    roles: ['superadmin'] },
+        { label: 'Roles & Access',     roles: ['superadmin'] },
+    ]},
+    { group: 'Core HR', items: [
+        { label: 'Promotions',         roles: ['superadmin','payroll_officer'] },
+        { label: 'Awards',             roles: ['superadmin','payroll_officer'] },
+        { label: 'Transfers',          roles: ['superadmin','payroll_officer'] },
+        { label: 'Resignations',       roles: ['superadmin','payroll_officer'] },
+        { label: 'Complaints',         roles: ['superadmin','payroll_officer'] },
+        { label: 'Warnings',           roles: ['superadmin','payroll_officer'] },
+        { label: 'Terminations',       roles: ['superadmin','payroll_officer'] },
+    ]},
+    { group: 'HR Tools', items: [
+        { label: 'HR Calendar',        roles: ['superadmin','payroll_officer'] },
+        { label: 'Daily Attendance Report', roles: ['superadmin','payroll_officer'] },
+        { label: 'Monthly Attendance Report', roles: ['superadmin','payroll_officer'] },
+        { label: 'Training Report',    roles: ['superadmin','payroll_officer'] },
+        { label: 'Training',           roles: ['superadmin'] },
+        { label: 'Meetings',           roles: ['superadmin','payroll_officer'] },
+        { label: 'Events',             roles: ['superadmin','payroll_officer'] },
+    ]},
+    { group: 'System', items: [
+        { label: 'Settings',           roles: ['superadmin'] },
+    ]},
+];
+
+function RoleMatrix() {
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+                <thead>
+                    <tr className="bg-gray-50">
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-48 border-b border-gray-100">
+                            Module / Feature
+                        </th>
+                        {ROLES.map(r => (
+                            <th key={r.key} className="px-3 py-3 text-center border-b border-gray-100 min-w-[110px]">
+                                <div className="flex flex-col items-center gap-1.5">
+                                    <div className={`w-7 h-7 rounded-lg ${r.color} flex items-center justify-center`}>
+                                        <Shield className="w-3.5 h-3.5 text-white" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-700 leading-tight">{r.label}</span>
+                                </div>
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {MODULES.map(group => (
+                        <React.Fragment key={group.group}>
+                            {/* Group header row */}
+                            <tr className="bg-indigo-50/60">
+                                <td
+                                    colSpan={ROLES.length + 1}
+                                    className="px-5 py-2 text-xs font-bold text-indigo-600 uppercase tracking-widest border-y border-indigo-100"
+                                >
+                                    {group.group}
+                                </td>
+                            </tr>
+                            {/* Feature rows */}
+                            {group.items.map((item, idx) => (
+                                <tr key={item.label} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                                    <td className="px-5 py-2.5 text-sm text-gray-700 font-medium border-b border-gray-50">
+                                        {item.label}
+                                    </td>
+                                    {ROLES.map(role => {
+                                        const has = item.roles.includes(role.key);
+                                        return (
+                                            <td key={role.key} className="px-3 py-2.5 text-center border-b border-gray-50">
+                                                {has ? (
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 mx-auto">
+                                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 mx-auto">
+                                                        <Minus className="w-3 h-3 text-gray-300" />
+                                                    </span>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </React.Fragment>
+                    ))}
+                </tbody>
+            </table>
+            {/* Legend */}
+            <div className="flex items-center gap-6 px-5 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
+                <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100">
+                        <Check className="w-3 h-3 text-emerald-600" />
+                    </span>
+                    Has access
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100">
+                        <Minus className="w-3 h-3 text-gray-300" />
+                    </span>
+                    No access
+                </div>
+            </div>
         </div>
     );
 }
@@ -225,8 +377,9 @@ const RolesAndAccess = () => {
                         {/* Tabs */}
                         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
                             {[
-                                { key: 'roles', label: 'Roles', icon: Shield },
-                                { key: 'users', label: 'Users',  icon: Users  },
+                                { key: 'roles',  label: 'Roles',       icon: Shield },
+                                { key: 'users',  label: 'Users',       icon: Users  },
+                                { key: 'matrix', label: 'Role Matrix', icon: LayoutGrid },
                             ].map(({ key, label, icon: Icon }) => (
                                 <button
                                     key={key}
@@ -304,6 +457,9 @@ const RolesAndAccess = () => {
                                 {filteredRoles.length} role{filteredRoles.length !== 1 ? 's' : ''}
                             </div>
                         </div>
+                    ) : activeTab === 'matrix' ? (
+                        /* ── Role Matrix ── */
+                        <RoleMatrix />
                     ) : (
                         /* ── Users Table ── */
                         <div className="overflow-x-auto">
