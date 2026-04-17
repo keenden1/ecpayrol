@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, Clock, Wallet, FileText,
     Settings, Building2, UserCog, Calendar, FileBarChart,
     GraduationCap, CalendarCheck, ChevronLeft, ChevronRight,
-    ClipboardCheck, ChevronDown
+    ClipboardCheck, ChevronDown, CalendarDays
 } from 'lucide-react';
 import '../../css/sidebar.css';
 
@@ -227,6 +227,7 @@ const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsC
             { label: 'Benefits',        path: '/benefits' },
             { label: 'Deductions',      path: '/deductions' },
         ]},
+        { icon: CalendarDays,    label: 'My Attendance',    allowedRoles: ['employee'], path: '/my-attendance' },
         { icon: FileText,        label: 'Requests',         allowedRoles: ['superadmin','payroll_officer','manager','employee'], items: [
             { label: 'Overtime',          path: '/overtimes' },
             { label: 'Offset',            path: '/offsets' },
@@ -274,7 +275,7 @@ const Sidebar = ({ open = false, setOpen = () => {}, isCollapsed = false, setIsC
     // Groups
     const groups = [
         { label: 'Main',       keys: ['Dashboard', 'Employees'] },
-        { label: 'Operations', keys: ['Timesheets', 'Payroll', 'Requests'] },
+        { label: 'Operations', keys: ['Timesheets', 'Payroll', 'My Attendance', 'Requests'] },
         { label: 'HR',         keys: ['Manage', 'Core HR', 'HR Calendar', 'HR Reports', 'Training', 'Events & Meetings'] },
         { label: 'System',     keys: ['Settings'] },
     ];

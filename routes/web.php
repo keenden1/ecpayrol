@@ -24,6 +24,7 @@ use App\Http\Controllers\PayrollSummariesController;
 use App\Http\Controllers\Auth\EmployeeRegistrationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ProcessedAttendanceController;
+use App\Http\Controllers\MyAttendanceController;
 use App\Http\Controllers\EmployeeScheduleController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\AwardController;
@@ -164,6 +165,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | Employee Self-Service Routes (Payroll)
     |--------------------------------------------------------------------------
     */
+    // My Attendance (employee self-service)
+    Route::get('/my-attendance', [MyAttendanceController::class, 'index'])
+        ->name('my-attendance');
+
     // Employee payroll lookup (for employee self-service)
     Route::get('/my-payroll', [FinalPayrollController::class, 'myPayroll'])
         ->name('my-payroll');

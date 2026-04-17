@@ -111,12 +111,6 @@ export default function SuperadminDashboard({ auth, stats: s, charts: c }) {
                             <h1 className="text-2xl font-black leading-tight">{greeting}, {user?.name?.split(' ')[0]} 👋</h1>
                             <p className="text-indigo-200 text-sm mt-1">Here's your system overview for today.</p>
                         </div>
-                        <a
-                            href="/reports/daily-attendance"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-sm font-semibold transition-colors backdrop-blur-sm"
-                        >
-                            <BarChart3 className="w-4 h-4" /> Generate Report
-                        </a>
                     </div>
                 </div>
 
