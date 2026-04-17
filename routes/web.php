@@ -264,6 +264,11 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         Route::post('/{id}/mark-blocked', [EmployeeController::class, 'markBlocked'])->name('employees.markBlocked');
         Route::post('/{id}/mark-active', [EmployeeController::class, 'markActive'])->name('employees.markActive');
 
+        // Login credential management
+        Route::post('/create-all-logins', [EmployeeController::class, 'createAllLogins'])->name('employees.createAllLogins');
+        Route::post('/{id}/create-login', [EmployeeController::class, 'createLogin'])->name('employees.createLogin');
+        Route::post('/{id}/reset-login', [EmployeeController::class, 'resetLogin'])->name('employees.resetLogin');
+
         Route::get('/export', [EmployeeController::class, 'exportExcel'])->name('employees.export');
     });
 

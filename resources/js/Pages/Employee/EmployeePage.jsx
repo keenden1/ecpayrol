@@ -16,6 +16,8 @@ import {
     FileSpreadsheet,
     ChevronRight,
     AlertTriangle,
+    KeyRound,
+    RefreshCw,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/Components/ui/alert";
 import { Button } from "@/Components/ui/Button";
@@ -778,6 +780,8 @@ const EmployeeList = ({
     onMarkInactive,
     onMarkBlocked,
     onMarkActive,
+    onCreateLogin,
+    onResetLogin,
 }) => {
     if (!employees?.length) {
         return (
@@ -828,7 +832,13 @@ const EmployeeList = ({
                         >
                             {/* ID / BID */}
                             <td className="px-3 py-2 whitespace-nowrap">
-                                <p className="text-xs font-mono text-gray-600">{employee.idno || "—"}</p>
+                                <div className="flex items-center gap-1.5">
+                                    <p className="text-xs font-mono text-gray-600">{employee.idno || "—"}</p>
+                                    {employee.has_account
+                                        ? <span title="Has login credentials" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">✓ Login</span>
+                                        : <span title="No login account" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-400">No Login</span>
+                                    }
+                                </div>
                                 {employee.bid && (
                                     <p className="text-xs font-mono text-indigo-500 mt-0.5">{employee.bid}</p>
                                 )}
@@ -878,6 +888,23 @@ const EmployeeList = ({
                                     >
                                         <Edit2 className="h-4 w-4" />
                                     </ActionBtn>
+                                    {!employee.has_account ? (
+                                        <ActionBtn
+                                            onClick={() => onCreateLogin(employee.id)}
+                                            title="Create Login (ID + Birthdate)"
+                                            className="text-gray-400 hover:text-green-600 hover:bg-green-50"
+                                        >
+                                            <KeyRound className="h-4 w-4" />
+                                        </ActionBtn>
+                                    ) : (
+                                        <ActionBtn
+                                            onClick={() => onResetLogin(employee.id)}
+                                            title="Reset Password to Birthdate"
+                                            className="text-gray-400 hover:text-amber-600 hover:bg-amber-50"
+                                        >
+                                            <RefreshCw className="h-4 w-4" />
+                                        </ActionBtn>
+                                    )}
                                     {employee.JobStatus !== "Inactive" && (
                                         <ActionBtn
                                             onClick={() =>
@@ -1177,6 +1204,56 @@ const EmployeePage = ({
         });
     };
 
+    const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    const handleCreateLogin = async (id) => {
+        try {
+            const res = await fetch(`/employees/${id}/create-login`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json();
+            if (res.status === 409) { alert('This employee already has a login account.'); return; }
+            if (!res.ok) { alert(data.message || 'Failed to create login.'); return; }
+            alert('Login created!\nUsername: Employee ID\nPassword: Birthdate (MMDDYYYY)');
+            // Update local state
+            setFilteredEmployees(prev => prev.map(e => e.id === id ? { ...e, has_account: true } : e));
+        } catch { alert('Network error. Please try again.'); }
+    };
+
+    const handleResetLogin = async (id) => {
+        if (!confirm('Reset this employee\'s password to their birthdate (MMDDYYYY)?')) return;
+        try {
+            const res = await fetch(`/employees/${id}/reset-login`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json();
+            if (!res.ok) { alert(data.message || 'Failed to reset password.'); return; }
+            alert('Password reset to birthdate (MMDDYYYY) successfully.');
+        } catch { alert('Network error. Please try again.'); }
+    };
+
+    const [creatingAllLogins, setCreatingAllLogins] = useState(false);
+
+    const handleCreateAllLogins = async () => {
+        const noLogin = filteredEmployees.filter(e => !e.has_account).length;
+        if (noLogin === 0) { alert('All employees already have login accounts.'); return; }
+        if (!confirm(`Create login accounts for ${noLogin} employee(s) without one?\n\nUsername: Employee ID\nPassword: Birthdate (MMDDYYYY)`)) return;
+        setCreatingAllLogins(true);
+        try {
+            const res = await fetch('/employees/create-all-logins', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json();
+            alert(data.message);
+            // Mark all as having accounts in local state
+            setFilteredEmployees(prev => prev.map(e => ({ ...e, has_account: true })));
+        } catch { alert('Network error. Please try again.'); }
+        finally { setCreatingAllLogins(false); }
+    };
+
     const handleTabChange = (value) => {
         setActiveTab(value);
         router.visit(`/employees?status=${value}`, {
@@ -1237,6 +1314,19 @@ const EmployeePage = ({
                         </p>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
+                        <button
+                            onClick={handleCreateAllLogins}
+                            disabled={creatingAllLogins}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded-lg hover:bg-violet-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Create login accounts for all employees without one"
+                        >
+                            {creatingAllLogins ? (
+                                <div className="h-4 w-4 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <KeyRound className="h-4 w-4" />
+                            )}
+                            Create All Logins
+                        </button>
                         <button
                             onClick={handleExportToExcel}
                             disabled={isExporting || !filteredEmployees.length}
@@ -1371,6 +1461,8 @@ const EmployeePage = ({
                             onMarkInactive={handleMarkInactive}
                             onMarkBlocked={handleMarkBlocked}
                             onMarkActive={handleMarkActive}
+                            onCreateLogin={handleCreateLogin}
+                            onResetLogin={handleResetLogin}
                         />
                     </div>
                 </div>

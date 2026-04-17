@@ -36,7 +36,14 @@ class EmployeeController extends Controller
         
         // Only select columns needed for the list view — keeps payload small
         $listColumns = ['id','idno','bid','Fname','Lname','MName','JobStatus','Department','Jobtitle','Email','ContactNo'];
-        $employees = $query->select($listColumns)->orderBy('Lname')->orderBy('Fname')->get();
+        $employees = $query
+            ->select($listColumns)
+            ->selectSub(
+                \DB::table('users')->whereColumn('users.employee_idno', 'employees.idno')->selectRaw('COUNT(*)'),
+                'has_account'
+            )
+            ->orderBy('Lname')->orderBy('Fname')->get()
+            ->map(fn($e) => array_merge($e->toArray(), ['has_account' => (bool)$e->has_account]));
 
         if ($request->expectsJson()) {
             return response()->json(['data' => $employees]);
@@ -275,6 +282,57 @@ class EmployeeController extends Controller
      * Create a system user account for a newly added employee.
      * Username: ID number  |  Password: birthdate in MMDDYYYY format
      */
+    public function createAllLogins()
+    {
+        $existing = \DB::table('users')->whereNotNull('employee_idno')->pluck('employee_idno')->toArray();
+
+        $employees = Employee::whereNotNull('idno')
+            ->whereNotIn('idno', $existing)
+            ->get();
+
+        $created = 0;
+        foreach ($employees as $employee) {
+            $this->createEmployeeUser($employee);
+            $created++;
+        }
+
+        return response()->json([
+            'message' => "{$created} login account(s) created.",
+            'created' => $created,
+            'skipped' => $employees->count() - $created,
+        ]);
+    }
+
+    public function createLogin($id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        if (User::where('employee_idno', $employee->idno)->exists()) {
+            return response()->json(['message' => 'Login already exists.'], 409);
+        }
+
+        $this->createEmployeeUser($employee);
+        return response()->json(['message' => 'Login created successfully.']);
+    }
+
+    public function resetLogin($id)
+    {
+        $employee = Employee::findOrFail($id);
+        $user = User::where('employee_idno', $employee->idno)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'No login account found.'], 404);
+        }
+
+        $password = $employee->idno;
+        if ($employee->Birthdate) {
+            try { $password = Carbon::parse($employee->Birthdate)->format('mdY'); } catch (\Exception $e) {}
+        }
+
+        $user->update(['password' => Hash::make($password)]);
+        return response()->json(['message' => 'Password reset to birthdate (MMDDYYYY).']);
+    }
+
     private function createEmployeeUser(Employee $employee): void
     {
         if (!$employee->idno) {

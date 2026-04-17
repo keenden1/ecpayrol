@@ -101,8 +101,8 @@ class TravelOrderController extends Controller
         // Get the list of travel orders
         $travelOrders = $travelOrdersQuery->get();
 
-        // Return JSON for AJAX requests (e.g. CoreHR/Travel page)
-        if ($request->ajax() || $request->wantsJson()) {
+        // Return JSON for AJAX requests — but NOT for Inertia page navigations
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
             return response()->json([
                 'travelOrders' => $travelOrders,
                 'departments' => $departments,
