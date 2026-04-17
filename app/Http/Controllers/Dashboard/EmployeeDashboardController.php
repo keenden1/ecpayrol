@@ -9,7 +9,7 @@ class EmployeeDashboardController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Dashboard/Employee', [
+        return Inertia::render('Employee/Dashboard', [
             'auth' => [
                 'user' => auth()->user()->load('roles')
             ]
