@@ -32,9 +32,8 @@ const Login = () => {
 
     const validateForm = () => {
         const errs = {};
-        if (!formData.email)                   errs.email    = 'Email is required';
-        else if (!validateEmail(formData.email)) errs.email  = 'Please enter a valid email address';
-        if (!formData.password)                errs.password = 'Password is required';
+        if (!formData.email) errs.email = 'Email or ID number is required';
+        if (!formData.password) errs.password = 'Password is required';
         return errs;
     };
 
@@ -242,18 +241,18 @@ const Login = () => {
 
                         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
-                            {/* Email */}
+                            {/* Email or ID Number */}
                             <div>
                                 <label htmlFor="email" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                                    Email Address
+                                    Email or ID Number
                                 </label>
                                 <input
                                     id="email"
-                                    type="email"
+                                    type="text"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    placeholder="you@company.com"
+                                    placeholder="you@company.com or your ID number"
                                     autoComplete="username"
                                     autoFocus
                                     className={`w-full px-4 py-3 rounded-xl border text-sm text-gray-900 placeholder-gray-300 bg-white transition-all duration-200 outline-none

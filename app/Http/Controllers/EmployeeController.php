@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -103,14 +107,13 @@ class EmployeeController extends Controller
                 ->withInput();
         }
 
-        // Fix: Changed from Employees to Employee
-        Employee::create($request->all());
+        $employee = Employee::create($request->all());
 
-        // Fix: Check if the request expects JSON and return appropriate response
+        // Auto-create a user account for the new employee
+        $this->createEmployeeUser($employee);
+
         if ($request->expectsJson()) {
-            return response()->json([
-                'message' => 'Employee created successfully'
-            ]);
+            return response()->json(['message' => 'Employee created successfully']);
         }
 
         return redirect()->back()->with('message', 'Employee created successfully');
@@ -266,6 +269,59 @@ class EmployeeController extends Controller
         }
         
         return back()->with('message', 'Employee activated successfully.');
+    }
+
+    /**
+     * Create a system user account for a newly added employee.
+     * Username: ID number  |  Password: birthdate in MMDDYYYY format
+     */
+    private function createEmployeeUser(Employee $employee): void
+    {
+        if (!$employee->idno) {
+            return;
+        }
+
+        // Skip if a user with this employee_idno already exists
+        if (User::where('employee_idno', $employee->idno)->exists()) {
+            return;
+        }
+
+        // Derive password from birthdate (MMDDYYYY), fallback to the idno itself
+        $password = $employee->idno; // fallback
+        if ($employee->Birthdate) {
+            try {
+                $password = Carbon::parse($employee->Birthdate)->format('mdY');
+            } catch (\Exception $e) {
+                // keep fallback
+            }
+        }
+
+        // Use the employee's real email, or generate a placeholder
+        $email = $employee->Email ?: "{$employee->idno}@hris.local";
+
+        // Ensure email is unique in users table
+        if (User::where('email', $email)->exists()) {
+            $email = "{$employee->idno}@hris.local";
+            $suffix = 1;
+            while (User::where('email', $email)->exists()) {
+                $email = "{$employee->idno}_{$suffix}@hris.local";
+                $suffix++;
+            }
+        }
+
+        $user = User::create([
+            'name'          => trim("{$employee->Fname} {$employee->Lname}"),
+            'email'         => $email,
+            'password'      => Hash::make($password),
+            'employee_idno' => $employee->idno,
+            'is_employee'   => true,
+        ]);
+
+        // Assign the 'employee' role
+        $role = Role::where('slug', 'employee')->orWhere('name', 'employee')->first();
+        if ($role) {
+            $user->roles()->attach($role->id);
+        }
     }
 
     /**

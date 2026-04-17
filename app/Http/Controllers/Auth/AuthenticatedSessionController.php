@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -25,15 +26,29 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Handle an incoming authentication request.
+     * Accepts either an email address or an employee ID number as the login identifier.
      */
     public function store(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email'    => 'required|string',
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        $identifier = $request->email;
+
+        // If the input is not a valid email, treat it as an employee ID number
+        if (!filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            $user = User::where('employee_idno', $identifier)->first();
+            if (!$user) {
+                throw ValidationException::withMessages([
+                    'email' => 'No account found for that ID number.',
+                ]);
+            }
+            $identifier = $user->email;
+        }
+
+        if (!Auth::attempt(['email' => $identifier, 'password' => $request->password], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => 'Invalid credentials',
             ]);

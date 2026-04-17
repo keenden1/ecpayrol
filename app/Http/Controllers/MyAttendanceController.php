@@ -13,7 +13,7 @@ class MyAttendanceController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $employee = Employee::where('idno', $user->employee_id)->first();
+        $employee = Employee::where('idno', $user->employee_idno)->first();
 
         $month = $request->input('month', now()->month);
         $year  = $request->input('year', now()->year);
