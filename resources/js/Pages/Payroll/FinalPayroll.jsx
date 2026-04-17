@@ -101,430 +101,175 @@ const FinalPayrollDetailModal = ({ isOpen, payroll, onClose, onUpdate }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative bg-white rounded-lg shadow-lg max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+
                 {/* Header */}
-                <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
-                    <div className="flex items-center space-x-3">
-                        <h2 className="text-xl font-semibold text-gray-800">
-                            Final Payroll Details
-                        </h2>
-                        <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                payroll?.status === "paid"
-                                    ? "bg-green-100 text-green-800"
-                                    : payroll?.status === "finalized"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                            }`}
-                        >
-                            {payroll?.status?.charAt(0).toUpperCase() +
-                                payroll?.status?.slice(1)}
+                <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                            <FileText className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-white">Final Payroll Details</h2>
+                            {payroll && <p className="text-indigo-200 text-xs">{payroll.employee_name} · {payroll.full_period}</p>}
+                        </div>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            payroll?.status === "paid" ? "bg-emerald-100 text-emerald-700"
+                            : payroll?.status === "finalized" ? "bg-blue-100 text-blue-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                            {payroll?.status?.charAt(0).toUpperCase() + payroll?.status?.slice(1)}
                         </span>
-                        <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                payroll?.approval_status === "approved"
-                                    ? "bg-green-100 text-green-800"
-                                    : payroll?.approval_status === "rejected"
-                                      ? "bg-red-100 text-red-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                            }`}
-                        >
-                            {payroll?.approval_status?.charAt(0).toUpperCase() +
-                                payroll?.approval_status?.slice(1)}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            payroll?.approval_status === "approved" ? "bg-emerald-100 text-emerald-700"
+                            : payroll?.approval_status === "rejected" ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                            {payroll?.approval_status?.charAt(0).toUpperCase() + payroll?.approval_status?.slice(1)}
                         </span>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                        aria-label="Close"
-                    >
-                        <X className="h-5 w-5" />
+                    <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+                        <X className="w-3.5 h-3.5" />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-6">
-                    {/* Employee Information */}
-                    <div className="bg-blue-50 rounded-lg p-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                            <User className="h-5 w-5 mr-2" />
-                            Employee Information
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                    Employee
-                                </label>
-                                <p className="text-gray-900 font-medium">
-                                    {payroll?.employee_name}
+                <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
+                    {/* Employee Info */}
+                    <div className="grid grid-cols-3 gap-3 bg-indigo-50 rounded-2xl p-4">
+                        {[
+                            { icon: User,     label: 'Employee',   main: payroll?.employee_name, sub: payroll?.employee_no },
+                            { icon: Building, label: 'Department', main: payroll?.department,    sub: payroll?.line },
+                            { icon: Calendar, label: 'Period',     main: payroll?.full_period || `${new Date(0, payroll?.month - 1).toLocaleString("default", { month: "long" })} ${payroll?.year} (${payroll?.period_type === "1st_half" ? "1-15" : "16-30/31"})`, sub: `Cost Center: ${payroll?.cost_center || "N/A"}` },
+                        ].map(({ icon: Icon, label, main, sub }) => (
+                            <div key={label}>
+                                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest flex items-center gap-1 mb-1">
+                                    <Icon className="w-3 h-3" /> {label}
                                 </p>
-                                <p className="text-sm text-gray-500">
-                                    {payroll?.employee_no}
-                                </p>
+                                <p className="text-sm font-bold text-gray-900">{main}</p>
+                                <p className="text-xs text-gray-500">{sub}</p>
                             </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                    Department
-                                </label>
-                                <p className="text-gray-900">
-                                    {payroll?.department}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    {payroll?.line}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                    Period
-                                </label>
-                                <p className="text-gray-900">
-                                    {/* FIXED: Proper period display */}
-                                    {payroll?.full_period ||
-                                        `${new Date(0, payroll?.month - 1).toLocaleString("default", { month: "long" })} ${payroll?.year} (${payroll?.period_type === "1st_half" ? "1-15" : "16-30/31"})`}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    Cost Center: {payroll?.cost_center || "N/A"}
-                                </p>
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="bg-green-50 rounded-lg p-4 text-center">
-                            <div className="text-2xl font-bold text-green-600">
-                                {formatCurrency(payroll?.gross_earnings)}
+                    <div className="grid grid-cols-4 gap-3">
+                        {[
+                            { label: 'Gross Earnings',    val: formatCurrency(payroll?.gross_earnings),         color: 'text-emerald-600' },
+                            { label: 'Total Deductions',  val: formatCurrency(payroll?.total_deductions),       color: 'text-red-500'     },
+                            { label: 'Net Pay',           val: formatCurrency(payroll?.net_pay),                color: 'text-indigo-600'  },
+                            { label: 'Days Worked',       val: formatNumber(payroll?.days_worked, 1),           color: 'text-violet-600'  },
+                        ].map(({ label, val, color }) => (
+                            <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center">
+                                <p className={`text-xl font-bold ${color}`}>{val}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                             </div>
-                            <div className="text-sm text-green-800">
-                                Gross Earnings
-                            </div>
-                        </div>
-                        <div className="bg-red-50 rounded-lg p-4 text-center">
-                            <div className="text-2xl font-bold text-red-600">
-                                {formatCurrency(payroll?.total_deductions)}
-                            </div>
-                            <div className="text-sm text-red-800">
-                                Total Deductions
-                            </div>
-                        </div>
-                        <div className="bg-blue-50 rounded-lg p-4 text-center">
-                            <div className="text-2xl font-bold text-blue-600">
-                                {formatCurrency(payroll?.net_pay)}
-                            </div>
-                            <div className="text-sm text-blue-800">Net Pay</div>
-                        </div>
-                        <div className="bg-purple-50 rounded-lg p-4 text-center">
-                            <div className="text-2xl font-bold text-purple-600">
-                                {formatNumber(payroll?.days_worked, 1)}
-                            </div>
-                            <div className="text-sm text-purple-800">
-                                Days Worked
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
-                    {/* FIXED: Calculation breakdown with proper JSON formatting */}
+                    {/* Calculation Breakdown */}
                     {calculationBreakdown && (
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                                <Calculator className="h-4 w-4 mr-2" />
-                                Calculation Breakdown
-                            </h4>
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">
+                                <Calculator className="h-3.5 w-3.5 text-gray-500" />
+                                <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider">Calculation Breakdown</h4>
+                            </div>
+                            <div className="p-4 space-y-3">
 
-                            <div className="space-y-4">
                                 {/* Basic Calculation */}
-                                <div className="bg-white p-3 rounded border">
-                                    <h5 className="font-medium text-gray-800 mb-2">
-                                        Basic Calculation
-                                    </h5>
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-gray-600">
-                                                Pay Type:
-                                            </span>
-                                            <span className="ml-2 font-medium">
-                                                {calculationBreakdown
-                                                    .basic_calculation
-                                                    ?.pay_type || "daily"}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-600">
-                                                Basic Rate:
-                                            </span>
-                                            <span className="ml-2 font-medium">
-                                                {formatCurrency(
-                                                    calculationBreakdown
-                                                        .basic_calculation
-                                                        ?.basic_rate,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-600">
-                                                Days/Hours:
-                                            </span>
-                                            <span className="ml-2 font-medium">
-                                                {formatNumber(
-                                                    calculationBreakdown
-                                                        .basic_calculation
-                                                        ?.days_worked ||
-                                                        calculationBreakdown
-                                                            .basic_calculation
-                                                            ?.hours_worked,
-                                                    2,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-600">
-                                                Basic Pay:
-                                            </span>
-                                            <span className="ml-2 font-medium text-green-600">
-                                                {formatCurrency(
-                                                    calculationBreakdown
-                                                        .basic_calculation
-                                                        ?.basic_pay,
-                                                )}
-                                            </span>
-                                        </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Basic Calculation</p>
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                        {[
+                                            ['Pay Type', calculationBreakdown.basic_calculation?.pay_type || 'daily'],
+                                            ['Basic Rate', formatCurrency(calculationBreakdown.basic_calculation?.basic_rate)],
+                                            ['Days/Hours', formatNumber(calculationBreakdown.basic_calculation?.days_worked || calculationBreakdown.basic_calculation?.hours_worked, 2)],
+                                            ['Basic Pay', formatCurrency(calculationBreakdown.basic_calculation?.basic_pay)],
+                                        ].map(([label, val]) => (
+                                            <div key={label} className="flex justify-between">
+                                                <span className="text-gray-500">{label}</span>
+                                                <span className="font-medium text-gray-800">{val}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
-                                {/* Overtime Calculation */}
-                                <div className="bg-white p-3 rounded border">
-                                    <h5 className="font-medium text-gray-800 mb-2">
-                                        Overtime Calculation
-                                    </h5>
-                                    <div className="space-y-2 text-sm">
-                                        {calculationBreakdown
-                                            .overtime_calculation
-                                            ?.regular_ot && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Regular OT (
-                                                    {formatNumber(
-                                                        calculationBreakdown
-                                                            .overtime_calculation
-                                                            .regular_ot.hours,
-                                                    )}{" "}
-                                                    hrs @{" "}
-                                                    {calculationBreakdown.overtime_calculation.regular_ot.rate?.toFixed(
-                                                        2,
-                                                    )}
-                                                    ):
-                                                </span>
-                                                <span className="font-medium">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .overtime_calculation
-                                                            .regular_ot.amount,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {calculationBreakdown
-                                            .overtime_calculation
-                                            ?.rest_day_ot && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Rest Day OT (
-                                                    {formatNumber(
-                                                        calculationBreakdown
-                                                            .overtime_calculation
-                                                            .rest_day_ot.hours,
-                                                    )}{" "}
-                                                    hrs @{" "}
-                                                    {calculationBreakdown.overtime_calculation.rest_day_ot.rate?.toFixed(
-                                                        2,
-                                                    )}
-                                                    ):
-                                                </span>
-                                                <span className="font-medium">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .overtime_calculation
-                                                            .rest_day_ot.amount,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Deductions Calculation */}
-                                <div className="bg-white p-3 rounded border">
-                                    <h5 className="font-medium text-gray-800 mb-2">
-                                        Deductions
-                                    </h5>
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        {calculationBreakdown
-                                            .deductions_calculation
-                                            ?.government && (
-                                            <div>
-                                                <h6 className="font-medium text-gray-700 mb-1">
-                                                    Government
-                                                </h6>
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between">
-                                                        <span>SSS:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .government
-                                                                    .sss,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>PhilHealth:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .government
-                                                                    .philhealth,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>HDMF:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .government
-                                                                    .hdmf,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>W/Tax:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .government
-                                                                    .withholding_tax,
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                {/* Overtime */}
+                                {(calculationBreakdown.overtime_calculation?.regular_ot || calculationBreakdown.overtime_calculation?.rest_day_ot) && (
+                                    <div className="border-t pt-3">
+                                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Overtime</p>
+                                        <div className="space-y-1 text-xs">
+                                            {calculationBreakdown.overtime_calculation?.regular_ot && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500">Regular OT ({formatNumber(calculationBreakdown.overtime_calculation.regular_ot.hours)} hrs @ {calculationBreakdown.overtime_calculation.regular_ot.rate?.toFixed(2)})</span>
+                                                    <span className="font-medium text-gray-800">{formatCurrency(calculationBreakdown.overtime_calculation.regular_ot.amount)}</span>
                                                 </div>
+                                            )}
+                                            {calculationBreakdown.overtime_calculation?.rest_day_ot && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500">Rest Day OT ({formatNumber(calculationBreakdown.overtime_calculation.rest_day_ot.hours)} hrs @ {calculationBreakdown.overtime_calculation.rest_day_ot.rate?.toFixed(2)})</span>
+                                                    <span className="font-medium text-gray-800">{formatCurrency(calculationBreakdown.overtime_calculation.rest_day_ot.amount)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Deductions */}
+                                <div className="border-t pt-3">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Deductions</p>
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                        {calculationBreakdown.deductions_calculation?.government && (
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-500 mb-1">Government</p>
+                                                {[
+                                                    ['SSS', calculationBreakdown.deductions_calculation.government.sss],
+                                                    ['PhilHealth', calculationBreakdown.deductions_calculation.government.philhealth],
+                                                    ['HDMF', calculationBreakdown.deductions_calculation.government.hdmf],
+                                                    ['W/Tax', calculationBreakdown.deductions_calculation.government.withholding_tax],
+                                                ].map(([label, val]) => (
+                                                    <div key={label} className="flex justify-between mb-0.5">
+                                                        <span className="text-gray-500">{label}</span>
+                                                        <span className="font-medium text-red-600">{formatCurrency(val)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
-
-                                        {calculationBreakdown
-                                            .deductions_calculation?.other && (
+                                        {calculationBreakdown.deductions_calculation?.other && (
                                             <div>
-                                                <h6 className="font-medium text-gray-700 mb-1">
-                                                    Other Deductions
-                                                </h6>
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between">
-                                                        <span>Advance:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .other
-                                                                    .advance,
-                                                            )}
-                                                        </span>
+                                                <p className="text-xs font-semibold text-gray-500 mb-1">Other</p>
+                                                {[
+                                                    ['Advance', calculationBreakdown.deductions_calculation.other.advance],
+                                                    ['Store', calculationBreakdown.deductions_calculation.other.charge_store],
+                                                    ['Meals', calculationBreakdown.deductions_calculation.other.meals],
+                                                    ['Late/Under', calculationBreakdown.deductions_calculation.other.late_under],
+                                                ].map(([label, val]) => (
+                                                    <div key={label} className="flex justify-between mb-0.5">
+                                                        <span className="text-gray-500">{label}</span>
+                                                        <span className="font-medium text-red-600">{formatCurrency(val)}</span>
                                                     </div>
-                                                    <div className="flex justify-between">
-                                                        <span>Store:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .other
-                                                                    .charge_store,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>Meals:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .other
-                                                                    .meals,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>Late/Under:</span>
-                                                        <span>
-                                                            {formatCurrency(
-                                                                calculationBreakdown
-                                                                    .deductions_calculation
-                                                                    .other
-                                                                    .late_under,
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Summary */}
+                                {/* Summary totals */}
                                 {calculationBreakdown.summary && (
-                                    <div className="bg-blue-50 p-3 rounded border">
-                                        <h5 className="font-medium text-gray-800 mb-2">
-                                            Summary
-                                        </h5>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Gross Earnings:
-                                                </span>
-                                                <span className="font-bold text-green-600">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .summary
-                                                            .gross_earnings,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Total Deductions:
-                                                </span>
-                                                <span className="font-bold text-red-600">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .summary
-                                                            .total_deductions,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Taxable Income:
-                                                </span>
-                                                <span className="font-medium">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .summary
-                                                            .taxable_income,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600 text-lg font-semibold">
-                                                    Net Pay:
-                                                </span>
-                                                <span className="font-bold text-blue-600 text-lg">
-                                                    {formatCurrency(
-                                                        calculationBreakdown
-                                                            .summary.net_pay,
-                                                    )}
-                                                </span>
-                                            </div>
+                                    <div className="border-t pt-3 bg-indigo-50 rounded-xl p-3">
+                                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                            {[
+                                                ['Gross Earnings', formatCurrency(calculationBreakdown.summary.gross_earnings), 'text-emerald-600'],
+                                                ['Total Deductions', formatCurrency(calculationBreakdown.summary.total_deductions), 'text-red-600'],
+                                                ['Taxable Income', formatCurrency(calculationBreakdown.summary.taxable_income), 'text-gray-800'],
+                                                ['Net Pay', formatCurrency(calculationBreakdown.summary.net_pay), 'text-indigo-600 font-bold'],
+                                            ].map(([label, val, color]) => (
+                                                <div key={label} className="flex justify-between">
+                                                    <span className="text-gray-500">{label}</span>
+                                                    <span className={`font-semibold ${color}`}>{val}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
@@ -533,88 +278,49 @@ const FinalPayrollDetailModal = ({ isOpen, payroll, onClose, onUpdate }) => {
                     )}
 
                     {/* Audit Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900 mb-2">
-                                Creation Info
-                            </h4>
-                            <div className="space-y-1 text-sm">
-                                <div>
-                                    Created:{" "}
-                                    {new Date(
-                                        payroll?.created_at,
-                                    ).toLocaleString()}
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            {
+                                title: 'Creation Info',
+                                rows: [
+                                    ['Created', payroll?.created_at ? new Date(payroll.created_at).toLocaleString() : null],
+                                    ['Created by', payroll?.creator?.name],
+                                    payroll?.has_adjustments ? ['Note', '⚠ Has manual adjustments'] : null,
+                                ].filter(Boolean),
+                            },
+                            {
+                                title: 'Approval Info',
+                                rows: [
+                                    payroll?.approved_at ? ['Approved', new Date(payroll.approved_at).toLocaleString()] : null,
+                                    payroll?.approver?.name ? ['Approved by', payroll.approver.name] : null,
+                                    payroll?.approval_remarks ? ['Remarks', payroll.approval_remarks] : null,
+                                    payroll?.finalized_at ? ['Finalized', new Date(payroll.finalized_at).toLocaleString()] : null,
+                                    payroll?.finalizer?.name ? ['Finalized by', payroll.finalizer.name] : null,
+                                    payroll?.paid_at ? ['Paid', new Date(payroll.paid_at).toLocaleString()] : null,
+                                    payroll?.paid_by?.name ? ['Paid by', payroll.paid_by.name] : null,
+                                ].filter(Boolean),
+                            },
+                        ].map(({ title, rows }) => (
+                            <div key={title} className="bg-gray-50 rounded-2xl p-4">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{title}</p>
+                                <div className="space-y-1">
+                                    {rows.map(([label, val]) => (
+                                        <div key={label} className="flex justify-between text-xs">
+                                            <span className="text-gray-500">{label}</span>
+                                            <span className="font-medium text-gray-700">{val || '—'}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div>Created by: {payroll?.creator?.name}</div>
-                                {payroll?.has_adjustments && (
-                                    <div className="text-orange-600 font-medium">
-                                        ⚠ Has manual adjustments
-                                    </div>
-                                )}
                             </div>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900 mb-2">
-                                Approval Info
-                            </h4>
-                            <div className="space-y-1 text-sm">
-                                {payroll?.approved_at && (
-                                    <>
-                                        <div>
-                                            Approved:{" "}
-                                            {new Date(
-                                                payroll.approved_at,
-                                            ).toLocaleString()}
-                                        </div>
-                                        <div>
-                                            Approved by:{" "}
-                                            {payroll?.approver?.name}
-                                        </div>
-                                        {payroll?.approval_remarks && (
-                                            <div className="text-gray-600">
-                                                Remarks:{" "}
-                                                {payroll.approval_remarks}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                                {payroll?.finalized_at && (
-                                    <>
-                                        <div>
-                                            Finalized:{" "}
-                                            {new Date(
-                                                payroll.finalized_at,
-                                            ).toLocaleString()}
-                                        </div>
-                                        <div>
-                                            Finalized by:{" "}
-                                            {payroll?.finalizer?.name}
-                                        </div>
-                                    </>
-                                )}
-                                {payroll?.paid_at && (
-                                    <>
-                                        <div>
-                                            Paid:{" "}
-                                            {new Date(
-                                                payroll.paid_at,
-                                            ).toLocaleString()}
-                                        </div>
-                                        <div>
-                                            Paid by: {payroll?.paid_by?.name}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
 
-                <div className="bg-gray-50 px-6 py-4 flex justify-end border-t">
-                    <Button variant="outline" onClick={onClose}>
+                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end flex-shrink-0">
+                    <button onClick={onClose}
+                        className="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                         Close
-                    </Button>
+                    </button>
                 </div>
             </div>
         </div>
