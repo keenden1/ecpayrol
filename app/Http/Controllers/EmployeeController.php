@@ -30,32 +30,30 @@ class EmployeeController extends Controller
             $query->where('JobStatus', $status);
         }
         
-        $employees = $query->get();
-        
-        // If it's an AJAX or JSON request, return JSON response
-        // Fix: Make sure to properly check if the request is actually expecting JSON
+        // Only select columns needed for the list view — keeps payload small
+        $listColumns = ['id','idno','bid','Fname','Lname','MName','JobStatus','Department','Jobtitle','Email','ContactNo'];
+        $employees = $query->select($listColumns)->orderBy('Lname')->orderBy('Fname')->get();
+
         if ($request->expectsJson()) {
-            Log::info('Returning employee list as JSON', [
-                'count' => $employees->count(),
-                'status' => $status
-            ]);
-            
-            return response()->json([
-                'data' => $employees
-            ]);
+            return response()->json(['data' => $employees]);
         }
-        
-        // Otherwise, render the Inertia page
-        // Fix: Make sure to properly share the data with Inertia
+
         return Inertia::render('Employee/EmployeePage', [
-            'employees' => $employees,
+            'employees'     => $employees,
             'currentStatus' => $status,
-            'auth' => [
-                'user' => Auth::user(),
-            ],
+            'auth'          => ['user' => Auth::user()],
         ]);
     }
     
+    /**
+     * Return full employee record for editing.
+     */
+    public function show($id)
+    {
+        $employee = Employee::findOrFail($id);
+        return response()->json($employee);
+    }
+
     /**
      * Store a newly created employee.
      */

@@ -254,6 +254,7 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         // Regular Employee Routes
         Route::get('/', [EmployeeController::class, 'index'])->name('employees.index');
         Route::get('/list', [EmployeeController::class, 'index'])->name('employees.list');
+        Route::get('/{id}', [EmployeeController::class, 'show'])->name('employees.show')->where('id', '[0-9]+');
         Route::post('/', [EmployeeController::class, 'store'])->name('employees.store');
         Route::put('/{id}', [EmployeeController::class, 'update'])->name('employees.update');
         Route::delete('/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');

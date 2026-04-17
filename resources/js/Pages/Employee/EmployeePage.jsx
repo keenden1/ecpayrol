@@ -1353,8 +1353,17 @@ const EmployeePage = ({
                         <EmployeeList
                             employees={filteredEmployees}
                             onView={handleView}
-                            onEdit={(employee) => {
-                                setSelectedEmployee(employee);
+                            onEdit={async (employee) => {
+                                // Fetch full record — list only has slim columns
+                                try {
+                                    const res = await fetch(`/employees/${employee.id}`, {
+                                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                                    });
+                                    const full = await res.json();
+                                    setSelectedEmployee(full);
+                                } catch {
+                                    setSelectedEmployee(employee);
+                                }
                                 setFormMode("edit");
                                 setIsFormOpen(true);
                             }}
