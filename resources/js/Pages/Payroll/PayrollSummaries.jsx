@@ -559,448 +559,311 @@ const PayrollSummaryDetailModal = ({ isOpen, summary, onClose, onUpdate }) => {
   const netEffect = totalBenefits - totalDeductions;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative bg-white rounded-lg shadow-lg max-w-6xl w-full mx-4 max-h-[95vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
-          <div className="flex items-center space-x-3">
-            <h2 className="text-xl font-semibold text-gray-800">
-              Payroll Summary Details
-            </h2>
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              summary?.status === 'posted' 
-                ? 'bg-green-100 text-green-800'
-                : summary?.status === 'locked'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-yellow-100 text-yellow-800'
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 flex-shrink-0 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+              <FileText className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white">Payroll Summary Details</h2>
+              {summary && <p className="text-indigo-200 text-xs">{summary.employee_name} · {summary.full_period}</p>}
+            </div>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+              summary?.status === 'posted' ? 'bg-emerald-100 text-emerald-700'
+              : summary?.status === 'locked' ? 'bg-red-100 text-red-700'
+              : 'bg-amber-100 text-amber-700'
             }`}>
               {summary?.status?.charAt(0).toUpperCase() + summary?.status?.slice(1)}
             </span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             {summary?.status !== 'locked' && !editing && (
-              <Button
-                onClick={() => setEditing(true)}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+              <button onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-lg transition-colors">
+                <Edit className="h-3.5 w-3.5" /> Edit
+              </button>
             )}
-            
-            {editing && (
-              <>
-                <Button
-                  onClick={handleSave}
-                  disabled={loading}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {loading ? (
-                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-1" />
-                  )}
-                  Save
-                </Button>
-                <Button
-                  onClick={() => setEditing(false)}
-                  size="sm"
-                  variant="outline"
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-              </>
-            )}
-            
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
+            {editing && (<>
+              <button onClick={handleSave} disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-60">
+                {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save
+              </button>
+              <button onClick={() => setEditing(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-lg transition-colors">
+                <X className="h-3.5 w-3.5" /> Cancel
+              </button>
+            </>)}
+            <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Employee Information */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <User className="h-5 w-5 mr-2" />
-              Employee Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Employee</label>
-                <p className="text-gray-900 font-medium">{summary?.employee_name}</p>
-                <p className="text-sm text-gray-500">{summary?.employee_no}</p>
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
+          {/* Employee Info */}
+          <div className="grid grid-cols-3 gap-3 bg-indigo-50 rounded-2xl p-4">
+            {[
+              { icon: User,     label: 'Employee',   main: summary?.employee_name, sub: summary?.employee_no },
+              { icon: Building, label: 'Department', main: summary?.department,    sub: summary?.line },
+              { icon: Calendar, label: 'Period',     main: summary?.full_period,   sub: `Cost Center: ${summary?.cost_center || 'N/A'}` },
+            ].map(({ icon: Icon, label, main, sub }) => (
+              <div key={label}>
+                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest flex items-center gap-1 mb-1">
+                  <Icon className="w-3 h-3" /> {label}
+                </p>
+                <p className="text-sm font-bold text-gray-900">{main}</p>
+                <p className="text-xs text-gray-500">{sub}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Department</label>
-                <p className="text-gray-900">{summary?.department}</p>
-                <p className="text-sm text-gray-500">{summary?.line}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Period</label>
-                <p className="text-gray-900">{summary?.full_period}</p>
-                <p className="text-sm text-gray-500">Cost Center: {summary?.cost_center || 'N/A'}</p>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Attendance Summary */}
-          <div className="bg-green-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Calculator className="h-5 w-5 mr-2" />
-              Attendance Summary
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">{formatNumber(summary?.days_worked, 1)}</div>
-                <div className="text-sm text-green-800">Days Worked</div>
+          {/* Attendance metrics */}
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { label: 'Days Worked',    val: formatNumber(summary?.days_worked, 1),          color: 'text-emerald-600' },
+              { label: 'OT Hours',       val: formatNumber(summary?.ot_hours),                color: 'text-indigo-600'  },
+              { label: 'Late/Under Hrs', val: formatMinutesToHours(summary?.late_under_minutes), color: 'text-red-500'  },
+              { label: 'NSD Hours',      val: formatNumber(summary?.nsd_hours),               color: 'text-violet-600'  },
+            ].map(({ label, val, color }) => (
+              <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center">
+                <p className={`text-xl font-bold ${color}`}>{val}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{label}</p>
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">{formatNumber(summary?.ot_hours)}</div>
-                <div className="text-sm text-blue-800">OT Hours</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-orange-600">{formatMinutesToHours(summary?.late_under_minutes)}</div>
-                <div className="text-sm text-orange-800">Late/Under (Hrs)</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600">{formatNumber(summary?.nsd_hours)}</div>
-                <div className="text-sm text-purple-800">NSD Hours</div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Financial Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Financial */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Deductions */}
-            <div className="bg-red-50 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <DollarSign className="h-5 w-5 mr-2 text-red-600" />
-                Deductions Details
-                {loadingDetails && <RefreshCw className="h-4 w-4 ml-2 animate-spin" />}
-              </h3>
-              
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border-b border-red-100">
+                <DollarSign className="h-3.5 w-3.5 text-red-500" />
+                <h3 className="text-xs font-bold text-red-700 uppercase tracking-wider">Deductions Details</h3>
+                {loadingDetails && <RefreshCw className="h-3 w-3 ml-auto animate-spin text-red-400" />}
+              </div>
+              <div className="p-4 space-y-3">
               {loadingDetails ? (
-                <div className="flex justify-center py-4">
-                  <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+                <div className="flex justify-center py-6">
+                  <RefreshCw className="h-5 w-5 animate-spin text-gray-400" />
                 </div>
               ) : deductionsData ? (
-                <div className="space-y-4">
+                <>
                   {/* General Deductions */}
                   <div>
-                    <h4 className="font-medium text-gray-800 mb-2">General Deductions</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Advance:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.advance)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Store Charge:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.charge_store)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>General Charge:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.charge)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Meals:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.meals)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Miscellaneous:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.miscellaneous)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Other Deductions:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(deductionsData.other_deductions)}</span>
-                      </div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">General</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      {[
+                        ['Advance', deductionsData.advance],
+                        ['Store Charge', deductionsData.charge_store],
+                        ['General Charge', deductionsData.charge],
+                        ['Meals', deductionsData.meals],
+                        ['Miscellaneous', deductionsData.miscellaneous],
+                        ['Other', deductionsData.other_deductions],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-red-600">{formatCurrency(val)}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="border-t border-red-200 pt-2 mt-2">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="text-gray-700">Subtotal (General):</span>
-                        <span className="text-red-600">
-                          {formatCurrency(
-                            parseFloat(deductionsData.advance || 0) +
-                            parseFloat(deductionsData.charge_store || 0) +
-                            parseFloat(deductionsData.charge || 0) +
-                            parseFloat(deductionsData.meals || 0) +
-                            parseFloat(deductionsData.miscellaneous || 0) +
-                            parseFloat(deductionsData.other_deductions || 0)
-                          )}
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-xs font-semibold border-t border-red-100 mt-1.5 pt-1.5">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-red-600">{formatCurrency(
+                        parseFloat(deductionsData.advance || 0) + parseFloat(deductionsData.charge_store || 0) +
+                        parseFloat(deductionsData.charge || 0) + parseFloat(deductionsData.meals || 0) +
+                        parseFloat(deductionsData.miscellaneous || 0) + parseFloat(deductionsData.other_deductions || 0)
+                      )}</span>
                     </div>
                   </div>
 
-                  {/* Government Deductions */}
+                  {/* Government */}
                   <div className="border-t pt-3">
-                    <h4 className="font-medium text-gray-800 mb-2">Government Deductions</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>SSS Premium:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.sss_prem)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>PhilHealth:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.philhealth)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>HDMF Premium:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.hmdf_prem)}</span>
-                      </div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Government</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      {[
+                        ['SSS Premium', summary.sss_prem],
+                        ['PhilHealth', summary.philhealth],
+                        ['HDMF Premium', summary.hmdf_prem],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-red-600">{formatCurrency(val)}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="border-t border-red-200 pt-2 mt-2">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="text-gray-700">Subtotal (Government):</span>
-                        <span className="text-red-600">
-                          {formatCurrency(
-                            parseFloat(summary.sss_prem || 0) +
-                            parseFloat(summary.philhealth || 0) +
-                            parseFloat(summary.hmdf_prem || 0)
-                          )}
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-xs font-semibold border-t border-red-100 mt-1.5 pt-1.5">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-red-600">{formatCurrency(
+                        parseFloat(summary.sss_prem || 0) + parseFloat(summary.philhealth || 0) + parseFloat(summary.hmdf_prem || 0)
+                      )}</span>
                     </div>
                   </div>
 
                   {/* Loans */}
                   <div className="border-t pt-3">
-                    <h4 className="font-medium text-gray-800 mb-2">Loans</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>MF Loan:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.mf_loan)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>SSS Loan:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.sss_loan)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>HDMF Loan:</span>
-                        <span className="font-medium text-red-600">{formatCurrency(summary.hmdf_loan)}</span>
-                      </div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Loans</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      {[
+                        ['MF Loan', summary.mf_loan],
+                        ['SSS Loan', summary.sss_loan],
+                        ['HDMF Loan', summary.hmdf_loan],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-red-600">{formatCurrency(val)}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="border-t border-red-200 pt-2 mt-2">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="text-gray-700">Subtotal (Loans):</span>
-                        <span className="text-red-600">
-                          {formatCurrency(
-                            parseFloat(summary.mf_loan || 0) +
-                            parseFloat(summary.sss_loan || 0) +
-                            parseFloat(summary.hmdf_loan || 0)
-                          )}
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-xs font-semibold border-t border-red-100 mt-1.5 pt-1.5">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-red-600">{formatCurrency(
+                        parseFloat(summary.mf_loan || 0) + parseFloat(summary.sss_loan || 0) + parseFloat(summary.hmdf_loan || 0)
+                      )}</span>
                     </div>
                   </div>
 
-                  {/* Total Deductions */}
-                  <div className="border-t-2 border-red-300 pt-3">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                      <span className="text-gray-800">TOTAL DEDUCTIONS:</span>
-                      <span className="text-red-600">{formatCurrency(totalDeductions)}</span>
-                    </div>
+                  <div className="flex justify-between items-center border-t-2 border-red-200 pt-2">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total Deductions</span>
+                    <span className="text-sm font-bold text-red-600">{formatCurrency(totalDeductions)}</span>
                   </div>
-
-                  {/* Deduction Status */}
-                  {deductionsData && (
-                    <div className="bg-gray-100 rounded p-2 mt-3">
-                      <div className="flex justify-between text-xs text-gray-600">
-                        <span>Status: {deductionsData.is_posted ? 'Posted' : 'Draft'}</span>
-                        {deductionsData.date_posted && (
-                          <span>Posted: {new Date(deductionsData.date_posted).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                </>
               ) : (
-                <div className="text-center py-4">
-                  <AlertTriangle className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-500">No deduction data found for this period</p>
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-6 w-6 mx-auto text-gray-300 mb-1" />
+                  <p className="text-xs text-gray-400">No deduction data found</p>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Benefits */}
-            <div className="bg-green-50 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <Award className="h-5 w-5 mr-2 text-green-600" />
-                Benefits & Allowances Details
-                {loadingDetails && <RefreshCw className="h-4 w-4 ml-2 animate-spin" />}
-              </h3>
-              
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border-b border-emerald-100">
+                <Award className="h-3.5 w-3.5 text-emerald-600" />
+                <h3 className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Benefits & Allowances</h3>
+                {loadingDetails && <RefreshCw className="h-3 w-3 ml-auto animate-spin text-emerald-400" />}
+              </div>
+              <div className="p-4 space-y-3">
               {loadingDetails ? (
-                <div className="flex justify-center py-4">
-                  <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+                <div className="flex justify-center py-6">
+                  <RefreshCw className="h-5 w-5 animate-spin text-gray-400" />
                 </div>
               ) : benefitsData ? (
-                <div className="space-y-4">
-                  {/* Main Benefits */}
+                <>
                   <div>
-                    <h4 className="font-medium text-gray-800 mb-2">Allowances & Benefits</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">MF Shares:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(benefitsData.mf_shares)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Allowances:</span>
-                        <span className="font-medium text-green-600">{formatCurrency(benefitsData.allowances)}</span>
-                      </div>
-                    </div>
-                    <div className="border-t border-green-200 pt-2 mt-2">
-                      <div className="flex justify-between items-center text-sm font-medium">
-                        <span className="text-gray-700">Subtotal (Benefits):</span>
-                        <span className="text-green-600">
-                          {formatCurrency(
-                            parseFloat(benefitsData.mf_shares || 0) +
-                            parseFloat(benefitsData.allowances || 0)
-                          )}
-                        </span>
-                      </div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Allowances</p>
+                    <div className="space-y-1 text-xs">
+                      {[
+                        ['MF Shares', benefitsData.mf_shares],
+                        ['Allowances', benefitsData.allowances],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-emerald-600">{formatCurrency(val)}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Total Benefits */}
-                  <div className="border-t-2 border-green-300 pt-3">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                      <span className="text-gray-800">TOTAL BENEFITS:</span>
-                      <span className="text-green-600">{formatCurrency(totalBenefits)}</span>
+                  <div className="border-t pt-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Additional</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      {[
+                        ['SLVL Days', formatNumber(summary?.slvl_days, 1)],
+                        ['Trip Count', formatNumber(summary?.trip_count, 1)],
+                        ['Travel Order Hrs', formatNumber(summary?.travel_order_hours)],
+                        ['Holiday Hrs', formatNumber(summary?.holiday_hours)],
+                        ['Retro', formatCurrency(summary?.retro)],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-gray-700">{val}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Benefits Status */}
-                  <div className="bg-gray-100 rounded p-2 mt-3">
-                    <div className="flex justify-between text-xs text-gray-600">
-                      <span>Status: {benefitsData.is_posted ? 'Posted' : 'Draft'}</span>
-                      {benefitsData.date_posted && (
-                        <span>Posted: {new Date(benefitsData.date_posted).toLocaleDateString()}</span>
-                      )}
-                    </div>
+                  <div className="flex justify-between items-center border-t-2 border-emerald-200 pt-2">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total Benefits</span>
+                    <span className="text-sm font-bold text-emerald-600">{formatCurrency(totalBenefits)}</span>
                   </div>
-
-                  {/* Additional Details */}
-                  <div className="mt-6 pt-6 border-t border-green-200">
-                    <h4 className="font-medium text-gray-900 mb-3">Additional Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">SLVL Days:</span>
-                        <span className="font-medium">{formatNumber(summary?.slvl_days, 1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Travel Order Hours:</span>
-                        <span className="font-medium">{formatNumber(summary?.travel_order_hours)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Holiday Hours:</span>
-                        <span className="font-medium">{formatNumber(summary?.holiday_hours)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Trip Count:</span>
-                        <span className="font-medium">{formatNumber(summary?.trip_count, 1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Retro:</span>
-                        <span className="font-medium">{formatCurrency(summary?.retro)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </>
               ) : (
-                <div className="text-center py-4">
-                  <AlertTriangle className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-500">No benefits data found for this period</p>
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-6 w-6 mx-auto text-gray-300 mb-1" />
+                  <p className="text-xs text-gray-400">No benefits data found</p>
                 </div>
               )}
+              </div>
             </div>
           </div>
 
           {/* Grand Total Summary */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Calculator className="h-5 w-5 mr-2 text-blue-600" />
-              Grand Total Summary
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {formatCurrency(totalDeductions)}
+          <div className="bg-indigo-50 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calculator className="h-3.5 w-3.5 text-indigo-500" />
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Grand Total Summary</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Total Deductions', val: formatCurrency(totalDeductions), color: 'text-red-600' },
+                { label: 'Total Benefits',   val: formatCurrency(totalBenefits),   color: 'text-emerald-600' },
+                { label: netEffect >= 0 ? 'Net Benefit' : 'Net Deduction',
+                  val: formatCurrency(Math.abs(netEffect)),
+                  color: netEffect >= 0 ? 'text-indigo-600' : 'text-red-600' },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="bg-white rounded-xl p-3 text-center shadow-sm">
+                  <p className={`text-base font-bold ${color}`}>{val}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
                 </div>
-                <div className="text-sm text-red-800">Total Deductions</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalBenefits)}
-                </div>
-                <div className="text-sm text-green-800">Total Benefits</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-2xl font-bold ${netEffect >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                  {formatCurrency(Math.abs(netEffect))}
-                </div>
-                <div className="text-sm text-blue-800">
-                  {netEffect >= 0 ? 'Net Benefit' : 'Net Deduction'} 
-                  <br />
-                  (Benefits - Deductions)
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Status Flags */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Status Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Has CT:</span>
-                <span className={summary?.has_ct ? 'text-green-600' : 'text-gray-400'}>
-                  {summary?.has_ct ? '✓ Yes' : '✗ No'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Has CS:</span>
-                <span className={summary?.has_cs ? 'text-green-600' : 'text-gray-400'}>
-                  {summary?.has_cs ? '✓ Yes' : '✗ No'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Has OB:</span>
-                <span className={summary?.has_ob ? 'text-green-600' : 'text-gray-400'}>
-                  {summary?.has_ob ? '✓ Yes' : '✗ No'}
-                </span>
-              </div>
-            </div>
-            
-            {summary?.posted_at && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-gray-600">Posted At: </span>
-                    <span className="font-medium">{new Date(summary.posted_at).toLocaleString()}</span>
-                  </div>
-                  {summary?.posted_by && (
-                    <div>
-                      <span className="text-gray-600">Posted By: </span>
-                      <span className="font-medium">{summary.posted_by.name}</span>
-                    </div>
-                  )}
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Status Information</p>
+            <div className="grid grid-cols-3 gap-3 text-xs mb-3">
+              {[
+                ['Has CT', summary?.has_ct],
+                ['Has CS', summary?.has_cs],
+                ['Has OB', summary?.has_ob],
+              ].map(([label, val]) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-gray-500">{label}</span>
+                  <span className={val ? 'text-emerald-600 font-semibold' : 'text-gray-300'}>
+                    {val ? '✓ Yes' : '✗ No'}
+                  </span>
                 </div>
+              ))}
+            </div>
+            {summary?.posted_at && (
+              <div className="grid grid-cols-2 gap-3 text-xs border-t border-gray-200 pt-3">
+                <div>
+                  <span className="text-gray-400">Posted At: </span>
+                  <span className="font-medium text-gray-700">{new Date(summary.posted_at).toLocaleString()}</span>
+                </div>
+                {summary?.posted_by && (
+                  <div>
+                    <span className="text-gray-400">Posted By: </span>
+                    <span className="font-medium text-gray-700">{summary.posted_by.name}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex justify-end border-t">
-          <Button variant="outline" onClick={onClose}>
+        <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end flex-shrink-0">
+          <button onClick={onClose}
+            className="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             Close
-          </Button>
+          </button>
         </div>
       </div>
     </div>

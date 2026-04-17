@@ -1,11 +1,25 @@
-// resources/js/Pages/Timesheet/ManualAttendance.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Calendar, Clock, User, Save, AlertTriangle, Search, Loader2 } from 'lucide-react';
+import { Calendar, Clock, User, Save, AlertTriangle, Search, Loader2, Users, Moon, Coffee, FileText, Info, CheckCircle2 } from 'lucide-react';
+
+const inputCls = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow hover:border-gray-300';
+const labelCls = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5';
+
+function SectionHeader({ icon: Icon, title }) {
+    return (
+        <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <Icon className="w-4 h-4 text-indigo-500" />
+            </div>
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">{title}</h3>
+            <div className="flex-1 h-px bg-gray-100" />
+        </div>
+    );
+}
 
 const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -321,415 +335,272 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Manual Attendance Entry" />
-            <div className="max-w-7xl mx-auto">
-                <div className="flex-1 p-8 ml-0">
-                    <div className="max-w-7xl mx-auto">
-                        {/* Page Header */}
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                                    <Calendar className="inline-block w-7 h-7 mr-2 text-indigo-600" />
-                                    Manual Attendance Entry
-                                </h1>
-                                <p className="text-gray-600">
-                                    Manually record attendance for employees when biometric data is unavailable
-                                </p>
-                            </div>
-                        </div>
 
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                            <div className="p-6 bg-white border-b border-gray-200">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {/* Form Section */}
-                                    <div className="md:col-span-2">
-                                        <form onSubmit={handleSubmit} className="space-y-6">
-                                            {/* Employee Selection Section */}
-                                            <div className="bg-gray-50 p-4 rounded-lg">
-                                                <h4 className="font-medium mb-3">Select Employees</h4>
-                                                
-                                                <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mb-4">
-                                                    <div className="flex-1">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Search by name or ID"
-                                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                                                            value={searchTerm}
-                                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                                            disabled={isSubmitting}
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div className="flex-1">
-                                                        <select
-                                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                                                            value={selectedDepartment}
-                                                            onChange={(e) => setSelectedDepartment(e.target.value)}
-                                                            disabled={isSubmitting}
+            <div className="p-6 space-y-6">
+
+                {/* ── Header ── */}
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold">Manual Attendance Entry</h1>
+                            <p className="text-indigo-200 text-sm mt-0.5">Manually record attendance when biometric data is unavailable</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    {/* ── Main Form ── */}
+                    <div className="lg:col-span-2 space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+
+                            {/* Employee Selection */}
+                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <SectionHeader icon={Users} title="Select Employees" />
+
+                                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name or ID…"
+                                            className="pl-9 w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow hover:border-gray-300"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
+                                    <select
+                                        className={`${inputCls} sm:w-44`}
+                                        value={selectedDepartment}
+                                        onChange={(e) => setSelectedDepartment(e.target.value)}
+                                        disabled={isSubmitting}
+                                    >
+                                        <option value="">All Departments</option>
+                                        {validDepartments.map((d) => (
+                                            <option key={`dept-${d.id}`} value={d.value || d.name}>{d.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={handleSelectAll}
+                                        disabled={isSubmitting}
+                                        className={`px-4 py-2 text-sm font-semibold rounded-xl transition-colors whitespace-nowrap ${
+                                            allDisplayedSelected
+                                                ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
+                                                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                        } disabled:opacity-50`}
+                                    >
+                                        {allDisplayedSelected ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
+
+                                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                    <div className="max-h-56 overflow-y-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 sticky top-0">
+                                                <tr>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider w-10"></th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">ID</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Department</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Position</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {displayedEmployees.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-4 py-8 text-center text-sm text-gray-400">
+                                                            No employees match your search
+                                                        </td>
+                                                    </tr>
+                                                ) : displayedEmployees.map(employee => {
+                                                    const selected = formData.employee_ids.includes(employee.id);
+                                                    return (
+                                                        <tr
+                                                            key={`emp-${employee.id}`}
+                                                            onClick={() => !isSubmitting && handleEmployeeSelection(employee.id)}
+                                                            className={`cursor-pointer transition-colors ${selected ? 'bg-indigo-50' : 'hover:bg-gray-50/60'} ${isSubmitting ? 'opacity-50' : ''}`}
                                                         >
-                                                            <option value="">All Departments</option>
-                                                            {validDepartments.map((department) => (
-                                                                <option key={`dept-${department.id}`} value={department.value || department.name}>
-                                                                    {department.name}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div className="md:flex-initial">
-                                                        <button
-                                                            type="button"
-                                                            className={`w-full px-4 py-2 rounded-md ${
-                                                                allDisplayedSelected 
-                                                                    ? 'bg-indigo-700 hover:bg-indigo-800' 
-                                                                    : 'bg-indigo-500 hover:bg-indigo-600'
-                                                            } text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50`}
-                                                            onClick={handleSelectAll}
-                                                            disabled={isSubmitting}
-                                                        >
-                                                            {allDisplayedSelected ? 'Deselect All' : 'Select All'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
-                                                    <table className="min-w-full divide-y divide-gray-200">
-                                                        <thead className="bg-gray-100 sticky top-0">
-                                                            <tr>
-                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                                                                    Select
-                                                                </th>
-                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                    ID
-                                                                </th>
-                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                    Name
-                                                                </th>
-                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                    Department
-                                                                </th>
-                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                    Position
-                                                                </th>
-                                                            </tr>
-                                                        </thead>
-                                                        
-                                                        <tbody className="bg-white divide-y divide-gray-200">
-                                                            {displayedEmployees.length === 0 ? (
-                                                                <tr>
-                                                                    <td colSpan="5" className="px-4 py-3 text-center text-sm text-gray-500">
-                                                                        No employees match your search criteria
-                                                                    </td>
-                                                                </tr>
-                                                            ) : (
-                                                                displayedEmployees.map(employee => (
-                                                                    <tr 
-                                                                        key={`emp-${employee.id}`}
-                                                                        className={`hover:bg-gray-50 cursor-pointer ${
-                                                                            formData.employee_ids.includes(employee.id) ? 'bg-indigo-50' : ''
-                                                                        } ${isSubmitting ? 'opacity-50' : ''}`}
-                                                                        onClick={() => !isSubmitting && handleEmployeeSelection(employee.id)}
-                                                                    >
-                                                                        <td className="px-4 py-2 whitespace-nowrap">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                                                                                checked={formData.employee_ids.includes(employee.id)}
-                                                                                onChange={(e) => handleCheckboxChange(e, employee.id)}
-                                                                                onClick={(e) => e.stopPropagation()}
-                                                                                disabled={isSubmitting}
-                                                                            />
-                                                                        </td>
-                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                                                            {employee.idno || 'N/A'}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 whitespace-nowrap">
-                                                                            <div className="text-sm font-medium text-gray-900">
-                                                                                {employee.Lname || ''}, {employee.Fname || ''} {employee.MName || ''}
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                                                            {employee.Department || 'No Department'}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                                                            {employee.Jobtitle || 'No Position'}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                
-                                                <div className="mt-2 text-sm text-gray-600">
-                                                    {formData.employee_ids.length > 0 ? (
-                                                        <div>
-                                                            <span className="font-medium">{formData.employee_ids.length} employee(s) selected</span>
-                                                            {formData.employee_ids.length <= 5 && (
-                                                                <span className="ml-2">
-                                                                    ({selectedEmployees.map(emp => emp.Lname || 'Unknown').join(', ')})
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-yellow-600">No employees selected</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <label htmlFor="attendance_date" className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Date
-                                                </label>
-                                                <div className="relative rounded-md shadow-sm">
-                                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                        <Calendar className="h-5 w-5 text-gray-400" />
-                                                    </div>
-                                                    <input
-                                                        type="date"
-                                                        id="attendance_date"
-                                                        name="attendance_date"
-                                                        className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                        value={formData.attendance_date}
-                                                        onChange={handleChange}
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Night Shift Toggle */}
-                                            <div className="flex items-center">
+                                                            <td className="px-4 py-2.5">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-400"
+                                                                    checked={selected}
+                                                                    onChange={(e) => handleCheckboxChange(e, employee.id)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    disabled={isSubmitting}
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{employee.idno || '—'}</td>
+                                                            <td className="px-4 py-2.5 font-medium text-gray-800">
+                                                                {employee.Lname}, {employee.Fname} {employee.MName || ''}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-gray-500 hidden sm:table-cell">{employee.Department || '—'}</td>
+                                                            <td className="px-4 py-2.5 text-gray-500 hidden md:table-cell">{employee.Jobtitle || '—'}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 text-xs">
+                                    {formData.employee_ids.length > 0 ? (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 font-semibold rounded-lg">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            {formData.employee_ids.length} employee{formData.employee_ids.length !== 1 ? 's' : ''} selected
+                                            {formData.employee_ids.length <= 5 && ` — ${selectedEmployees.map(e => e.Lname).join(', ')}`}
+                                        </span>
+                                    ) : (
+                                        <span className="text-amber-600 font-medium">No employees selected</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Date & Shift */}
+                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <SectionHeader icon={Calendar} title="Date & Shift" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelCls}>Attendance Date</label>
+                                        <input
+                                            type="date"
+                                            name="attendance_date"
+                                            className={inputCls}
+                                            value={formData.attendance_date}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <label className="flex items-center gap-3 cursor-pointer select-none group">
+                                            <div className={`relative w-10 h-5 rounded-full transition-colors ${formData.is_nightshift ? 'bg-indigo-600' : 'bg-gray-200'}`}>
                                                 <input
                                                     type="checkbox"
-                                                    id="is_nightshift"
                                                     name="is_nightshift"
-                                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                    className="sr-only"
                                                     checked={formData.is_nightshift}
                                                     onChange={handleChange}
                                                 />
-                                                <label htmlFor="is_nightshift" className="ml-2 block text-sm text-gray-900">
-                                                    Night Shift
-                                                </label>
+                                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${formData.is_nightshift ? 'translate-x-5' : ''}`} />
                                             </div>
-                                            
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label htmlFor="time_in" className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Time In
-                                                    </label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <Clock className="h-5 w-5 text-gray-400" />
-                                                        </div>
-                                                        <input
-                                                            type="time"
-                                                            id="time_in"
-                                                            name="time_in"
-                                                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                            value={formData.time_in}
-                                                            onChange={handleChange}
-                                                            required
-                                                        />
-                                                    </div>
-                                                </div>
-                                                
-                                                <div>
-                                                    <label htmlFor="time_out" className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Time Out
-                                                    </label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <Clock className="h-5 w-5 text-gray-400" />
-                                                        </div>
-                                                        <input
-                                                            type="time"
-                                                            id="time_out"
-                                                            name="time_out"
-                                                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                            value={formData.time_out}
-                                                            onChange={handleChange}
-                                                            required={!formData.is_nightshift}
-                                                        />
-                                                    </div>
-                                                </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Moon className="w-4 h-4 text-indigo-500" />
+                                                <span className="text-sm font-semibold text-gray-700">Night Shift</span>
                                             </div>
-                                            
-                                            {/* Break Times */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label htmlFor="break_out" className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Break Out (Optional)
-                                                    </label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <Clock className="h-5 w-5 text-gray-400" />
-                                                        </div>
-                                                        <input
-                                                            type="time"
-                                                            id="break_out"
-                                                            name="break_out"
-                                                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                            value={formData.break_out}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                
-                                                <div>
-                                                    <label htmlFor="break_in" className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Break In (Optional)
-                                                    </label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <Clock className="h-5 w-5 text-gray-400" />
-                                                        </div>
-                                                        <input
-                                                            type="time"
-                                                            id="break_in"
-                                                            name="break_in"
-                                                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                            value={formData.break_in}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Next Day Timeout for Night Shift */}
-                                            {formData.is_nightshift && (
-                                                <div>
-                                                    <label htmlFor="next_day_timeout" className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Next Day Timeout
-                                                    </label>
-                                                    <div className="relative rounded-md shadow-sm">
-                                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                            <Clock className="h-5 w-5 text-gray-400" />
-                                                        </div>
-                                                        <input
-                                                            type="time"
-                                                            id="next_day_timeout"
-                                                            name="next_day_timeout"
-                                                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                            value={formData.next_day_timeout}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        For night shifts, specify when the employee clocked out on the following day.
-                                                    </p>
-                                                </div>
-                                            )}
-                                            
-                                            <div>
-                                                <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Remarks (Optional)
-                                                </label>
-                                                <textarea
-                                                    id="remarks"
-                                                    name="remarks"
-                                                    rows="3"
-                                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                                    placeholder="Add any notes or remarks here..."
-                                                    value={formData.remarks}
-                                                    onChange={handleChange}
-                                                ></textarea>
-                                            </div>
-                                            
-                                            <div className="flex justify-end">
-                                                <button
-                                                    type="submit"
-                                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                                    disabled={isSubmitting || formData.employee_ids.length === 0}
-                                                >
-                                                    {isSubmitting ? (
-                                                        <>
-                                                            <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
-                                                            Creating Records...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Save className="-ml-1 mr-2 h-5 w-5" />
-                                                            Create Attendance for {formData.employee_ids.length} Employee{formData.employee_ids.length !== 1 ? 's' : ''}
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                    
-                                    {/* Instructions Section */}
-                                    <div className="bg-gray-50 p-6 rounded-lg">
-                                        <h3 className="text-lg font-medium text-gray-900 mb-4">Instructions</h3>
-
-                                        <div className="space-y-4 text-sm text-gray-600">
-                                            <p>
-                                                Use this form to manually enter attendance records for multiple employees when biometric data is not available.
-                                            </p>
-
-                                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                                                <div className="flex">
-                                                    <div className="flex-shrink-0">
-                                                        <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                                                    </div>
-                                                    <div className="ml-3">
-                                                        <p className="text-sm text-yellow-700">
-                                                            This should only be used for exceptional cases where the biometric system was not available or malfunctioning.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <h4 className="font-medium text-gray-700">Employee Selection:</h4>
-                                                <ul className="list-disc list-inside mt-2 space-y-1">
-                                                    <li>Search by name or employee ID</li>
-                                                    <li>Filter by department</li>
-                                                    <li>Select multiple employees using checkboxes</li>
-                                                    <li>Use "Select All" to select all filtered employees</li>
-                                                </ul>
-                                            </div>
-
-                                            <div>
-                                                <h4 className="font-medium text-gray-700">Required Fields:</h4>
-                                                <ul className="list-disc list-inside mt-2 space-y-1">
-                                                    <li>At least one employee</li>
-                                                    <li>Date</li>
-                                                    <li>Time In</li>
-                                                    <li>Time Out (for regular shifts)</li>
-                                                </ul>
-                                            </div>
-
-                                            <div>
-                                                <h4 className="font-medium text-gray-700">Notes:</h4>
-                                                <ul className="list-disc list-inside mt-2 space-y-1">
-                                                    <li>Time format is 24-hour (00:00 - 23:59)</li>
-                                                    <li>For regular shifts, time out must be after time in</li>
-                                                    <li>For night shifts, use the "Next Day Timeout" field</li>
-                                                    <li>Break times are optional but both must be filled if used</li>
-                                                    <li>All manual entries are marked and can be identified in reports</li>
-                                                    <li>Same time settings apply to all selected employees</li>
-                                                </ul>
-                                            </div>
-                                        </div>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Time Fields */}
+                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <SectionHeader icon={Clock} title="Time Records" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelCls}>Time In <span className="text-red-400">*</span></label>
+                                        <input type="time" name="time_in" className={inputCls} value={formData.time_in} onChange={handleChange} required />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Time Out {!formData.is_nightshift && <span className="text-red-400">*</span>}</label>
+                                        <input type="time" name="time_out" className={inputCls} value={formData.time_out} onChange={handleChange} required={!formData.is_nightshift} />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Break Out <span className="text-gray-300 font-normal normal-case">(optional)</span></label>
+                                        <input type="time" name="break_out" className={inputCls} value={formData.break_out} onChange={handleChange} />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Break In <span className="text-gray-300 font-normal normal-case">(optional)</span></label>
+                                        <input type="time" name="break_in" className={inputCls} value={formData.break_in} onChange={handleChange} />
+                                    </div>
+                                    {formData.is_nightshift && (
+                                        <div className="sm:col-span-2">
+                                            <label className={labelCls}>Next Day Timeout</label>
+                                            <input type="time" name="next_day_timeout" className={inputCls} value={formData.next_day_timeout} onChange={handleChange} />
+                                            <p className="mt-1.5 text-xs text-gray-400">Clock-out time on the following day for night shift employees.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Remarks */}
+                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <SectionHeader icon={FileText} title="Remarks" />
+                                <textarea
+                                    name="remarks"
+                                    rows="3"
+                                    className={`${inputCls} resize-none`}
+                                    placeholder="Add any notes or remarks here…"
+                                    value={formData.remarks}
+                                    onChange={handleChange}
+                                />
+                            </div>
+
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                disabled={isSubmitting || formData.employee_ids.length === 0}
+                                className="w-full flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmitting ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Creating Records…</>
+                                ) : (
+                                    <><Save className="w-4 h-4" /> Create Attendance for {formData.employee_ids.length} Employee{formData.employee_ids.length !== 1 ? 's' : ''}</>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* ── Sidebar Instructions ── */}
+                    <div className="space-y-4">
+                        {/* Warning */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-amber-800 mb-1">Exceptional Use Only</p>
+                                    <p className="text-xs text-amber-700 leading-relaxed">Use only when the biometric system was unavailable or malfunctioning. All manual entries are flagged in reports.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Instructions card */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+                            <div className="flex items-center gap-2">
+                                <Info className="w-4 h-4 text-indigo-500" />
+                                <h3 className="text-sm font-bold text-gray-700">Instructions</h3>
+                            </div>
+
+                            {[
+                                { title: 'Employee Selection', items: ['Search by name or employee ID', 'Filter by department', 'Check boxes to select multiple', '"Select All" applies to filtered list'] },
+                                { title: 'Required Fields', items: ['At least one employee', 'Attendance date', 'Time In & Time Out'] },
+                                { title: 'Notes', items: ['Night shift: use Next Day Timeout', 'Break fields are optional but both must be filled', 'Same times apply to all selected employees'] },
+                            ].map(section => (
+                                <div key={section.title}>
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{section.title}</p>
+                                    <ul className="space-y-1.5">
+                                        {section.items.map(item => (
+                                            <li key={item} className="flex items-start gap-2 text-xs text-gray-500">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 flex-shrink-0" />
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <ToastContainer
-                position="top-right"
-                autoClose={3000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light"
-            />
+            <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick draggable pauseOnHover theme="light" />
         </AuthenticatedLayout>
     );
 };
