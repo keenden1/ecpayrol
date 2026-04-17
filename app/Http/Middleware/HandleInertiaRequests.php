@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                         'name' => $role->name,
                         'slug' => $role->slug,
                     ]),
+                    'role_slug' => $request->user()->getRoleSlug(),
                 ] : null,
             ],
             'flash' => [

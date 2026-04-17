@@ -87,6 +87,12 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const [bgSyncs, setBgSyncs] = useState([]);
     const [bgSyncsExpanded, setBgSyncsExpanded] = useState(true);
 
+    // Fetch All Devices modal
+    const [showFetchAllModal, setShowFetchAllModal] = useState(false);
+    const [fetchAllStartDate, setFetchAllStartDate] = useState('');
+    const [fetchAllEndDate, setFetchAllEndDate] = useState('');
+    const [fetchAllUseCachedMap, setFetchAllUseCachedMap] = useState({});
+
     // Form data state
     const [formData, setFormData] = useState({
         name: "",
@@ -331,14 +337,18 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     };
 
     // Fetch Matched Logs — reads from JSON cache (or device), filters by date + matched users, shows preview
-    const startFetchLogs = async (device) => {
+    const startFetchLogs = async (device, overrides = {}) => {
         const deviceId = device.id;
         setFetchLogsDevice(null);
 
+        const startDate = overrides.startDate !== undefined ? overrides.startDate : fetchStartDate;
+        const endDate   = overrides.endDate   !== undefined ? overrides.endDate   : fetchEndDate;
+        const useCached = overrides.useCached !== undefined ? overrides.useCached : fetchUseCached;
+
         const extras = {};
-        if (fetchStartDate) extras.start_date = fetchStartDate;
-        if (fetchEndDate) extras.end_date = fetchEndDate;
-        if (fetchUseCached && jsonCacheInfo[deviceId]?.exists) extras.use_cache = true;
+        if (startDate) extras.start_date = startDate;
+        if (endDate)   extras.end_date   = endDate;
+        if (useCached && jsonCacheInfo[deviceId]?.exists) extras.use_cache = true;
 
         setActiveSyncs(prev => {
             const n = {};
@@ -408,6 +418,20 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                 removeSync(deviceId);
             }
         }
+    };
+
+    const startFetchAllLogs = () => {
+        setShowFetchAllModal(false);
+        const activeDevices = deviceList.filter(d => d.status === 'active');
+        activeDevices.forEach((device, i) => {
+            setTimeout(() => {
+                startFetchLogs(device, {
+                    startDate: fetchAllStartDate,
+                    endDate:   fetchAllEndDate,
+                    useCached: fetchAllUseCachedMap[device.id] ?? false,
+                });
+            }, i * 400);
+        });
     };
 
     // ── Render: simple sync confirmation modal (dumps raw logs to JSON, no preview) ──
@@ -501,6 +525,97 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     );
 
     // ── Render: fetch matched logs modal (with date filter) ───────────────────
+    const renderFetchAllModal = () => showFetchAllModal && (
+        <div className="fixed z-20 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4">
+                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setShowFetchAllModal(false)} />
+                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-lg w-full p-6">
+                    <div className="flex items-start gap-4 mb-5">
+                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-blue-100">
+                            <RefreshCw className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">Fetch Logs — All Devices</h3>
+                            <p className="text-sm text-gray-500 mt-0.5">Fetches and matches logs from all {deviceList.filter(d => d.status === 'active').length} active devices</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Start Date <span className="text-gray-400 font-normal">(Optional)</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={fetchAllStartDate}
+                                    onChange={e => setFetchAllStartDate(e.target.value)}
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    End Date <span className="text-gray-400 font-normal">(Optional)</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={fetchAllEndDate}
+                                    onChange={e => setFetchAllEndDate(e.target.value)}
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-gray-500">Leave dates blank to fetch all available logs.</p>
+
+                        {/* Per-device cache toggle list */}
+                        <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
+                            {deviceList.filter(d => d.status === 'active').map(device => {
+                                const cache = jsonCacheInfo[device.id];
+                                const hasCache = cache?.exists;
+                                const isOn = (fetchAllUseCachedMap[device.id] ?? false) && hasCache;
+                                return (
+                                    <div key={device.id} className="flex items-center justify-between px-3 py-2.5">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-800">{device.name}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {hasCache
+                                                    ? `Cache: ${cache.fetch_time} · ${cache.total_logs} logs`
+                                                    : 'No cache — will fetch live'}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => hasCache && setFetchAllUseCachedMap(prev => ({ ...prev, [device.id]: !prev[device.id] }))}
+                                            disabled={!hasCache}
+                                            title={hasCache ? 'Toggle use cached data' : 'No cache available'}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isOn ? 'bg-blue-500' : 'bg-gray-200'} ${!hasCache ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowFetchAllModal(false)}
+                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >Cancel</button>
+                        <button
+                            type="button"
+                            onClick={startFetchAllLogs}
+                            className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
+                        >Fetch All Devices</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderFetchLogsModal = () => fetchLogsDevice && (
         <div className="fixed z-20 inset-0 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen px-4">
@@ -1448,6 +1563,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             {renderPythonSyncConfirm()}
 
             {/* Fetch Matched Logs modal (with date filter) */}
+            {renderFetchAllModal()}
             {renderFetchLogsModal()}
 
             {/* Floating chips for each active sync */}

@@ -41,6 +41,7 @@ use App\Http\Controllers\EventsController;
 use App\Http\Controllers\HrCalendarController;
 use App\Http\Controllers\CancelRestDayController;
 use App\Http\Controllers\PayrollScheduleController;
+use App\Http\Controllers\Manage\UserManagementController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -1097,6 +1098,13 @@ Route::middleware(['auth', 'verified', 'role:superadmin,hrd_manager'])->prefix('
     })->name('manage.roles');
 });
 
+Route::middleware(['auth', 'verified', 'role:superadmin'])->prefix('manage')->group(function () {
+    Route::get('/users',          [UserManagementController::class, 'index'])  ->name('manage.users');
+    Route::post('/users',         [UserManagementController::class, 'store'])  ->name('manage.users.store');
+    Route::put('/users/{id}',     [UserManagementController::class, 'update']) ->name('manage.users.update');
+    Route::delete('/users/{id}',  [UserManagementController::class, 'destroy'])->name('manage.users.destroy');
+});
+
 /*
 |--------------------------------------------------------------------------
 | API Routes for Management
@@ -1155,6 +1163,13 @@ Route::middleware(['auth', 'verified', 'role:superadmin,hrd_manager'])->group(fu
     Route::put('/awards/{id}', [AwardController::class, 'update'])->name('awards.update');
     Route::delete('/awards/{id}', [AwardController::class, 'destroy'])->name('awards.destroy');
     Route::get('/awards/export', [AwardController::class, 'export'])->name('awards.export');
+
+    // Travel Routes
+    Route::get('/core-hr/travel', function () {
+        return Inertia::render('CoreHR/Travel', [
+            'auth' => ['user' => Auth::user()]
+        ]);
+    })->name('core-hr.travel');
 
     // Transfer Routes
     Route::get('/core-hr/transfer', function () {

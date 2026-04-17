@@ -3268,6 +3268,11 @@ public function getPayrollSummaryAttendanceDetails($summaryId)
  */
 public function getPayrollSummaries(Request $request)
 {
+    // If accessed directly in browser (not AJAX), redirect to the Inertia page
+    if (!$request->expectsJson() && !$request->ajax()) {
+        return redirect()->route('payroll-summaries.page');
+    }
+
     try {
         $year = $request->input('year', now()->year);
         $month = $request->input('month', now()->month);

@@ -27,7 +27,7 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
             'photoUrl' => $user->photo_path
-                ? Storage::disk('public')->url($user->photo_path)
+                ? '/storage/' . $user->photo_path
                 : null,
         ]);
     }

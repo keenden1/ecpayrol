@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/Button';
@@ -816,6 +816,8 @@ const Travel = () => {
     const [allTravelOrders, setAllTravelOrders] = useState(travelOrders);
     const [allEmployees, setAllEmployees] = useState(employees);
     const [allDepartments, setAllDepartments] = useState(departments);
+    const allEmployeesRef = useRef(employees);
+    const allDepartmentsRef = useRef(departments);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -858,26 +860,9 @@ const Travel = () => {
         onConfirm: () => {}
     });
 
-    // Add an initialization effect to ensure we have employee data
-    useEffect(() => {
-        const initializeData = async () => {
-            if (!allEmployees || allEmployees.length === 0) {
-                try {
-                    setLoading(true);
-                    console.log('Initializing employee data...');
-                    const response = await axios.get('/employees/list');
-                    console.log(`Loaded ${response.data.data?.length || 0} employees`);
-                    setAllEmployees(response.data.data || []);
-                } catch (error) {
-                    console.error('Failed to load employees:', error);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-        
-        initializeData();
-    }, []);
+    // Sync refs when state changes from outside loadData
+    useEffect(() => { allEmployeesRef.current = allEmployees; }, [allEmployees]);
+    useEffect(() => { allDepartmentsRef.current = allDepartments; }, [allDepartments]);
 
     // Load data
     const loadData = useCallback(async () => {
@@ -896,52 +881,52 @@ const Travel = () => {
             setAllTravelOrders(travelOrdersResponse.data.travelOrders || []);
             
             // Check if we need to load employee data
-            if (!allEmployees || allEmployees.length === 0) {
+            if (!allEmployeesRef.current || allEmployeesRef.current.length === 0) {
                 try {
                     const employeesResponse = await axios.get('/employees/list');
-                    setAllEmployees(employeesResponse.data.data || []);
-                    console.log(`Loaded ${employeesResponse.data.data?.length || 0} employees in loadData`);
+                    const empData = employeesResponse.data.data || [];
+                    allEmployeesRef.current = empData;
+                    setAllEmployees(empData);
+                    console.log(`Loaded ${empData.length} employees in loadData`);
                 } catch (employeeError) {
                     console.error('Error loading employees:', employeeError);
                 }
             }
-            
-        // Check if we need to load department data
-if (!allDepartments || allDepartments.length === 0) {
-    try {
-        // Use the correct endpoint: /departments instead of /departments/list
-        const departmentsResponse = await axios.get('/departments');
-        if (departmentsResponse.data.data && Array.isArray(departmentsResponse.data.data)) {
-            // Extract just the names or use the full objects depending on your needs
-            setAllDepartments(departmentsResponse.data.data);
-            console.log(`Loaded ${departmentsResponse.data.data.length} departments`);
-        } else {
-            setAllDepartments([]);
-        }
-    } catch (departmentError) {
-        console.error('Error loading departments:', departmentError);
-        // Fallback: Extract departments from employee data if available
-        if (allEmployees && allEmployees.length > 0) {
-            console.log('Extracting departments from employee data as fallback');
-            const uniqueDepartments = [...new Set(
-                allEmployees
-                    .map(e => e.Department)
-                    .filter(Boolean)
-            )];
-            console.log(`Extracted ${uniqueDepartments.length} unique departments from employee data`);
-            setAllDepartments(uniqueDepartments);
-        } else {
-            setAllDepartments([]);
-        }
-    }
-}
+
+            // Check if we need to load department data
+            if (!allDepartmentsRef.current || allDepartmentsRef.current.length === 0) {
+                try {
+                    const departmentsResponse = await axios.get('/departments');
+                    if (departmentsResponse.data.data && Array.isArray(departmentsResponse.data.data)) {
+                        const deptData = departmentsResponse.data.data;
+                        allDepartmentsRef.current = deptData;
+                        setAllDepartments(deptData);
+                        console.log(`Loaded ${deptData.length} departments`);
+                    } else {
+                        allDepartmentsRef.current = [];
+                        setAllDepartments([]);
+                    }
+                } catch (departmentError) {
+                    console.error('Error loading departments:', departmentError);
+                    // Fallback: extract departments from employee data
+                    const empData = allEmployeesRef.current;
+                    if (empData && empData.length > 0) {
+                        const uniqueDepartments = [...new Set(empData.map(e => e.Department).filter(Boolean))];
+                        allDepartmentsRef.current = uniqueDepartments;
+                        setAllDepartments(uniqueDepartments);
+                    } else {
+                        allDepartmentsRef.current = [];
+                        setAllDepartments([]);
+                    }
+                }
+            }
         } catch (error) {
             console.error('Error loading travel orders:', error);
             showToast('Error loading travel orders: ' + (error.response?.data?.message || error.message), 'error');
         } finally {
             setLoading(false);
         }
-    }, [searchTerm, statusFilter, dateFilter, allEmployees, allDepartments]);
+    }, [searchTerm, statusFilter, dateFilter]);
 
     // Load data on component mount and when filters change
     useEffect(() => {

@@ -3,7 +3,7 @@ import Sidebar from '@/Components/Sidebar';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import {
     Menu, X, LogOut, User, Bell,
-    ChevronDown, RefreshCw, CheckCircle, XCircle, ChevronUp
+    ChevronDown, RefreshCw, CheckCircle, XCircle, ChevronUp, Users
 } from 'lucide-react';
 
 // ── Background Sync Tracker ──────────────────────────────────────────────────
@@ -226,6 +226,15 @@ export default function AuthenticatedLayout({ children }) {
                                 >
                                     <User size={15} /> Profile
                                 </Link>
+                                {auth.user.role_slug === 'superadmin' && (
+                                    <Link
+                                        href={route('manage.users')}
+                                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                        onClick={() => setUserMenuOpen(false)}
+                                    >
+                                        <Users size={15} /> Staff / Users
+                                    </Link>
+                                )}
                                 <div className="border-t border-gray-100 mt-1 pt-1">
                                     <button
                                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
