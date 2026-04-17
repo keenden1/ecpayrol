@@ -322,24 +322,23 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
         <AuthenticatedLayout user={auth.user}>
             <Head title="Manual Attendance Entry" />
             <div className="max-w-7xl mx-auto">
-                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div className="flex-1 p-8 ml-0">
+                    <div className="max-w-7xl mx-auto">
+                        {/* Page Header */}
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                                    <Calendar className="inline-block w-7 h-7 mr-2 text-indigo-600" />
+                                    Manual Attendance Entry
+                                </h1>
+                                <p className="text-gray-600">
+                                    Manually record attendance for employees when biometric data is unavailable
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
                             <div className="p-6 bg-white border-b border-gray-200">
-                                <h2 className="text-xl font-semibold text-gray-800 mb-6">Manual Attendance Entry</h2>
-                                
-                                {/* Debug Info - Remove in production */}
-                                {process.env.NODE_ENV !== 'production' && errors && Object.keys(errors).length > 0 && (
-                                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded">
-                                        <h3 className="text-sm font-medium text-red-800">Validation Errors:</h3>
-                                        <ul className="mt-2 text-sm text-red-700">
-                                            {Object.entries(errors).map(([key, messages], index) => (
-                                                <li key={`error-${key}-${index}`}>
-                                                    <strong>{key}:</strong> {Array.isArray(messages) ? messages.join(', ') : messages}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {/* Form Section */}
                                     <div className="md:col-span-2">
@@ -660,12 +659,12 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
                                     {/* Instructions Section */}
                                     <div className="bg-gray-50 p-6 rounded-lg">
                                         <h3 className="text-lg font-medium text-gray-900 mb-4">Instructions</h3>
-                                        
+
                                         <div className="space-y-4 text-sm text-gray-600">
                                             <p>
                                                 Use this form to manually enter attendance records for multiple employees when biometric data is not available.
                                             </p>
-                                            
+
                                             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                                                 <div className="flex">
                                                     <div className="flex-shrink-0">
@@ -678,7 +677,7 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div>
                                                 <h4 className="font-medium text-gray-700">Employee Selection:</h4>
                                                 <ul className="list-disc list-inside mt-2 space-y-1">
@@ -688,7 +687,7 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
                                                     <li>Use "Select All" to select all filtered employees</li>
                                                 </ul>
                                             </div>
-                                            
+
                                             <div>
                                                 <h4 className="font-medium text-gray-700">Required Fields:</h4>
                                                 <ul className="list-disc list-inside mt-2 space-y-1">
@@ -698,7 +697,7 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
                                                     <li>Time Out (for regular shifts)</li>
                                                 </ul>
                                             </div>
-                                            
+
                                             <div>
                                                 <h4 className="font-medium text-gray-700">Notes:</h4>
                                                 <ul className="list-disc list-inside mt-2 space-y-1">
@@ -716,10 +715,21 @@ const ManualAttendance = ({ auth, employees = [], departments = [] }) => {
                             </div>
                         </div>
                     </div>
-                
-            
-            
-            <ToastContainer />
+                </div>
+            </div>
+
+            <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+            />
         </AuthenticatedLayout>
     );
 };

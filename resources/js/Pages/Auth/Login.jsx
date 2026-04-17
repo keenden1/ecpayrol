@@ -42,7 +42,6 @@ const Login = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Show spinner immediately — let the browser paint it before we run anything
         setProcessing(true);
         setErrors({});
         setStatus('');
@@ -57,6 +56,9 @@ const Login = () => {
                 }
 
                 const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
                 try {
                     const response = await fetch('/login', {
                         method: 'POST',
@@ -70,12 +72,13 @@ const Login = () => {
                             password: formData.password,
                             remember: formData.remember ? 1 : 0,
                         }),
+                        signal: controller.signal,
                     });
+                    clearTimeout(timeoutId);
 
                     if (response.ok) {
                         sessionStorage.setItem('loginSuccess', '1');
-                        // Keep spinner while page navigates
-                        window.location.href = '/dashboard';
+                        window.location.href = response.url || '/dashboard';
                         return;
                     }
 
@@ -91,12 +94,17 @@ const Login = () => {
                     } else {
                         setErrors({ submit: data?.message || 'These credentials do not match our records.' });
                     }
-                } catch {
-                    setErrors({ submit: 'A network error occurred. Please check your connection.' });
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    if (err.name === 'AbortError') {
+                        setErrors({ submit: 'Request timed out. Please try again.' });
+                    } else {
+                        setErrors({ submit: 'A network error occurred. Please check your connection.' });
+                    }
                 } finally {
                     setProcessing(false);
                 }
-            }, 50); // 50ms — enough for React to flush + browser to paint the spinner
+            }, 50);
         });
     };
 
@@ -337,7 +345,6 @@ const Login = () => {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                onMouseDown={() => setProcessing(true)}
                                 className="group w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
                                 style={{
                                     background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
