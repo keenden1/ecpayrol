@@ -160,6 +160,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('reports.index');
 
+    Route::get('/reports/daily-attendance', function () {
+        return Inertia::render('Reports/DailyAttendance', [
+            'auth' => ['user' => auth()->user()]
+        ]);
+    })->name('reports.daily-attendance');
+
+    Route::get('/reports/monthly-attendance', function () {
+        return Inertia::render('Reports/MonthlyAttendance', [
+            'auth' => ['user' => auth()->user()]
+        ]);
+    })->name('reports.monthly-attendance');
+
+    Route::get('/reports/training', function () {
+        return Inertia::render('Reports/TrainingReport', [
+            'auth' => ['user' => auth()->user()]
+        ]);
+    })->name('reports.training');
+
     /*
     |--------------------------------------------------------------------------
     | Employee Self-Service Routes (Payroll)
@@ -254,11 +272,12 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         // Regular Employee Routes
         Route::get('/', [EmployeeController::class, 'index'])->name('employees.index');
         Route::get('/list', [EmployeeController::class, 'index'])->name('employees.list');
+        Route::get('/export', [EmployeeController::class, 'exportExcel'])->name('employees.export');
         Route::get('/{id}', [EmployeeController::class, 'show'])->name('employees.show')->where('id', '[0-9]+');
         Route::post('/', [EmployeeController::class, 'store'])->name('employees.store');
         Route::put('/{id}', [EmployeeController::class, 'update'])->name('employees.update');
         Route::delete('/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
-        
+
         // Employee Status Management
         Route::post('/{id}/mark-inactive', [EmployeeController::class, 'markInactive'])->name('employees.markInactive');
         Route::post('/{id}/mark-blocked', [EmployeeController::class, 'markBlocked'])->name('employees.markBlocked');
@@ -268,8 +287,6 @@ Route::middleware(['auth', 'verified', 'role:hrd_manager,superadmin,payroll_offi
         Route::post('/create-all-logins', [EmployeeController::class, 'createAllLogins'])->name('employees.createAllLogins');
         Route::post('/{id}/create-login', [EmployeeController::class, 'createLogin'])->name('employees.createLogin');
         Route::post('/{id}/reset-login', [EmployeeController::class, 'resetLogin'])->name('employees.resetLogin');
-
-        Route::get('/export', [EmployeeController::class, 'exportExcel'])->name('employees.export');
     });
 
 /*
