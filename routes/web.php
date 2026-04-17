@@ -55,11 +55,24 @@ use Inertia\Inertia;
 
 // Public Routes
 Route::get('/', function () {
+    $user = Auth::user();
+    $dashboardUrl = '/employee/dashboard';
+    if ($user) {
+        $role = method_exists($user, 'getRoleSlug') ? $user->getRoleSlug() : null;
+        $dashboardUrl = match($role) {
+            'superadmin'      => '/superadmin/dashboard',
+            'payroll_officer' => '/payroll/dashboard',
+            'finance'         => '/finance/dashboard',
+            'manager'         => '/manager/dashboard',
+            default           => '/employee/dashboard',
+        };
+    }
     return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
+        'canLogin'      => Route::has('login'),
+        'canRegister'   => Route::has('register'),
         'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'phpVersion'    => PHP_VERSION,
+        'dashboardUrl'  => $dashboardUrl,
     ]);
 });
 

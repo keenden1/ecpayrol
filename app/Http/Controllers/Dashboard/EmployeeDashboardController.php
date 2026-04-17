@@ -18,7 +18,7 @@ class EmployeeDashboardController extends Controller
         $user = Auth::user();
 
         if ($this->userHasRole($user, 'superadmin')) {
-            return Inertia::render('SuperadminDashboard', ['auth' => ['user' => $user]]);
+            return redirect()->route('superadmin.dashboard');
         } elseif ($this->userHasRole($user, 'hrd_manager')) {
             return $this->hrdManagerDashboard($user);
         } elseif ($this->userHasRole($user, 'department_manager')) {
