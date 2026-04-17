@@ -3431,14 +3431,17 @@ protected function performNetworkScan($scanId, $subnet, $port)
     public function saveScheduleConfig(Request $request)
     {
         $validated = $request->validate([
-            'enabled' => 'required|boolean',
-            'time'    => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
+            'enabled'       => 'required|boolean',
+            'schedule_type' => 'required|in:daily,interval',
+            'time'          => ['required_if:schedule_type,daily', 'nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
+            'interval'      => 'required_if:schedule_type,interval|nullable|integer|in:60,120,180,360,720',
         ]);
 
-        // Validate time range
-        [$h, $m] = explode(':', $validated['time']);
-        if ((int)$h > 23 || (int)$m > 59) {
-            return response()->json(['success' => false, 'message' => 'Invalid time value.'], 422);
+        if ($validated['schedule_type'] === 'daily') {
+            [$h, $m] = explode(':', $validated['time']);
+            if ((int)$h > 23 || (int)$m > 59) {
+                return response()->json(['success' => false, 'message' => 'Invalid time value.'], 422);
+            }
         }
 
         $path = storage_path('app/biometric_schedule.json');
