@@ -32,10 +32,17 @@ const ViewEmployeeModal = ({ isOpen, onClose, employee }) => {
         </div>
     );
 
-    const Field = ({ label, value, custom }) => (
+    const formatDate = (val) => {
+        if (!val) return null;
+        const d = new Date(val);
+        if (isNaN(d)) return val;
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const Field = ({ label, value, date, custom }) => (
         <div>
             <p className="text-xs text-gray-400 font-medium mb-0.5">{label}</p>
-            {custom ? custom : <p className="text-sm text-gray-800 font-medium">{value || <span className="text-gray-300">—</span>}</p>}
+            {custom ? custom : <p className="text-sm text-gray-800 font-medium">{(date ? formatDate(value) : value) || <span className="text-gray-300">—</span>}</p>}
         </div>
     );
 
@@ -83,7 +90,7 @@ const ViewEmployeeModal = ({ isOpen, onClose, employee }) => {
                         <Field label="Suffix"       value={employee.Suffix} />
                         <Field label="Gender"       value={employee.Gender} />
                         <Field label="Civil Status" value={employee.CivilStatus} />
-                        <Field label="Birthdate"    value={employee.Birthdate} />
+                        <Field label="Birthdate"    value={employee.Birthdate} date />
                     </Section>
 
                     <Section icon={<AlertCircle className="h-4 w-4" />} title="Status">
@@ -106,8 +113,8 @@ const ViewEmployeeModal = ({ isOpen, onClose, employee }) => {
                         <Field label="Department"       value={employee.Department} />
                         <Field label="Line"             value={employee.Line} />
                         <Field label="Job Title"        value={employee.Jobtitle} />
-                        <Field label="Hired Date"       value={employee.HiredDate} />
-                        <Field label="End of Contract"  value={employee.EndOfContract} />
+                        <Field label="Hired Date"       value={employee.HiredDate} date />
+                        <Field label="End of Contract"  value={employee.EndOfContract} date />
                         <Field label="Education"        value={employee.EducationalAttainment} />
                         <Field label="Degree"           value={employee.Degree} />
                     </Section>

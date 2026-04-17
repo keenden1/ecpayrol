@@ -1043,8 +1043,16 @@ const EmployeePage = ({
         }
     }, [initialEmployees]);
 
-    const handleView = (employee) => {
-        setSelectedEmployee(employee);
+    const handleView = async (employee) => {
+        try {
+            const res = await fetch(`/employees/${employee.id}`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const full = await res.json();
+            setSelectedEmployee(full);
+        } catch {
+            setSelectedEmployee(employee);
+        }
         setViewModalOpen(true);
     };
 
@@ -1235,23 +1243,39 @@ const EmployeePage = ({
     };
 
     const [creatingAllLogins, setCreatingAllLogins] = useState(false);
+    const [loginResultModal, setLoginResultModal] = useState({ isOpen: false, created: 0, message: '' });
 
-    const handleCreateAllLogins = async () => {
+    const handleCreateAllLogins = () => {
         const noLogin = filteredEmployees.filter(e => !e.has_account).length;
-        if (noLogin === 0) { alert('All employees already have login accounts.'); return; }
-        if (!confirm(`Create login accounts for ${noLogin} employee(s) without one?\n\nUsername: Employee ID\nPassword: Birthdate (MMDDYYYY)`)) return;
-        setCreatingAllLogins(true);
-        try {
-            const res = await fetch('/employees/create-all-logins', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-            });
-            const data = await res.json();
-            alert(data.message);
-            // Mark all as having accounts in local state
-            setFilteredEmployees(prev => prev.map(e => ({ ...e, has_account: true })));
-        } catch { alert('Network error. Please try again.'); }
-        finally { setCreatingAllLogins(false); }
+        if (noLogin === 0) {
+            setLoginResultModal({ isOpen: true, created: 0, message: 'All employees already have login accounts.' });
+            return;
+        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Create Login Accounts',
+            message: `Create login accounts for ${noLogin} employee(s) without one? Username: Employee ID | Password: Birthdate (MMDDYYYY)`,
+            confirmText: 'Create Logins',
+            confirmVariant: 'primary',
+            onConfirm: async () => {
+                setConfirmModal(p => ({ ...p, isOpen: false }));
+                setCreatingAllLogins(true);
+                try {
+                    const res = await fetch('/employees/create-all-logins', {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    const data = await res.json();
+                    const created = data.created ?? 0;
+                    setLoginResultModal({ isOpen: true, created, message: data.message });
+                    setFilteredEmployees(prev => prev.map(e => ({ ...e, has_account: true })));
+                } catch {
+                    setLoginResultModal({ isOpen: true, created: 0, message: 'Network error. Please try again.' });
+                } finally {
+                    setCreatingAllLogins(false);
+                }
+            },
+        });
     };
 
     const handleTabChange = (value) => {
@@ -1497,6 +1521,47 @@ const EmployeePage = ({
                 confirmVariant={confirmModal.confirmVariant}
                 onConfirm={confirmModal.onConfirm}
             />
+
+            {/* Login creation result modal */}
+            {loginResultModal.isOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+                        <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+                            {loginResultModal.created > 0 ? (
+                                <>
+                                    <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+                                        <KeyRound className="w-7 h-7 text-green-600" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Accounts Created</h3>
+                                    <p className="text-4xl font-black text-indigo-600">{loginResultModal.created}</p>
+                                    <p className="text-sm text-gray-500">
+                                        {loginResultModal.created === 1 ? 'login account was' : 'login accounts were'} successfully created.
+                                    </p>
+                                    <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 w-full">
+                                        Username: Employee ID &nbsp;|&nbsp; Password: Birthdate (MMDDYYYY)
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center">
+                                        <Check className="w-7 h-7 text-indigo-600" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">All Set</h3>
+                                    <p className="text-sm text-gray-500">{loginResultModal.message}</p>
+                                </>
+                            )}
+                        </div>
+                        <div className="flex justify-center px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <button
+                                onClick={() => setLoginResultModal(p => ({ ...p, isOpen: false }))}
+                                className="px-6 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 };
