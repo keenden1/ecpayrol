@@ -327,6 +327,255 @@ const FinalPayrollDetailModal = ({ isOpen, payroll, onClose, onUpdate }) => {
     );
 };
 
+// ─── Payslip + Modal ────────────────────────────────────────────────────────
+const Payslip = ({ p, isLast }) => {
+    const fmt = (v) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(parseFloat(v) || 0);
+    const num = (v, d = 2) => parseFloat(v || 0).toFixed(d);
+    const nz  = (v) => parseFloat(v || 0) !== 0;
+
+    const cell  = (extra = {}) => ({ padding: '4px 8px', fontSize: '10px', color: '#1f2937', borderBottom: '1px solid #e5e7eb', verticalAlign: 'middle', ...extra });
+    const amtC  = (color, extra = {}) => cell({ textAlign: 'right', fontWeight: '600', color, width: '38%', ...extra });
+
+    // Earnings rows — always show Basic Pay; rest only when non-zero
+    const earnRows = [
+        { label: 'Basic Pay',             sub: `${num(p.days_worked,1)} day(s) × ${fmt(p.basic_rate)}`,  value: p.basic_pay,                 always: true },
+        { label: 'OT Regular',            sub: `${num(p.ot_regular_hours)} hrs`,                          value: p.ot_regular_amount,          show: nz(p.ot_regular_hours) },
+        { label: 'OT Rest Day',           sub: `${num(p.ot_rest_day_hours)} hrs`,                         value: p.ot_rest_day_amount,         show: nz(p.ot_rest_day_hours) },
+        { label: 'OT Special Holiday',    sub: `${num(p.ot_special_holiday_hours)} hrs`,                  value: p.ot_special_holiday_amount,  show: nz(p.ot_special_holiday_hours) },
+        { label: 'OT Regular Holiday',    sub: `${num(p.ot_regular_holiday_hours)} hrs`,                  value: p.ot_regular_holiday_amount,  show: nz(p.ot_regular_holiday_hours) },
+        { label: 'Holiday Pay',           sub: `${num(p.holiday_hours)} hrs`,                             value: p.holiday_amount,             show: nz(p.holiday_hours) },
+        { label: 'Night Shift Diff.',     sub: `${num(p.nsd_hours)} hrs`,                                 value: p.nsd_amount,                 show: nz(p.nsd_hours) },
+        { label: 'SLVL',                  sub: `${num(p.slvl_days,1)} day(s)`,                            value: p.slvl_amount,                show: nz(p.slvl_days) },
+        { label: 'Travel Order',          sub: `${num(p.travel_order_hours)} hrs`,                        value: p.travel_order_amount,        show: nz(p.travel_order_hours) },
+        { label: 'Offset',                sub: `${num(p.offset_hours)} hrs`,                              value: p.offset_amount,              show: nz(p.offset_hours) },
+        { label: 'Trip Allowance',        sub: `${num(p.trip_count,1)} trip(s)`,                          value: p.trip_amount,                show: nz(p.trip_count) },
+        { label: 'Retro Pay',             sub: '',                                                         value: p.retro_amount,               show: nz(p.retro_amount) },
+        { label: 'Allowance',             sub: '',                                                         value: p.allowances || p.pay_allowance, show: nz(p.allowances) || nz(p.pay_allowance) },
+        { label: 'Other Earnings',        sub: '',                                                         value: p.other_earnings,             show: nz(p.other_earnings) },
+    ].filter(r => r.always || r.show);
+
+    // Deductions rows — always show all government; rest only when non-zero
+    const dedRows = [
+        { label: 'SSS Contribution',      sub: '',                                                         value: p.sss_contribution,           always: true },
+        { label: 'PhilHealth',            sub: '',                                                         value: p.philhealth_contribution,    always: true },
+        { label: 'HDMF / Pag-IBIG',       sub: '',                                                         value: p.hdmf_contribution,          always: true },
+        { label: 'Withholding Tax',       sub: '',                                                         value: p.withholding_tax,            always: true },
+        { label: 'SSS Loan',              sub: '',                                                         value: p.sss_loan,                   show: nz(p.sss_loan) },
+        { label: 'HDMF Loan',             sub: '',                                                         value: p.hdmf_loan,                  show: nz(p.hdmf_loan) },
+        { label: 'MF Loan',               sub: '',                                                         value: p.mf_loan,                    show: nz(p.mf_loan) },
+        { label: 'MF Shares',             sub: '',                                                         value: p.mf_shares,                  show: nz(p.mf_shares) },
+        { label: 'Late / Undertime',      sub: `${num(p.late_under_hours)} hrs`,                           value: p.late_under_deduction,       show: nz(p.late_under_deduction) },
+        { label: 'Absence',               sub: `${num(p.absence_days,1)} day(s)`,                         value: p.absence_deduction,          show: nz(p.absence_deduction) },
+        { label: 'Advance',               sub: '',                                                         value: p.advance_deduction,          show: nz(p.advance_deduction) },
+        { label: 'Charge Store',          sub: '',                                                         value: p.charge_store,               show: nz(p.charge_store) },
+        { label: 'Charge Deduction',      sub: '',                                                         value: p.charge_deduction,           show: nz(p.charge_deduction) },
+        { label: 'Meals',                 sub: '',                                                         value: p.meals_deduction,            show: nz(p.meals_deduction) },
+        { label: 'Miscellaneous',         sub: '',                                                         value: p.miscellaneous_deduction,    show: nz(p.miscellaneous_deduction) },
+        { label: 'Other Deductions',      sub: '',                                                         value: p.other_deductions,           show: nz(p.other_deductions) },
+    ].filter(r => r.always || r.show);
+
+    const grossPay = parseFloat(p.gross_earnings || 0);
+    const totalDed = parseFloat(p.total_deductions || 0);
+    const netPay   = parseFloat(p.net_pay || 0);
+    const rowCount = Math.max(earnRows.length, dedRows.length);
+
+    const th = (extra = {}) => ({ padding: '5px 8px', fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6b7280', background: '#f9fafb', borderBottom: '2px solid #e5e7eb', ...extra });
+
+    return (
+        <div style={{ pageBreakAfter: isLast ? 'avoid' : 'always', fontFamily: '"Helvetica Neue", Arial, sans-serif', fontSize: '11px', color: '#111827', width: '100%', maxWidth: '680px', margin: '0 auto' }}>
+
+            {/* ══ HEADER ══ */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '2px solid #1e1b4b', paddingBottom: '10px', marginBottom: '10px' }}>
+                <tbody><tr>
+                    <td style={{ verticalAlign: 'middle', width: '64px' }}>
+                        <img src="/image/logo.png" alt="logo" style={{ width: '56px', height: '56px', objectFit: 'contain', display: 'block' }} />
+                    </td>
+                    <td style={{ verticalAlign: 'middle', paddingLeft: '12px' }}>
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e1b4b', letterSpacing: '0.5px' }}>EC HRIS</div>
+                        <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '2px' }}>Human Resource Information System</div>
+                    </td>
+                    <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
+                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e1b4b', letterSpacing: '4px', textTransform: 'uppercase' }}>PAYSLIP</div>
+                        <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '3px' }}>
+                            Period: <strong style={{ color: '#374151' }}>{p.full_period}</strong>
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '1px' }}>
+                            Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </div>
+                    </td>
+                </tr></tbody>
+            </table>
+
+            {/* ══ EMPLOYEE INFO ══ */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #d1d5db', marginBottom: '10px' }}>
+                <tbody>
+                    <tr style={{ background: '#f3f4f6' }}>
+                        <td style={{ padding: '4px 8px', width: '20%', borderRight: '1px solid #d1d5db' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Employee Name</div>
+                            <div style={{ fontWeight: '700', fontSize: '11px', marginTop: '2px' }}>{p.employee_name}</div>
+                        </td>
+                        <td style={{ padding: '4px 8px', width: '12%', borderRight: '1px solid #d1d5db' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Employee No.</div>
+                            <div style={{ fontWeight: '600', fontSize: '11px', marginTop: '2px' }}>{p.employee_no}</div>
+                        </td>
+                        <td style={{ padding: '4px 8px', width: '16%', borderRight: '1px solid #d1d5db' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Department</div>
+                            <div style={{ fontWeight: '600', fontSize: '11px', marginTop: '2px' }}>{p.department}</div>
+                        </td>
+                        <td style={{ padding: '4px 8px', width: '20%', borderRight: '1px solid #d1d5db' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Position</div>
+                            <div style={{ fontWeight: '600', fontSize: '11px', marginTop: '2px' }}>{p.job_title || p.line || '—'}</div>
+                        </td>
+                        <td style={{ padding: '4px 8px', width: '14%', borderRight: '1px solid #d1d5db' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pay Type</div>
+                            <div style={{ fontWeight: '600', fontSize: '11px', marginTop: '2px', textTransform: 'capitalize' }}>{p.pay_type || 'Daily'}</div>
+                        </td>
+                        <td style={{ padding: '4px 8px', width: '18%' }}>
+                            <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Basic Rate</div>
+                            <div style={{ fontWeight: '700', fontSize: '11px', marginTop: '2px' }}>{fmt(p.basic_rate)}</div>
+                        </td>
+                    </tr>
+                    <tr style={{ background: '#fafafa' }}>
+                        {[
+                            { lbl: 'Days Worked',   val: num(p.days_worked, 1) },
+                            { lbl: 'Hours Worked',  val: num(p.hours_worked, 1) },
+                            { lbl: 'OT Hours',      val: num(parseFloat(p.ot_regular_hours||0)+parseFloat(p.ot_rest_day_hours||0)+parseFloat(p.ot_special_holiday_hours||0)+parseFloat(p.ot_regular_holiday_hours||0), 2) },
+                            { lbl: 'Off Days',      val: num(p.absence_days, 1) },
+                            { lbl: 'Late/UT (hrs)', val: num(p.late_under_hours, 2) },
+                            { lbl: 'NSD Hours',     val: num(p.nsd_hours, 2) },
+                            { lbl: 'Holiday (hrs)', val: num(p.holiday_hours, 2) },
+                            { lbl: 'SLVL Days',     val: num(p.slvl_days, 1) },
+                        ].map(({ lbl, val }, i) => (
+                            <td key={lbl} style={{ padding: '4px 8px', borderRight: i < 7 ? '1px solid #d1d5db' : 'none', borderTop: '1px solid #d1d5db' }}>
+                                <div style={{ fontSize: '8px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{lbl}</div>
+                                <div style={{ fontWeight: '600', fontSize: '11px', marginTop: '2px' }}>{val}</div>
+                            </td>
+                        ))}
+                    </tr>
+                </tbody>
+            </table>
+
+            {/* ══ EARNINGS | DEDUCTIONS side-by-side ══ */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #d1d5db', marginBottom: '10px' }}>
+                <thead>
+                    <tr>
+                        <td colSpan={2} style={{ ...th(), background: '#1e1b4b', color: '#fff', fontSize: '10px', padding: '6px 8px', borderRight: '2px solid #fff' }}>EARNINGS</td>
+                        <td colSpan={2} style={{ ...th(), background: '#7f1d1d', color: '#fff', fontSize: '10px', padding: '6px 8px' }}>DEDUCTIONS</td>
+                    </tr>
+                    <tr>
+                        <td style={th({ width: '37%', borderRight: '1px solid #e5e7eb' })}>Description</td>
+                        <td style={th({ width: '13%', textAlign: 'right', borderRight: '2px solid #d1d5db' })}>Amount</td>
+                        <td style={th({ width: '37%', borderRight: '1px solid #e5e7eb' })}>Description</td>
+                        <td style={th({ width: '13%', textAlign: 'right' })}>Amount</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Array.from({ length: rowCount }).map((_, i) => {
+                        const e = earnRows[i];
+                        const d = dedRows[i];
+                        const bg = i % 2 === 0 ? '#ffffff' : '#fafafa';
+                        return (
+                            <tr key={i} style={{ background: bg }}>
+                                <td style={cell({ width: '37%', borderRight: '1px solid #e5e7eb' })}>
+                                    {e ? <><span>{e.label}</span>{e.sub ? <span style={{ display: 'block', fontSize: '8.5px', color: '#9ca3af', marginTop: '1px' }}>{e.sub}</span> : null}</> : ''}
+                                </td>
+                                <td style={amtC('#065f46', { borderRight: '2px solid #d1d5db' })}>{e ? fmt(e.value) : ''}</td>
+                                <td style={cell({ width: '37%', borderRight: '1px solid #e5e7eb' })}>
+                                    {d ? <><span>{d.label}</span>{d.sub ? <span style={{ display: 'block', fontSize: '8.5px', color: '#9ca3af', marginTop: '1px' }}>{d.sub}</span> : null}</> : ''}
+                                </td>
+                                <td style={amtC('#991b1b')}>{d ? fmt(d.value) : ''}</td>
+                            </tr>
+                        );
+                    })}
+                    {/* Totals */}
+                    <tr style={{ background: '#f3f4f6', borderTop: '2px solid #d1d5db' }}>
+                        <td style={{ padding: '5px 8px', fontWeight: '700', fontSize: '10px', borderRight: '1px solid #e5e7eb', borderTop: '2px solid #6b7280' }}>GROSS PAY</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: '700', fontSize: '10px', color: '#065f46', borderRight: '2px solid #d1d5db', borderTop: '2px solid #6b7280' }}>{fmt(grossPay)}</td>
+                        <td style={{ padding: '5px 8px', fontWeight: '700', fontSize: '10px', borderRight: '1px solid #e5e7eb', borderTop: '2px solid #6b7280' }}>TOTAL DEDUCTIONS</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: '700', fontSize: '10px', color: '#991b1b', borderTop: '2px solid #6b7280' }}>{fmt(totalDed)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {/* ══ NET PAY ══ */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #1e1b4b', marginBottom: '16px' }}>
+                <tbody><tr style={{ background: '#1e1b4b' }}>
+                    <td style={{ padding: '8px 12px', color: '#fff', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px' }}>NET PAY</td>
+                    <td style={{ padding: '8px 12px', color: '#fff', fontSize: '9px', textAlign: 'center' }}>
+                        Gross: <strong>{fmt(grossPay)}</strong>&nbsp;&nbsp;−&nbsp;&nbsp;Deductions: <strong>{fmt(totalDed)}</strong>
+                    </td>
+                    <td style={{ padding: '8px 14px', color: '#86efac', fontWeight: '900', fontSize: '18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {fmt(netPay)}
+                    </td>
+                </tr></tbody>
+            </table>
+
+            {/* ══ SIGNATURES ══ */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                <tbody><tr>
+                    {['Prepared by', 'Checked by', 'Approved by', "Employee's Signature"].map((lbl, i) => (
+                        <td key={lbl} style={{ textAlign: 'center', padding: '0 6px', width: '25%', borderRight: i < 3 ? '1px solid #e5e7eb' : 'none' }}>
+                            <div style={{ height: '32px' }} />
+                            <div style={{ borderTop: '1px solid #374151', paddingTop: '4px', fontSize: '8px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{lbl}</div>
+                        </td>
+                    ))}
+                </tr></tbody>
+            </table>
+
+            {!isLast && (
+                <div style={{ borderTop: '1px dashed #d1d5db', margin: '18px 0 0', textAlign: 'center', paddingTop: '4px', fontSize: '8px', color: '#9ca3af', letterSpacing: '3px' }}>
+                    ✂ &nbsp; CUT HERE &nbsp; ✂
+                </div>
+            )}
+        </div>
+    );
+};
+
+const PayrollPrintModal = ({ isOpen, onClose, payrolls }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+            {/* Centered column: toolbar on top, payslips below */}
+            <div className="flex flex-col items-center py-6 min-h-full">
+                {/* Toolbar */}
+                <div className="print:hidden w-full max-w-2xl bg-white border border-gray-200 rounded-xl shadow-lg mb-4 flex items-center justify-between px-5 py-3 sticky top-4 z-10">
+                    <span className="text-sm font-semibold text-gray-700">
+                        Payslip Preview — {payrolls.length} employee{payrolls.length !== 1 ? 's' : ''}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => window.print()}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Print
+                        </button>
+                        <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Payslip pages */}
+                <div id="payroll-print-area" className="w-full max-w-2xl bg-white shadow-lg rounded-xl p-8 print:shadow-none print:rounded-none print:p-0 print:max-w-none">
+                    {payrolls.map((p, i) => (
+                        <Payslip key={p.id} p={p} isLast={i === payrolls.length - 1} />
+                    ))}
+                </div>
+            </div>
+
+            <style>{`
+                @media print {
+                    @page { size: A4 portrait; margin: 1.5cm; }
+                    body * { visibility: hidden; }
+                    #payroll-print-area, #payroll-print-area * { visibility: visible; }
+                    #payroll-print-area { position: fixed; top: 0; left: 0; width: 100%; }
+                }
+            `}</style>
+        </div>
+    );
+};
+
 // Main Final Payroll Component
 const FinalPayroll = ({ auth }) => {
     const [payrolls, setPayrolls] = useState([]);
@@ -359,6 +608,12 @@ const FinalPayroll = ({ auth }) => {
     // Generation modal state
     const [showGenerationModal, setShowGenerationModal] = useState(false);
     const [availableSummaries, setAvailableSummaries] = useState([]);
+
+    // Print modal state
+    const [showPrintModal, setShowPrintModal] = useState(false);
+
+    // Row selection state
+    const [selectedRows, setSelectedRows] = useState(new Set());
 
     // Approve/Reject modal state
     const [approvalModal, setApprovalModal] = useState({ open: false, type: null, payroll: null });
@@ -577,10 +832,10 @@ const FinalPayroll = ({ auth }) => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={handleGeneration}
+                                    onClick={() => setShowPrintModal(true)}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
                                 >
-                                    <PlusCircle className="w-3.5 h-3.5" />
+                                    <FileText className="w-3.5 h-3.5" />
                                     Generate
                                 </button>
                             </div>
@@ -807,6 +1062,17 @@ const FinalPayroll = ({ auth }) => {
                                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                                     <thead className="bg-gray-50">
                                         <tr>
+                                            <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-8">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                    checked={payrolls.length > 0 && selectedRows.size === payrolls.length}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setSelectedRows(new Set(payrolls.map(p => p.id)));
+                                                        else setSelectedRows(new Set());
+                                                    }}
+                                                />
+                                            </th>
                                             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
                                             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
                                             <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
@@ -824,10 +1090,23 @@ const FinalPayroll = ({ auth }) => {
                                         {payrolls.map((payroll) => (
                                             <tr
                                                 key={payroll.id}
-                                                className="hover:bg-blue-50 cursor-pointer transition-colors"
+                                                className={`hover:bg-blue-50 cursor-pointer transition-colors ${selectedRows.has(payroll.id) ? 'bg-indigo-50' : ''}`}
                                                 onDoubleClick={() => handleRowDoubleClick(payroll)}
                                                 title="Double-click to view detailed payroll breakdown"
                                             >
+                                                <td className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        checked={selectedRows.has(payroll.id)}
+                                                        onChange={(e) => {
+                                                            const next = new Set(selectedRows);
+                                                            if (e.target.checked) next.add(payroll.id);
+                                                            else next.delete(payroll.id);
+                                                            setSelectedRows(next);
+                                                        }}
+                                                    />
+                                                </td>
                                                 <td className="px-3 py-2.5 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900">{payroll.employee_name}</div>
                                                     <div className="text-xs text-gray-400">{payroll.employee_no}</div>
@@ -1088,6 +1367,17 @@ const FinalPayroll = ({ auth }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Print Modal */}
+            <PayrollPrintModal
+                isOpen={showPrintModal}
+                onClose={() => setShowPrintModal(false)}
+                payrolls={selectedRows.size > 0 ? payrolls.filter(p => selectedRows.has(p.id)) : payrolls}
+                filters={{
+                    period: periodType || 'All Periods',
+                    department: department || 'All Departments',
+                }}
+            />
 
             {/* Detail Modal */}
             <FinalPayrollDetailModal
