@@ -64,7 +64,7 @@ const DepartmentManagerDashboard = ({ auth, pendingOvertimes, departmentEmployee
             
             <div className="min-h-screen bg-gray-50">
                 <div className="p-8">
-                    <div className="max-w-7xl mx-auto">
+                    <div className="w-full">
                         <h1 className="text-2xl font-bold text-gray-900 mb-6">Department Manager Dashboard</h1>
                         
                         {/* Managed departments section */}

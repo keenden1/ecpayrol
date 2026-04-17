@@ -472,7 +472,7 @@ const DeductionsPage = ({ employees: initialEmployees, cutoff: initialCutoff, mo
     return (
         <AuthenticatedLayout user={user}>
             <Head title="Employee Deductions" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {alertMessage && (
                             <Alert className="mb-4">
                                 <AlertDescription>{alertMessage}</AlertDescription>

@@ -176,7 +176,7 @@ const AttendanceManagement = () => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Attendance Management" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Header Section */}
                         <div className="flex items-center justify-between mb-8">
                             <div>

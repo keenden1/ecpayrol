@@ -432,7 +432,7 @@ const EmployeePage = ({ employees: initialEmployees, currentStatus = 'all', flas
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Employee Management" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {flash?.message && (
                             <Alert className="mb-4">
                                 <AlertDescription>{flash.message}</AlertDescription>

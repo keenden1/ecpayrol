@@ -567,7 +567,7 @@
         return (
             <AuthenticatedLayout>
                 <Head title="Manage Departments" />
-                <div className="max-w-7xl mx-auto">
+                <div className="w-full">
                             {/* Toast Notification */}
                             {toast.visible && (
                                 <Toast 

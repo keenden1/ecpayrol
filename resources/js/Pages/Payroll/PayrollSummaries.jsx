@@ -1000,8 +1000,8 @@ const PayrollSummaries = ({ auth }) => {
   return (
     <AuthenticatedLayout user={auth.user}>
       <Head title="Payroll Summaries" />
-      <div className="max-w-7xl mx-auto">
-          <div className="max-w-7xl mx-auto">
+      <div className="w-full">
+          <div className="w-full">
             {/* Header */}
             <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
               <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />

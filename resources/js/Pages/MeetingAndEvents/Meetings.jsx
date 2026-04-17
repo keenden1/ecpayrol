@@ -1818,7 +1818,7 @@ const MeetingPage = ({ meetings: initialMeetings, counts = {}, currentStatus = '
     return (
         <AuthenticatedLayout user={user}>
             <Head title="Meeting Management" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {flash?.message && (
                             <Alert className="mb-4">
                                 <AlertDescription>{flash.message}</AlertDescription>

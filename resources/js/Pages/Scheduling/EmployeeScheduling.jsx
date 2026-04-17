@@ -1287,7 +1287,7 @@ const EmployeeScheduling = () => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Employee Scheduling" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

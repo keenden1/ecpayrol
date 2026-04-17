@@ -563,7 +563,7 @@ const PayrollSummaries = ({ auth }) => {
         <AuthenticatedLayout user={auth.user}>
             <Head title="Daily Time Records" />
 
-            <div className="max-w-7xl mx-auto space-y-5">
+            <div className="w-full space-y-5">
 
                 {/* ── Page Header ──────────────────────────────────────────── */}
                 <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg">

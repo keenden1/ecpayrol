@@ -778,7 +778,7 @@ const LinesAndSections = () => {
     return (
         <AuthenticatedLayout>
             <Head title="Lines and Sections Management" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

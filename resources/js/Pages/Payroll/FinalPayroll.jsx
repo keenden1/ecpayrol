@@ -360,6 +360,11 @@ const FinalPayroll = ({ auth }) => {
     const [showGenerationModal, setShowGenerationModal] = useState(false);
     const [availableSummaries, setAvailableSummaries] = useState([]);
 
+    // Approve/Reject modal state
+    const [approvalModal, setApprovalModal] = useState({ open: false, type: null, payroll: null });
+    const [approvalRemarks, setApprovalRemarks] = useState('');
+    const [approvalLoading, setApprovalLoading] = useState(false);
+
     // Load final payrolls
     const loadPayrolls = async () => {
         setLoading(true);
@@ -436,6 +441,47 @@ const FinalPayroll = ({ auth }) => {
     // Handle payroll update
     const handlePayrollUpdate = () => {
         loadPayrolls();
+    };
+
+    // Open approve/reject modal
+    const openApprovalModal = (e, payroll, type) => {
+        e.stopPropagation();
+        setApprovalRemarks('');
+        setApprovalModal({ open: true, type, payroll });
+    };
+
+    // Submit approve/reject
+    const handleApprovalSubmit = async () => {
+        if (!approvalModal.payroll) return;
+        if (approvalModal.type === 'reject' && !approvalRemarks.trim()) return;
+        setApprovalLoading(true);
+        try {
+            const endpoint = approvalModal.type === 'approve'
+                ? `/final-payrolls/${approvalModal.payroll.id}/approve`
+                : `/final-payrolls/${approvalModal.payroll.id}/reject`;
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({ approval_remarks: approvalRemarks }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSuccess(data.message);
+                setApprovalModal({ open: false, type: null, payroll: null });
+                loadPayrolls();
+            } else {
+                setError(data.message || 'Action failed');
+            }
+        } catch (err) {
+            setError('Failed to process approval');
+        } finally {
+            setApprovalLoading(false);
+        }
     };
 
     // Handle generation
@@ -516,8 +562,8 @@ const FinalPayroll = ({ auth }) => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Final Payroll" />
-            <div className="max-w-7xl mx-auto">
-                <div className="max-w-7xl mx-auto">
+            <div className="w-full">
+                <div className="w-full">
                     {/* Header */}
                     <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl px-6 py-6 overflow-hidden shadow-lg mb-6">
                         <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
@@ -758,42 +804,20 @@ const FinalPayroll = ({ auth }) => {
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Employee
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Department
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Period
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Basic Pay
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Overtime
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Gross
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Deductions
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Net Pay
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Status
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Approval
-                                            </th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Actions
-                                            </th>
+                                            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                                            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
+                                            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
+                                            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Basic Pay</th>
+                                            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Overtime</th>
+                                            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Gross</th>
+                                            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Deductions</th>
+                                            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Pay</th>
+                                            <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Approval</th>
+                                            <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -801,152 +825,88 @@ const FinalPayroll = ({ auth }) => {
                                             <tr
                                                 key={payroll.id}
                                                 className="hover:bg-blue-50 cursor-pointer transition-colors"
-                                                onDoubleClick={() =>
-                                                    handleRowDoubleClick(
-                                                        payroll,
-                                                    )
-                                                }
+                                                onDoubleClick={() => handleRowDoubleClick(payroll)}
                                                 title="Double-click to view detailed payroll breakdown"
                                             >
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {
-                                                                payroll.employee_name
-                                                            }
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            {
-                                                                payroll.employee_no
-                                                            }
-                                                        </div>
-                                                    </div>
+                                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">{payroll.employee_name}</div>
+                                                    <div className="text-xs text-gray-400">{payroll.employee_no}</div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <div>
-                                                        <div>
-                                                            {payroll.department}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400">
-                                                            {payroll.line}
-                                                        </div>
-                                                    </div>
+                                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-700">{payroll.department}</div>
+                                                    <div className="text-xs text-gray-400">{payroll.line}</div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
                                                     {payroll.full_period}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                                    {formatCurrency(
-                                                        payroll.basic_pay,
-                                                    )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                                                    {formatCurrency(payroll.basic_pay)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                                    {formatCurrency(
-                                                        payroll.overtime_pay,
-                                                    )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                                                    {formatCurrency(payroll.overtime_pay)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                                    {formatCurrency(
-                                                        payroll.gross_earnings,
-                                                    )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                                                    {formatCurrency(payroll.gross_earnings)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                                                    {formatCurrency(
-                                                        payroll.total_deductions,
-                                                    )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-red-600 font-medium text-right">
+                                                    {formatCurrency(payroll.total_deductions)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                                                    <span className="text-lg text-blue-600">
-                                                        {formatCurrency(
-                                                            payroll.net_pay,
-                                                        )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-sm font-bold text-indigo-600 text-right">
+                                                    {formatCurrency(payroll.net_pay)}
+                                                </td>
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                        payroll.status === 'paid' ? 'bg-green-100 text-green-700'
+                                                        : payroll.status === 'finalized' ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                        {payroll.status === 'paid' && <CreditCard className="h-3 w-3" />}
+                                                        {payroll.status === 'finalized' && <CheckCircle className="h-3 w-3" />}
+                                                        {payroll.status === 'draft' && <Clock className="h-3 w-3" />}
+                                                        {payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                                            payroll.status ===
-                                                            "paid"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : payroll.status ===
-                                                                    "finalized"
-                                                                  ? "bg-blue-100 text-blue-800"
-                                                                  : "bg-yellow-100 text-yellow-800"
-                                                        }`}
-                                                    >
-                                                        {payroll.status ===
-                                                            "paid" && (
-                                                            <CreditCard className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.status ===
-                                                            "finalized" && (
-                                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.status ===
-                                                            "draft" && (
-                                                            <Clock className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.status
-                                                            .charAt(0)
-                                                            .toUpperCase() +
-                                                            payroll.status.slice(
-                                                                1,
-                                                            )}
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                        payroll.approval_status === 'approved' ? 'bg-emerald-100 text-emerald-700'
+                                                        : payroll.approval_status === 'rejected' ? 'bg-red-100 text-red-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                        {payroll.approval_status === 'approved' && <CheckCircle className="h-3 w-3" />}
+                                                        {payroll.approval_status === 'rejected' && <XCircle className="h-3 w-3" />}
+                                                        {payroll.approval_status === 'pending' && <Clock className="h-3 w-3" />}
+                                                        {payroll.approval_status.charAt(0).toUpperCase() + payroll.approval_status.slice(1)}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                                            payroll.approval_status ===
-                                                            "approved"
-                                                                ? "bg-green-100 text-green-800"
-                                                                : payroll.approval_status ===
-                                                                    "rejected"
-                                                                  ? "bg-red-100 text-red-800"
-                                                                  : "bg-yellow-100 text-yellow-800"
-                                                        }`}
-                                                    >
-                                                        {payroll.approval_status ===
-                                                            "approved" && (
-                                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.approval_status ===
-                                                            "rejected" && (
-                                                            <XCircle className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.approval_status ===
-                                                            "pending" && (
-                                                            <Clock className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {payroll.approval_status
-                                                            .charAt(0)
-                                                            .toUpperCase() +
-                                                            payroll.approval_status.slice(
-                                                                1,
-                                                            )}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <div className="flex justify-end space-x-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRowDoubleClick(
-                                                                    payroll,
-                                                                );
-                                                            }}
-                                                            className="text-blue-600 hover:text-blue-900"
+                                                <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                                                    <div className="flex justify-center items-center gap-0.5">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleRowDoubleClick(payroll); }}
+                                                            className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
                                                             title="View Details"
                                                         >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        {payroll.approval_status === 'pending' && (
+                                                            <>
+                                                                <button
+                                                                    onClick={(e) => openApprovalModal(e, payroll, 'approve')}
+                                                                    className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                                    title="Approve"
+                                                                >
+                                                                    <Check className="h-3.5 w-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => openApprovalModal(e, payroll, 'reject')}
+                                                                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                                                                    title="Reject"
+                                                                >
+                                                                    <XCircle className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                         {payroll.has_adjustments && (
-                                                            <span
-                                                                className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800"
-                                                                title="Has manual adjustments"
-                                                            >
+                                                            <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800" title="Has manual adjustments">
                                                                 <Settings className="h-3 w-3" />
                                                             </span>
                                                         )}
@@ -1139,6 +1099,66 @@ const FinalPayroll = ({ auth }) => {
                 }}
                 onUpdate={handlePayrollUpdate}
             />
+
+            {/* Approve / Reject Confirmation Modal */}
+            {approvalModal.open && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className={`px-5 py-4 flex items-center gap-3 ${approvalModal.type === 'approve' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-red-500 to-rose-500'}`}>
+                            <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+                                {approvalModal.type === 'approve'
+                                    ? <Check className="w-4 h-4 text-white" />
+                                    : <XCircle className="w-4 h-4 text-white" />}
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-white">
+                                    {approvalModal.type === 'approve' ? 'Approve Payroll' : 'Reject Payroll'}
+                                </h3>
+                                <p className="text-white/70 text-xs">{approvalModal.payroll?.employee_name} · {approvalModal.payroll?.full_period}</p>
+                            </div>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-gray-600">
+                                {approvalModal.type === 'approve'
+                                    ? 'Are you sure you want to approve this payroll? This action will mark it as approved.'
+                                    : 'Are you sure you want to reject this payroll? Please provide a reason.'}
+                            </p>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                                    Remarks {approvalModal.type === 'reject' && <span className="text-red-500">*</span>}
+                                </label>
+                                <textarea
+                                    value={approvalRemarks}
+                                    onChange={(e) => setApprovalRemarks(e.target.value)}
+                                    rows={3}
+                                    placeholder={approvalModal.type === 'approve' ? 'Optional remarks...' : 'Reason for rejection (required)'}
+                                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                                />
+                                {approvalModal.type === 'reject' && !approvalRemarks.trim() && (
+                                    <p className="text-xs text-red-500 mt-1">Remarks are required for rejection.</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-5 pb-5 flex justify-end gap-2">
+                            <button
+                                onClick={() => setApprovalModal({ open: false, type: null, payroll: null })}
+                                disabled={approvalLoading}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleApprovalSubmit}
+                                disabled={approvalLoading || (approvalModal.type === 'reject' && !approvalRemarks.trim())}
+                                className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 ${approvalModal.type === 'approve' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}
+                            >
+                                {approvalLoading && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                                {approvalModal.type === 'approve' ? 'Approve' : 'Reject'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 };

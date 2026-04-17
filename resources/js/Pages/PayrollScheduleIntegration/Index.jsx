@@ -820,7 +820,7 @@ const PayrollScheduleIntegration = () => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Payroll Schedule Integration" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast */}
                         {toast.visible && (
                             <Toast 

@@ -183,7 +183,7 @@ const EmployeeImport = () => {
   return (
     <AuthenticatedLayout user={auth.user}>
       <Head title="Import Employees" />
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
             <CardTitle>Import Employees</CardTitle>

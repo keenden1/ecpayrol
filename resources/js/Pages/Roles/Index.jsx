@@ -69,14 +69,14 @@ const Index = ({ users, roles, auth, flash }) => {
         <Layout>
             <Head title="User Role Management" />
             
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                 {/* Sidebar */}
                 <div className="fixed h-screen">
                 </div>
                 
                 {/* Main Content */}
                 <div className="flex-1 p-8 ml-64">
-                    <div className="max-w-7xl mx-auto">
+                    <div className="w-full">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900 mb-1">

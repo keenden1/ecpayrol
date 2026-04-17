@@ -1310,7 +1310,7 @@ const EmployeePage = ({
         <AuthenticatedLayout user={auth.user}>
             <Head title="Employee Management" />
 
-            <div className="max-w-7xl mx-auto px-1 py-2 space-y-5">
+            <div className="w-full space-y-5">
                 {flash?.message && (
                     <Alert className="border-indigo-200 bg-indigo-50">
                         <AlertDescription className="text-indigo-800">

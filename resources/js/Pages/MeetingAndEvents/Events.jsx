@@ -1890,7 +1890,7 @@ const EventPage = ({ events: initialEvents, counts = {}, currentStatus = 'all', 
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Event Management" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {flash?.message && (
                             <Alert className="mb-4">
                                 <AlertDescription>{flash.message}</AlertDescription>

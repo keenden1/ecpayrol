@@ -839,7 +839,7 @@ const EmployeeDefaultsPage = () => {
         return (
             <AuthenticatedLayout user={user}>
                 <Head title="Employee Default Benefits" />
-                <div className="max-w-7xl mx-auto">
+                <div className="w-full">
                         <div className="p-8 text-center text-gray-500">
                             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                             <h3 className="text-lg font-medium mb-2">No Employee Defaults Found</h3>
@@ -853,7 +853,7 @@ const EmployeeDefaultsPage = () => {
     return (
         <AuthenticatedLayout user={user}>
             <Head title="Employee Default Benefits" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {alertMessage && (
                             <Alert className="mb-4">
                                 <AlertDescription>{alertMessage}</AlertDescription>

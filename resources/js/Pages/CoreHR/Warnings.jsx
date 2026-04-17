@@ -638,7 +638,7 @@ const Warnings = () => {
     return (
         <AuthenticatedLayout>
             <Head title="Employee Warnings" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

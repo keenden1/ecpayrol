@@ -95,7 +95,7 @@ const AttendanceLogs = () => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Attendance Logs" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {message && (
                             <Alert className="mb-4">
                                 <AlertDescription>{message}</AlertDescription>

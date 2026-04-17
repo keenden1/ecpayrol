@@ -845,7 +845,7 @@ const Termination = () => {
     return (
         <AuthenticatedLayout>
             <Head title="Employee Terminations" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

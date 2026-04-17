@@ -883,7 +883,7 @@ const HrCalendar = () => {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="HR Calendar" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {flash?.message && (
                             <Alert className="mb-6">
                                 <AlertDescription>{flash.message}</AlertDescription>

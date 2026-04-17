@@ -80,7 +80,7 @@ export default function AppLayout({ children }) {
                     </div>
                 </header>
 
-                <main className="p-4 sm:p-6 lg:p-8">
+                <main className="p-4">
                     {children}
                 </main>
             </div>

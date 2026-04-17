@@ -660,7 +660,7 @@ const Award = () => {
     return (
         <AuthenticatedLayout>
             <Head title="Employee Awards" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

@@ -228,7 +228,7 @@ const TravelOrderPage = () => {
         <AuthenticatedLayout user={auth.user}>
             <Head title="Travel Order Management" />
             
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                 {/* Include the Sidebar */}
                 
                 {/* Global Loading Overlay */}
@@ -243,7 +243,7 @@ const TravelOrderPage = () => {
                 
                 {/* Main Content */}
                 <div className="flex-1 p-8 ml-0">
-                    <div className="max-w-7xl mx-auto">
+                    <div className="w-full">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900 mb-1">

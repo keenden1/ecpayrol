@@ -33,7 +33,7 @@ export default function TrainingReport({ auth }) {
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Training Report" />
-            <div className="py-8 px-4 max-w-7xl mx-auto">
+            <div className="w-full">
                 <div className="mb-6 flex items-center gap-3">
                     <GraduationCap className="w-7 h-7 text-blue-600" />
                     <h1 className="text-2xl font-bold text-gray-800">Training Report</h1>

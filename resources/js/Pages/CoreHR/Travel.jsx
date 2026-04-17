@@ -1076,7 +1076,7 @@ const Travel = () => {
     return (
         <AuthenticatedLayout>
             <Head title="Travel Orders" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

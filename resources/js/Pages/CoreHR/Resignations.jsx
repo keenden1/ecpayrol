@@ -834,7 +834,7 @@ const loadData = useCallback(async () => {
     return (
         <AuthenticatedLayout>
             <Head title="Employee Resignations" />
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                         {/* Toast Notification */}
                         {toast.visible && (
                             <Toast 

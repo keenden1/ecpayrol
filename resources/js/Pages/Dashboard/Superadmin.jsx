@@ -98,7 +98,7 @@ export default function SuperadminDashboard({ auth, stats: s, charts: c }) {
         <AuthenticatedLayout user={user}>
             <Head title="Superadmin Dashboard" />
 
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="w-full space-y-6">
 
                 {/* ── Header Banner ── */}
                 <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-2xl p-7 text-white shadow-xl">
