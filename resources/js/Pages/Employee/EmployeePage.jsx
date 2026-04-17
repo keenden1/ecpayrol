@@ -34,7 +34,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             aria-modal="true"
             aria-labelledby="modal-title"
         >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
                 <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-700">
                     <h3
                         id="modal-title"
@@ -117,7 +117,7 @@ const ConfirmModal = ({
 
 // ─── Form Section Header ───────────────────────────────────────────────────────
 const FormSection = ({ title }) => (
-    <div className="flex items-center gap-3 mb-3">
+    <div className="col-span-2 flex items-center gap-3 mt-5 mb-1">
         <div className="w-1 h-5 rounded-full bg-indigo-500"></div>
         <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">
             {title}
@@ -129,7 +129,7 @@ const FormSection = ({ title }) => (
 // ─── Form Field ────────────────────────────────────────────────────────────────
 const FormField = ({ label, required, error, children }) => (
     <div>
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
             {label}
             {required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
@@ -139,7 +139,7 @@ const FormField = ({ label, required, error, children }) => (
 );
 
 const inputCls = (err) =>
-    `w-full px-3.5 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow ${err ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`;
+    `w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow ${err ? "border-red-400 bg-red-50" : "border-gray-200 bg-white hover:border-gray-300"}`;
 
 // ─── Employee Form ─────────────────────────────────────────────────────────────
 const EmployeeForm = ({
@@ -328,150 +328,129 @@ const EmployeeForm = ({
             onClose={onClose}
             title={mode === "create" ? "Add New Employee" : "Edit Employee"}
         >
-            <form onSubmit={handleSubmit} className="p-8">
-                {/* ── 3-column landscape layout ── */}
-                <div className="grid grid-cols-3 gap-8">
+            <form
+                onSubmit={handleSubmit}
+                className="p-6 max-h-[80vh] overflow-y-auto space-y-0"
+            >
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <FormSection title="Personal Information" />
 
-                    {/* ── Column 1: Personal Information ── */}
-                    <div className="space-y-4">
-                        <FormSection title="Personal Information" />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="ID Number" error={errors.idno}>
-                                <input id="idno" name="idno" type="text" className={inputCls(errors.idno)} value={formData.idno} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Biometrics ID">
-                                <input id="bid" name="bid" type="text" className={inputCls()} value={formData.bid} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Last Name" required error={errors.Lname}>
-                                <input id="Lname" name="Lname" type="text" className={inputCls(errors.Lname)} value={formData.Lname} onChange={handleChange} required />
-                            </FormField>
-                            <FormField label="First Name" required error={errors.Fname}>
-                                <input id="Fname" name="Fname" type="text" className={inputCls(errors.Fname)} value={formData.Fname} onChange={handleChange} required />
-                            </FormField>
-                            <FormField label="Middle Name">
-                                <input id="MName" name="MName" type="text" className={inputCls()} value={formData.MName} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Suffix">
-                                <input id="Suffix" name="Suffix" type="text" className={inputCls()} value={formData.Suffix} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Gender" error={errors.Gender}>
-                                <select id="Gender" name="Gender" className={inputCls(errors.Gender)} value={formData.Gender} onChange={handleChange}>
-                                    <option value="">Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </FormField>
-                            <FormField label="Civil Status">
-                                <select id="CivilStatus" name="CivilStatus" className={inputCls()} value={formData.CivilStatus} onChange={handleChange}>
-                                    <option value="">Select Status</option>
-                                    <option value="Single">Single</option>
-                                    <option value="Married">Married</option>
-                                    <option value="Widowed">Widowed</option>
-                                    <option value="Divorced">Divorced</option>
-                                </select>
-                            </FormField>
-                            <div className="col-span-2">
-                                <FormField label="Birthdate">
-                                    <input id="Birthdate" name="Birthdate" type="date" className={inputCls()} value={formData.Birthdate} onChange={handleChange} />
-                                </FormField>
-                            </div>
-                        </div>
-                    </div>
+                    <FormField label="ID Number" error={errors.idno}>
+                        <input id="idno" name="idno" type="text" className={inputCls(errors.idno)} value={formData.idno} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Biometrics ID">
+                        <input id="bid" name="bid" type="text" className={inputCls()} value={formData.bid} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Last Name" required error={errors.Lname}>
+                        <input id="Lname" name="Lname" type="text" className={inputCls(errors.Lname)} value={formData.Lname} onChange={handleChange} required />
+                    </FormField>
+                    <FormField label="First Name" required error={errors.Fname}>
+                        <input id="Fname" name="Fname" type="text" className={inputCls(errors.Fname)} value={formData.Fname} onChange={handleChange} required />
+                    </FormField>
+                    <FormField label="Middle Name">
+                        <input id="MName" name="MName" type="text" className={inputCls()} value={formData.MName} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Suffix">
+                        <input id="Suffix" name="Suffix" type="text" className={inputCls()} value={formData.Suffix} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Gender" error={errors.Gender}>
+                        <select id="Gender" name="Gender" className={inputCls(errors.Gender)} value={formData.Gender} onChange={handleChange}>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </FormField>
+                    <FormField label="Civil Status">
+                        <select id="CivilStatus" name="CivilStatus" className={inputCls()} value={formData.CivilStatus} onChange={handleChange}>
+                            <option value="">Select Status</option>
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Widowed">Widowed</option>
+                            <option value="Divorced">Divorced</option>
+                        </select>
+                    </FormField>
+                    <FormField label="Birthdate">
+                        <input id="Birthdate" name="Birthdate" type="date" className={inputCls()} value={formData.Birthdate} onChange={handleChange} />
+                    </FormField>
 
-                    {/* ── Column 2: Contact + Employment ── */}
-                    <div className="space-y-4">
-                        <FormSection title="Contact Information" />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="Contact Number">
-                                <input id="ContactNo" name="ContactNo" type="tel" className={inputCls()} value={formData.ContactNo} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Email" required={mode === "create"} error={errors.Email}>
-                                <input id="Email" name="Email" type="email" className={inputCls(errors.Email)} value={formData.Email} onChange={handleChange} required={mode === "create"} />
-                            </FormField>
-                        </div>
+                    <FormSection title="Contact Information" />
 
-                        <div className="pt-2">
-                            <FormSection title="Employment Information" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="Employment Status">
-                                <select id="EmpStatus" name="EmpStatus" className={inputCls()} value={formData.EmpStatus} onChange={handleChange}>
-                                    <option value="">Select Status</option>
-                                    <option value="Regular">Regular</option>
-                                    <option value="Contractual">Contractual</option>
-                                    <option value="Probationary">Probationary</option>
-                                </select>
-                            </FormField>
-                            <FormField label="Job Status">
-                                <select id="JobStatus" name="JobStatus" className={inputCls()} value={formData.JobStatus} onChange={handleChange}>
-                                    <option value="">Select Status</option>
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                    <option value="Blocked">Blocked</option>
-                                    <option value="On Leave">On Leave</option>
-                                </select>
-                            </FormField>
-                            <FormField label="Department" required error={errors.Department}>
-                                <input id="Department" name="Department" type="text" className={inputCls(errors.Department)} value={formData.Department} onChange={handleChange} required />
-                            </FormField>
-                            <FormField label="Job Title" required error={errors.Jobtitle}>
-                                <input id="Jobtitle" name="Jobtitle" type="text" className={inputCls(errors.Jobtitle)} value={formData.Jobtitle} onChange={handleChange} required />
-                            </FormField>
-                            <FormField label="Hired Date">
-                                <input id="HiredDate" name="HiredDate" type="date" className={inputCls()} value={formData.HiredDate} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="End of Contract">
-                                <input id="EndOfContract" name="EndOfContract" type="date" className={inputCls()} value={formData.EndOfContract} onChange={handleChange} />
-                            </FormField>
-                        </div>
-                    </div>
+                    <FormField label="Contact Number">
+                        <input id="ContactNo" name="ContactNo" type="tel" className={inputCls()} value={formData.ContactNo} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Email" required={mode === "create"} error={errors.Email}>
+                        <input id="Email" name="Email" type="email" className={inputCls(errors.Email)} value={formData.Email} onChange={handleChange} required={mode === "create"} />
+                    </FormField>
 
-                    {/* ── Column 3: Compensation + Government IDs ── */}
-                    <div className="space-y-4">
-                        <FormSection title="Compensation" />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="Pay Type">
-                                <select id="pay_type" name="pay_type" className={inputCls()} value={formData.pay_type} onChange={handleChange}>
-                                    <option value="">Select Pay Type</option>
-                                    <option value="Monthly">Monthly</option>
-                                    <option value="Weekly">Weekly</option>
-                                    <option value="Daily">Daily</option>
-                                </select>
-                            </FormField>
-                            <FormField label="Pay Rate">
-                                <input id="payrate" name="payrate" type="number" step="0.01" className={inputCls()} value={formData.payrate} onChange={handleChange} />
-                            </FormField>
-                        </div>
+                    <FormSection title="Employment Information" />
 
-                        <div className="pt-2">
-                            <FormSection title="Government IDs" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="SSS Number">
-                                <input id="SSSNO" name="SSSNO" type="text" className={inputCls()} value={formData.SSSNO} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="PhilHealth Number">
-                                <input id="PHILHEALTHNo" name="PHILHEALTHNo" type="text" className={inputCls()} value={formData.PHILHEALTHNo} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="HDMF Number">
-                                <input id="HDMFNo" name="HDMFNo" type="text" className={inputCls()} value={formData.HDMFNo} onChange={handleChange} />
-                            </FormField>
-                            <FormField label="Tax Number">
-                                <input id="TaxNo" name="TaxNo" type="text" className={inputCls()} value={formData.TaxNo} onChange={handleChange} />
-                            </FormField>
-                            <div className="col-span-2">
-                                <FormField label="Taxable" required>
-                                    <select id="Taxable" name="Taxable" className={inputCls()} value={formData.Taxable ? "1" : "0"} onChange={handleChange} required>
-                                        <option value="1">Yes</option>
-                                        <option value="0">No</option>
-                                    </select>
-                                </FormField>
-                            </div>
-                        </div>
-                    </div>
+                    <FormField label="Employment Status">
+                        <select id="EmpStatus" name="EmpStatus" className={inputCls()} value={formData.EmpStatus} onChange={handleChange}>
+                            <option value="">Select Status</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Contractual">Contractual</option>
+                            <option value="Probationary">Probationary</option>
+                        </select>
+                    </FormField>
+                    <FormField label="Job Status">
+                        <select id="JobStatus" name="JobStatus" className={inputCls()} value={formData.JobStatus} onChange={handleChange}>
+                            <option value="">Select Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                            <option value="Blocked">Blocked</option>
+                            <option value="On Leave">On Leave</option>
+                        </select>
+                    </FormField>
+                    <FormField label="Department" required error={errors.Department}>
+                        <input id="Department" name="Department" type="text" className={inputCls(errors.Department)} value={formData.Department} onChange={handleChange} required />
+                    </FormField>
+                    <FormField label="Job Title" required error={errors.Jobtitle}>
+                        <input id="Jobtitle" name="Jobtitle" type="text" className={inputCls(errors.Jobtitle)} value={formData.Jobtitle} onChange={handleChange} required />
+                    </FormField>
+                    <FormField label="Hired Date">
+                        <input id="HiredDate" name="HiredDate" type="date" className={inputCls()} value={formData.HiredDate} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="End of Contract">
+                        <input id="EndOfContract" name="EndOfContract" type="date" className={inputCls()} value={formData.EndOfContract} onChange={handleChange} />
+                    </FormField>
+
+                    <FormSection title="Compensation" />
+
+                    <FormField label="Pay Type">
+                        <select id="pay_type" name="pay_type" className={inputCls()} value={formData.pay_type} onChange={handleChange}>
+                            <option value="">Select Pay Type</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Daily">Daily</option>
+                        </select>
+                    </FormField>
+                    <FormField label="Pay Rate">
+                        <input id="payrate" name="payrate" type="number" step="0.01" className={inputCls()} value={formData.payrate} onChange={handleChange} />
+                    </FormField>
+
+                    <FormSection title="Government IDs" />
+
+                    <FormField label="SSS Number">
+                        <input id="SSSNO" name="SSSNO" type="text" className={inputCls()} value={formData.SSSNO} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="PhilHealth Number">
+                        <input id="PHILHEALTHNo" name="PHILHEALTHNo" type="text" className={inputCls()} value={formData.PHILHEALTHNo} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="HDMF Number">
+                        <input id="HDMFNo" name="HDMFNo" type="text" className={inputCls()} value={formData.HDMFNo} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Tax Number">
+                        <input id="TaxNo" name="TaxNo" type="text" className={inputCls()} value={formData.TaxNo} onChange={handleChange} />
+                    </FormField>
+                    <FormField label="Taxable" required>
+                        <select id="Taxable" name="Taxable" className={inputCls()} value={formData.Taxable ? "1" : "0"} onChange={handleChange} required>
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </FormField>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-gray-100">
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
                     <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                         Cancel
                     </button>
