@@ -15,14 +15,14 @@ use Inertia\Inertia;
 class EmployeeImportController extends Controller
 {
     protected $expectedHeaders = [
-        'idno', 'bid', 'Lname', 'Fname', 'MName', 'Suffix', 'Gender',
-        'EducationalAttainment', 'Degree', 'CivilStatus', 'Birthdate',
-        'ContactNo', 'Email', 'PresentAddress', 'PermanentAddress',
-        'EmerContactName', 'EmerContactNo', 'EmerRelationship',
-        'EmpStatus', 'JobStatus', 'RankFile', 'Department', 'Line',
-        'Jobtitle', 'HiredDate', 'EndOfContract', 'pay_type',
-        'payrate', 'pay_allowance', 'SSSNO', 'PHILHEALTHNo',
-        'HDMFNo', 'TaxNo', 'Taxable', 'CostCenter'
+        'ID No.', 'Business ID', 'Last Name', 'First Name', 'Middle Name', 'Suffix', 'Gender',
+        'Educational Attainment', 'Degree', 'Civil Status', 'Birthdate',
+        'Contact No.', 'Email', 'Present Address', 'Permanent Address',
+        'Emergency Contact Name', 'Emergency Contact No.', 'Emergency Relationship',
+        'Employment Status', 'Job Status', 'Rank/File', 'Department', 'Line',
+        'Job Title', 'Hired Date', 'End of Contract', 'Pay Type',
+        'Pay Rate', 'Pay Allowance', 'SSS No.', 'PhilHealth No.',
+        'HDMF No.', 'Tax No.', 'Taxable', 'Cost Center'
     ];
 
     public function showImport()
@@ -159,71 +159,57 @@ class EmployeeImportController extends Controller
 
     protected function formatEmployeeData($data)
     {
-        // Default value for Taxable field
-        $taxable = isset($data['Taxable']) ? filter_var($data['Taxable'], FILTER_VALIDATE_BOOLEAN) : false;
-        
-        // Normalize pay_type value
-        $payType = trim(strtolower($data['pay_type'] ?? ''));
+        $taxableRaw = strtolower(trim($data['Taxable'] ?? ''));
+        $taxable = in_array($taxableRaw, ['yes', 'true', '1']);
+
+        $payType = trim(strtolower($data['Pay Type'] ?? ''));
         switch ($payType) {
-            case 'monthly':
-            case 'month':
-            case 'mo':
-                $payType = 'Monthly';
-                break;
-            case 'weekly':
-            case 'week':
-            case 'wk':
-                $payType = 'Weekly';
-                break;
-            case 'daily':
-            case 'day':
-                $payType = 'Daily';
-                break;
-            default:
-                $payType = 'Monthly'; // Default value
+            case 'monthly': case 'month': case 'mo': $payType = 'Monthly'; break;
+            case 'weekly':  case 'week':  case 'wk': $payType = 'Weekly';  break;
+            case 'daily':   case 'day':               $payType = 'Daily';   break;
+            default: $payType = 'Monthly';
         }
 
-        // Handle dates properly (could be numeric Excel dates or formatted strings)
-        $birthdate = $this->parseExcelDate($data['Birthdate'] ?? null);
-        $hiredDate = $this->parseExcelDate($data['HiredDate'] ?? null);
-        $endOfContract = $this->parseExcelDate($data['EndOfContract'] ?? null);
+        $birthdate   = $this->parseExcelDate($data['Birthdate'] ?? null);
+        $hiredDate   = $this->parseExcelDate($data['Hired Date'] ?? null);
+        $endOfContract = $this->parseExcelDate($data['End of Contract'] ?? null);
 
         return [
-            'idno' => $data['idno'] ?? null,
-            'bid' => $data['bid'] ?? null,
-            'Lname' => trim($data['Lname'] ?? ''),
-            'Fname' => trim($data['Fname'] ?? ''),
-            'MName' => trim($data['MName'] ?? ''),
-            'Suffix' => trim($data['Suffix'] ?? ''),
-            'Gender' => trim($data['Gender'] ?? ''),
-            'EducationalAttainment' => trim($data['EducationalAttainment'] ?? ''),
-            'Degree' => trim($data['Degree'] ?? ''),
-            'CivilStatus' => trim($data['CivilStatus'] ?? ''),
-            'Birthdate' => $birthdate,
-            'ContactNo' => trim($data['ContactNo'] ?? ''),
-            'Email' => trim(strtolower($data['Email'] ?? '')),
-            'PresentAddress' => trim($data['PresentAddress'] ?? ''),
-            'PermanentAddress' => trim($data['PermanentAddress'] ?? ''),
-            'EmerContactName' => trim($data['EmerContactName'] ?? ''),
-            'EmerContactNo' => trim($data['EmerContactNo'] ?? ''),
-            'EmerRelationship' => trim($data['EmerRelationship'] ?? ''),
-            'EmpStatus' => trim($data['EmpStatus'] ?? ''),
-            'JobStatus' => trim($data['JobStatus'] ?? ''),
-            'RankFile' => trim($data['RankFile'] ?? ''),
-            'Department' => trim($data['Department'] ?? ''),
-            'Line' => trim($data['Line'] ?? ''),
-            'Jobtitle' => trim($data['Jobtitle'] ?? ''),
-            'HiredDate' => $hiredDate,
-            'EndOfContract' => $endOfContract,
-            'pay_type' => $payType,
-            'payrate' => is_numeric($data['payrate'] ?? '') ? floatval($data['payrate']) : 0,
-            'pay_allowance' => is_numeric($data['pay_allowance'] ?? '') ? floatval($data['pay_allowance']) : 0,
-            'SSSNO' => trim($data['SSSNO'] ?? ''),
-            'PHILHEALTHNo' => trim($data['PHILHEALTHNo'] ?? ''),
-            'HDMFNo' => trim($data['HDMFNo'] ?? ''),
-            'TaxNo' => trim($data['TaxNo'] ?? ''),
-            'Taxable' => $taxable,
-            'CostCenter' => trim($data['CostCenter'] ?? '')
+            'idno'                 => $data['ID No.'] ?? null,
+            'bid'                  => $data['Business ID'] ?? null,
+            'Lname'                => trim($data['Last Name'] ?? ''),
+            'Fname'                => trim($data['First Name'] ?? ''),
+            'MName'                => trim($data['Middle Name'] ?? ''),
+            'Suffix'               => trim($data['Suffix'] ?? ''),
+            'Gender'               => trim($data['Gender'] ?? ''),
+            'EducationalAttainment'=> trim($data['Educational Attainment'] ?? ''),
+            'Degree'               => trim($data['Degree'] ?? ''),
+            'CivilStatus'          => trim($data['Civil Status'] ?? ''),
+            'Birthdate'            => $birthdate,
+            'ContactNo'            => trim($data['Contact No.'] ?? ''),
+            'Email'                => trim(strtolower($data['Email'] ?? '')),
+            'PresentAddress'       => trim($data['Present Address'] ?? ''),
+            'PermanentAddress'     => trim($data['Permanent Address'] ?? ''),
+            'EmerContactName'      => trim($data['Emergency Contact Name'] ?? ''),
+            'EmerContactNo'        => trim($data['Emergency Contact No.'] ?? ''),
+            'EmerRelationship'     => trim($data['Emergency Relationship'] ?? ''),
+            'EmpStatus'            => trim($data['Employment Status'] ?? ''),
+            'JobStatus'            => trim($data['Job Status'] ?? ''),
+            'RankFile'             => trim($data['Rank/File'] ?? ''),
+            'Department'           => trim($data['Department'] ?? ''),
+            'Line'                 => trim($data['Line'] ?? ''),
+            'Jobtitle'             => trim($data['Job Title'] ?? ''),
+            'HiredDate'            => $hiredDate,
+            'EndOfContract'        => $endOfContract,
+            'pay_type'             => $payType,
+            'payrate'              => is_numeric($data['Pay Rate'] ?? '')      ? floatval($data['Pay Rate'])      : 0,
+            'pay_allowance'        => is_numeric($data['Pay Allowance'] ?? '') ? floatval($data['Pay Allowance']) : 0,
+            'SSSNO'                => trim($data['SSS No.'] ?? ''),
+            'PHILHEALTHNo'         => trim($data['PhilHealth No.'] ?? ''),
+            'HDMFNo'               => trim($data['HDMF No.'] ?? ''),
+            'TaxNo'                => trim($data['Tax No.'] ?? ''),
+            'Taxable'              => $taxable,
+            'CostCenter'           => trim($data['Cost Center'] ?? ''),
         ];
     }
 
@@ -327,8 +313,8 @@ class EmployeeImportController extends Controller
                 'Jane Doe', '0987654321', 'Spouse',
                 'Regular', 'Active', 'Staff', 'IT', 'Development',
                 'Developer', '2022-01-01', '', 'Monthly',
-                50000, 5000, '1234567890', '2345678901',
-                '3456789012', '4567890123', true, 'IT001'
+                50000, 5000, '12-3456789-0', '12-345678901-2',
+                '1234-5678-9', '123-456-789-000', 'Yes', 'IT001'
             ]
         ];
 
@@ -364,9 +350,9 @@ class EmployeeImportController extends Controller
 
         // Add drop-down lists for fields with specific allowed values
         $this->addDropdownValidation($sheet, 'Gender', ['Male', 'Female']);
-        $this->addDropdownValidation($sheet, 'CivilStatus', ['Single', 'Married', 'Divorced', 'Widowed']);
-        $this->addDropdownValidation($sheet, 'pay_type', ['Monthly', 'Weekly', 'Daily']);
-        $this->addDropdownValidation($sheet, 'Taxable', ['TRUE', 'FALSE']);
+        $this->addDropdownValidation($sheet, 'Civil Status', ['Single', 'Married', 'Divorced', 'Widowed']);
+        $this->addDropdownValidation($sheet, 'Pay Type', ['Monthly', 'Weekly', 'Daily']);
+        $this->addDropdownValidation($sheet, 'Taxable', ['Yes', 'No']);
 
         // Auto-size columns
         $highestColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestColumn());

@@ -500,9 +500,11 @@ class EmployeeController extends Controller
                 ]
             ]);
             
-            // Auto-size header columns
-            foreach (range('A', 'AI') as $column) {
-                $sheet->getColumnDimension($column)->setAutoSize(true);
+            // Auto-size header columns A through AI (35 columns)
+            $lastColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString('AI');
+            for ($i = 1; $i <= $lastColIndex; $i++) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             
             // Set row height for header
@@ -561,18 +563,6 @@ class EmployeeController extends Controller
                         ]
                     ]
                 ]);
-            }
-            
-            // Apply alternating row colors
-            for ($i = 2; $i < $row; $i++) {
-                if ($i % 2 == 0) {
-                    $sheet->getStyle('A' . $i . ':AI' . $i)->applyFromArray([
-                        'fill' => [
-                            'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'F8F9FA']
-                        ]
-                    ]);
-                }
             }
             
             // Create filename with current date and filter info
