@@ -17,7 +17,13 @@ import {
     Cpu,
 } from "lucide-react";
 
-const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCacheInfo = {}, departments = [], jobtitles = [] }) => {
+const BiometricManagement = ({
+    auth,
+    devices = [],
+    jsonCacheInfo: initialJsonCacheInfo = {},
+    departments = [],
+    jobtitles = [],
+}) => {
     const [deviceList, setDeviceList] = useState(devices);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -43,15 +49,20 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     useEffect(() => {
         const handleSyncCompleted = (e) => {
             // Partial reload of the 'devices' and 'jsonCacheInfo' props
-            router.reload({ only: ['devices', 'jsonCacheInfo'] });
+            router.reload({ only: ["devices", "jsonCacheInfo"] });
         };
-        window.addEventListener('bgSyncJobCompleted', handleSyncCompleted);
-        return () => window.removeEventListener('bgSyncJobCompleted', handleSyncCompleted);
+        window.addEventListener("bgSyncJobCompleted", handleSyncCompleted);
+        return () =>
+            window.removeEventListener(
+                "bgSyncJobCompleted",
+                handleSyncCompleted,
+            );
     }, []);
 
     // Multi-device sync state
     const [syncConfirmDevice, setSyncConfirmDevice] = useState(null); // device waiting for confirm
-    const [pythonSyncConfirmDevice, setPythonSyncConfirmDevice] = useState(null); // python sync confirm
+    const [pythonSyncConfirmDevice, setPythonSyncConfirmDevice] =
+        useState(null); // python sync confirm
     const [activeSyncs, setActiveSyncs] = useState({});
     // { [deviceId]: { device, progress, stage, isExpanded, status, previewRecords, previewSummary, syncLogId, previewPage, isSaving } }
     // status: 'syncing' | 'preview' | 'no_records'
@@ -70,14 +81,21 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     // Add Employee modal state
     const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
     const [addEmployeeUser, setAddEmployeeUser] = useState(null); // the device user being added
-    const [addEmployeeForm, setAddEmployeeForm] = useState({ Fname: '', Lname: '', MName: '', Department: '', Jobtitle: '', JobStatus: 'Active' });
+    const [addEmployeeForm, setAddEmployeeForm] = useState({
+        Fname: "",
+        Lname: "",
+        MName: "",
+        Department: "",
+        Jobtitle: "",
+        JobStatus: "Active",
+    });
     const [openCombo, setOpenCombo] = useState(null); // 'dept' | 'jobtitle' | null
     const previewPageSize = 50;
 
     // Fetch Matched Logs modal (date picker)
     const [fetchLogsDevice, setFetchLogsDevice] = useState(null);
-    const [fetchStartDate, setFetchStartDate] = useState('');
-    const [fetchEndDate, setFetchEndDate] = useState('');
+    const [fetchStartDate, setFetchStartDate] = useState("");
+    const [fetchEndDate, setFetchEndDate] = useState("");
     const [fetchUseLimit, setFetchUseLimit] = useState(false);
     const [fetchUseCached, setFetchUseCached] = useState(false);
     // JSON cache info per device — seeded from disk on page load { [deviceId]: { exists, fetch_time, total_logs } }
@@ -89,8 +107,8 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
     // Fetch All Devices modal
     const [showFetchAllModal, setShowFetchAllModal] = useState(false);
-    const [fetchAllStartDate, setFetchAllStartDate] = useState('');
-    const [fetchAllEndDate, setFetchAllEndDate] = useState('');
+    const [fetchAllStartDate, setFetchAllStartDate] = useState("");
+    const [fetchAllEndDate, setFetchAllEndDate] = useState("");
     const [fetchAllUseCachedMap, setFetchAllUseCachedMap] = useState({});
 
     // Form data state
@@ -129,11 +147,17 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     // ── Multi-device sync helpers ──────────────────────────────────────────────
 
     const updateSync = (deviceId, updates) =>
-        setActiveSyncs(prev => ({ ...prev, [deviceId]: { ...prev[deviceId], ...updates } }));
+        setActiveSyncs((prev) => ({
+            ...prev,
+            [deviceId]: { ...prev[deviceId], ...updates },
+        }));
 
     const getSyncRefs = (deviceId) => {
         if (!syncRefsMap.current[deviceId]) {
-            syncRefsMap.current[deviceId] = { abortController: null, pollInterval: null };
+            syncRefsMap.current[deviceId] = {
+                abortController: null,
+                pollInterval: null,
+            };
         }
         return syncRefsMap.current[deviceId];
     };
@@ -143,21 +167,28 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         if (refs.abortController) refs.abortController.abort();
         if (refs.pollInterval) clearInterval(refs.pollInterval);
         delete syncRefsMap.current[deviceId];
-        setActiveSyncs(prev => { const n = { ...prev }; delete n[deviceId]; return n; });
+        setActiveSyncs((prev) => {
+            const n = { ...prev };
+            delete n[deviceId];
+            return n;
+        });
     };
 
     const expandSync = (deviceId) =>
-        setActiveSyncs(prev => {
+        setActiveSyncs((prev) => {
             const n = { ...prev };
-            Object.keys(n).forEach(id => { n[id] = { ...n[id], isExpanded: id === String(deviceId) }; });
+            Object.keys(n).forEach((id) => {
+                n[id] = { ...n[id], isExpanded: id === String(deviceId) };
+            });
             return n;
         });
 
-    const collapseSync = (deviceId) => updateSync(deviceId, { isExpanded: false });
+    const collapseSync = (deviceId) =>
+        updateSync(deviceId, { isExpanded: false });
 
     const openFetchLogsModal = (device) => {
-        setFetchStartDate('');
-        setFetchEndDate('');
+        setFetchStartDate("");
+        setFetchEndDate("");
         setFetchUseCached(!!jsonCacheInfo[device.id]?.exists);
         setFetchLogsDevice(device);
     };
@@ -169,13 +200,19 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         try {
             const res = await fetch(route("biometric-devices.save-logs"), {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
                 body: JSON.stringify({ sync_log_id: sync.syncLogId }),
             });
             const data = await res.json();
             if (data.success) {
                 removeSync(deviceId);
-                toast.success(`${sync.device.name} — ${data.saved_count} new, ${data.updated_count} updated`);
+                toast.success(
+                    `${sync.device.name} — ${data.saved_count} new, ${data.updated_count} updated`,
+                );
             } else {
                 toast.error(`Save failed: ${data.message || "Unknown error"}`);
                 updateSync(deviceId, { isSaving: false });
@@ -187,49 +224,77 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     };
 
     const csrfToken = () =>
-        document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+        document
+            .querySelector('meta[name="csrf-token"]')
+            .getAttribute("content");
 
     const handleOpenAddEmployeeModal = (user) => {
         // Pre-fill name from device name field (format may be "LASTNAME, FIRSTNAME" or just a name)
-        let Lname = '', Fname = '';
+        let Lname = "",
+            Fname = "";
         if (user.name) {
-            const parts = user.name.split(',');
+            const parts = user.name.split(",");
             if (parts.length >= 2) {
                 Lname = parts[0].trim();
-                Fname = parts.slice(1).join(',').trim();
+                Fname = parts.slice(1).join(",").trim();
             } else {
                 Fname = user.name.trim();
             }
         }
         setAddEmployeeUser(user);
-        setAddEmployeeForm({ Fname, Lname, MName: '', Department: '', Jobtitle: '', JobStatus: 'Active' });
+        setAddEmployeeForm({
+            Fname,
+            Lname,
+            MName: "",
+            Department: "",
+            Jobtitle: "",
+            JobStatus: "Active",
+        });
         setShowAddEmployeeModal(true);
     };
 
     const handleAddDeviceUser = async () => {
         if (!addEmployeeUser) return;
         const userid = addEmployeeUser.userid;
-        setAddingUsers(prev => ({ ...prev, [userid]: true }));
+        setAddingUsers((prev) => ({ ...prev, [userid]: true }));
         setShowAddEmployeeModal(false);
         try {
             const res = await fetch("/biometric-devices/add-device-user", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
                 body: JSON.stringify({ idno: userid, ...addEmployeeForm }),
             });
             const data = await res.json();
             if (data.success) {
                 toast.success(data.message);
-                setAddedUsers(prev => new Set([...prev, userid]));
-                const fullName = [addEmployeeForm.Lname, addEmployeeForm.Fname].filter(Boolean).join(', ') || '';
-                setDeviceUsers(prev => prev.map(u => u.userid === userid ? { ...u, matched: true, employee: fullName, department: addEmployeeForm.Department } : u));
+                setAddedUsers((prev) => new Set([...prev, userid]));
+                const fullName =
+                    [addEmployeeForm.Lname, addEmployeeForm.Fname]
+                        .filter(Boolean)
+                        .join(", ") || "";
+                setDeviceUsers((prev) =>
+                    prev.map((u) =>
+                        u.userid === userid
+                            ? {
+                                  ...u,
+                                  matched: true,
+                                  employee: fullName,
+                                  department: addEmployeeForm.Department,
+                              }
+                            : u,
+                    ),
+                );
             } else {
                 toast.error(data.message || "Failed to add employee");
             }
         } catch (e) {
             toast.error("Error adding employee");
         } finally {
-            setAddingUsers(prev => ({ ...prev, [userid]: false }));
+            setAddingUsers((prev) => ({ ...prev, [userid]: false }));
             setAddEmployeeUser(null);
         }
     };
@@ -245,7 +310,11 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         try {
             const res = await fetch("/biometric-devices/device-users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-TOKEN": csrfToken() },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
                 body: JSON.stringify({ device_id: device.id }),
             });
             const data = await res.json();
@@ -268,23 +337,36 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         if (refs.pollInterval) clearInterval(refs.pollInterval);
         const startTime = Date.now();
         const stages = [
-            { at: 0,   pct: 5,  label: "Queued for processing..." },
-            { at: 3,   pct: 15, label: "Connecting to biometric device..." },
-            { at: 10,  pct: 30, label: "Retrieving attendance logs from device..." },
-            { at: 25,  pct: 55, label: "Processing attendance records..." },
-            { at: 60,  pct: 70, label: "Building preview records..." },
+            { at: 0, pct: 5, label: "Queued for processing..." },
+            { at: 3, pct: 15, label: "Connecting to biometric device..." },
+            {
+                at: 10,
+                pct: 30,
+                label: "Retrieving attendance logs from device...",
+            },
+            { at: 25, pct: 55, label: "Processing attendance records..." },
+            { at: 60, pct: 70, label: "Building preview records..." },
             { at: 100, pct: 85, label: "Almost done..." },
         ];
         refs.pollInterval = setInterval(() => {
             const elapsed = (Date.now() - startTime) / 1000;
             let current = stages[0];
-            for (const s of stages) { if (elapsed >= s.at) current = s; else break; }
+            for (const s of stages) {
+                if (elapsed >= s.at) current = s;
+                else break;
+            }
             const next = stages[stages.indexOf(current) + 1];
             let progress = current.pct;
             if (next) {
-                progress = current.pct + ((elapsed - current.at) / (next.at - current.at)) * (next.pct - current.pct);
+                progress =
+                    current.pct +
+                    ((elapsed - current.at) / (next.at - current.at)) *
+                        (next.pct - current.pct);
             }
-            updateSync(deviceId, { progress: Math.min(88, progress), stage: current.label });
+            updateSync(deviceId, {
+                progress: Math.min(88, progress),
+                stage: current.label,
+            });
         }, 800);
     };
 
@@ -292,21 +374,37 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const startRawSync = async (device) => {
         setSyncConfirmDevice(null);
         try {
-            const res = await fetch(route("biometric-devices.sync-raw-background"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
-                body: JSON.stringify({ device_id: device.id }),
-            });
+            const res = await fetch(
+                route("biometric-devices.sync-raw-background"),
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "X-CSRF-TOKEN": csrfToken(),
+                    },
+                    body: JSON.stringify({ device_id: device.id }),
+                },
+            );
             const data = await res.json();
             if (data.success) {
                 // Save to localStorage so the floating pill persists across page navigations
-                const jobs = JSON.parse(localStorage.getItem('bgSyncJobs') || '[]');
-                jobs.push({ logId: data.log_id, deviceId: device.id, deviceName: device.name, startedAt: Date.now() });
-                localStorage.setItem('bgSyncJobs', JSON.stringify(jobs));
+                const jobs = JSON.parse(
+                    localStorage.getItem("bgSyncJobs") || "[]",
+                );
+                jobs.push({
+                    logId: data.log_id,
+                    deviceId: device.id,
+                    deviceName: device.name,
+                    startedAt: Date.now(),
+                });
+                localStorage.setItem("bgSyncJobs", JSON.stringify(jobs));
                 // Dispatch event so AuthenticatedLayout picks it up immediately
-                window.dispatchEvent(new Event('bgSyncJobAdded'));
+                window.dispatchEvent(new Event("bgSyncJobAdded"));
             } else {
-                toast.error(`${device.name}: ${data.message || 'Failed to start sync'}`);
+                toast.error(
+                    `${device.name}: ${data.message || "Failed to start sync"}`,
+                );
             }
         } catch (err) {
             toast.error(`${device.name}: ${err.message}`);
@@ -319,17 +417,30 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         try {
             const res = await fetch(route("biometric-devices.python-sync"), {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
                 body: JSON.stringify({ device_id: device.id }),
             });
             const data = await res.json();
             if (data.success) {
-                const jobs = JSON.parse(localStorage.getItem('bgSyncJobs') || '[]');
-                jobs.push({ logId: data.log_id, deviceId: device.id, deviceName: device.name, startedAt: Date.now() });
-                localStorage.setItem('bgSyncJobs', JSON.stringify(jobs));
-                window.dispatchEvent(new Event('bgSyncJobAdded'));
+                const jobs = JSON.parse(
+                    localStorage.getItem("bgSyncJobs") || "[]",
+                );
+                jobs.push({
+                    logId: data.log_id,
+                    deviceId: device.id,
+                    deviceName: device.name,
+                    startedAt: Date.now(),
+                });
+                localStorage.setItem("bgSyncJobs", JSON.stringify(jobs));
+                window.dispatchEvent(new Event("bgSyncJobAdded"));
             } else {
-                toast.error(`${device.name}: ${data.message || 'Failed to start Python sync'}`);
+                toast.error(
+                    `${device.name}: ${data.message || "Failed to start Python sync"}`,
+                );
             }
         } catch (err) {
             toast.error(`${device.name}: ${err.message}`);
@@ -341,24 +452,34 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         const deviceId = device.id;
         setFetchLogsDevice(null);
 
-        const startDate = overrides.startDate !== undefined ? overrides.startDate : fetchStartDate;
-        const endDate   = overrides.endDate   !== undefined ? overrides.endDate   : fetchEndDate;
-        const useCached = overrides.useCached !== undefined ? overrides.useCached : fetchUseCached;
+        const startDate =
+            overrides.startDate !== undefined
+                ? overrides.startDate
+                : fetchStartDate;
+        const endDate =
+            overrides.endDate !== undefined ? overrides.endDate : fetchEndDate;
+        const useCached =
+            overrides.useCached !== undefined
+                ? overrides.useCached
+                : fetchUseCached;
 
         const extras = {};
         if (startDate) extras.start_date = startDate;
-        if (endDate)   extras.end_date   = endDate;
-        if (useCached && jsonCacheInfo[deviceId]?.exists) extras.use_cache = true;
+        if (endDate) extras.end_date = endDate;
+        if (useCached && jsonCacheInfo[deviceId]?.exists)
+            extras.use_cache = true;
 
-        setActiveSyncs(prev => {
+        setActiveSyncs((prev) => {
             const n = {};
-            Object.keys(prev).forEach(id => { n[id] = { ...prev[id], isExpanded: false }; });
+            Object.keys(prev).forEach((id) => {
+                n[id] = { ...prev[id], isExpanded: false };
+            });
             n[deviceId] = {
                 device,
                 progress: 5,
                 stage: "Queued for processing...",
                 isExpanded: true,
-                status: 'syncing',
+                status: "syncing",
                 previewRecords: [],
                 previewSummary: null,
                 syncLogId: null,
@@ -376,13 +497,20 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         try {
             const res = await fetch(route("biometric-devices.fetch-logs"), {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "X-CSRF-TOKEN": csrfToken(),
+                },
                 body: JSON.stringify({ device_id: deviceId, ...extras }),
                 signal: abortController.signal,
             });
 
             refs.abortController = null;
-            if (refs.pollInterval) { clearInterval(refs.pollInterval); refs.pollInterval = null; }
+            if (refs.pollInterval) {
+                clearInterval(refs.pollInterval);
+                refs.pollInterval = null;
+            }
             updateSync(deviceId, { progress: 100, stage: "Preview ready" });
 
             const data = await res.json();
@@ -390,10 +518,10 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             setTimeout(() => {
                 if (data.success && data.preview) {
                     if (!extras.use_cache) {
-                        router.reload({ only: ['jsonCacheInfo'] });
+                        router.reload({ only: ["jsonCacheInfo"] });
                     }
                     updateSync(deviceId, {
-                        status: 'preview',
+                        status: "preview",
                         isExpanded: true,
                         previewRecords: data.preview_records ?? [],
                         previewSummary: data.summary ?? {},
@@ -402,17 +530,26 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                     });
                 } else if (data.success) {
                     if (!extras.use_cache) {
-                        router.reload({ only: ['jsonCacheInfo'] });
+                        router.reload({ only: ["jsonCacheInfo"] });
                     }
-                    updateSync(deviceId, { status: 'no_records', isExpanded: true, previewSummary: data.summary ?? {} });
+                    updateSync(deviceId, {
+                        status: "no_records",
+                        isExpanded: true,
+                        previewSummary: data.summary ?? {},
+                    });
                 } else {
-                    toast.error(`${device.name}: ${data.message || "Unknown error"}`);
+                    toast.error(
+                        `${device.name}: ${data.message || "Unknown error"}`,
+                    );
                     removeSync(deviceId);
                 }
             }, 500);
         } catch (err) {
             refs.abortController = null;
-            if (refs.pollInterval) { clearInterval(refs.pollInterval); refs.pollInterval = null; }
+            if (refs.pollInterval) {
+                clearInterval(refs.pollInterval);
+                refs.pollInterval = null;
+            }
             if (err.name !== "AbortError") {
                 toast.error(`${device.name}: ${err.message}`);
                 removeSync(deviceId);
@@ -422,12 +559,12 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
     const startFetchAllLogs = () => {
         setShowFetchAllModal(false);
-        const activeDevices = deviceList.filter(d => d.status === 'active');
+        const activeDevices = deviceList.filter((d) => d.status === "active");
         activeDevices.forEach((device, i) => {
             setTimeout(() => {
                 startFetchLogs(device, {
                     startDate: fetchAllStartDate,
-                    endDate:   fetchAllEndDate,
+                    endDate: fetchAllEndDate,
                     useCached: fetchAllUseCachedMap[device.id] ?? false,
                 });
             }, i * 400);
@@ -435,268 +572,407 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     };
 
     // ── Render: simple sync confirmation modal (dumps raw logs to JSON, no preview) ──
-    const renderSyncConfirm = () => syncConfirmDevice && (
-        <div className="fixed z-20 inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setSyncConfirmDevice(null)} />
-                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
-                    <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
-                            <RefreshCw className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-900">Sync — {syncConfirmDevice.name}</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Fetches all raw attendance logs from the device and <strong>saves to cache</strong>. Runs in the background — you can navigate away freely.
-                            </p>
-                            <p className="mt-1 text-xs text-gray-400">
-                                IP: {syncConfirmDevice.ip_address} &bull; Port: {syncConfirmDevice.port}
-                            </p>
-                            {jsonCacheInfo[syncConfirmDevice.id] && (
-                                <p className="mt-2 text-xs text-green-600">
-                                    Last synced: {jsonCacheInfo[syncConfirmDevice.id].fetch_time} &bull; {jsonCacheInfo[syncConfirmDevice.id].total_logs} logs
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setSyncConfirmDevice(null)}
-                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                        >Cancel</button>
-                        <button
-                            type="button"
-                            onClick={() => startRawSync(syncConfirmDevice)}
-                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 flex items-center gap-2"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                            Sync Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    // ── Render: Python sync confirmation modal ────────────────────────────────
-    const renderPythonSyncConfirm = () => pythonSyncConfirmDevice && (
-        <div className="fixed z-20 inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setPythonSyncConfirmDevice(null)} />
-                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
-                    <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-orange-100">
-                            <Cpu className="h-5 w-5 text-orange-600" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-900">Python Sync — {pythonSyncConfirmDevice.name}</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Fetches all raw attendance logs using <strong>pyzk</strong> (Python) and saves to cache. Runs in the background — you can navigate away freely.
-                            </p>
-                            <p className="mt-1 text-xs text-gray-400">
-                                IP: {pythonSyncConfirmDevice.ip_address} &bull; Port: {pythonSyncConfirmDevice.port}
-                            </p>
-                            {jsonCacheInfo[pythonSyncConfirmDevice.id] && (
-                                <p className="mt-2 text-xs text-orange-600">
-                                    Last synced: {jsonCacheInfo[pythonSyncConfirmDevice.id].fetch_time} &bull; {jsonCacheInfo[pythonSyncConfirmDevice.id].total_logs} logs
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setPythonSyncConfirmDevice(null)}
-                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                        >Cancel</button>
-                        <button
-                            type="button"
-                            onClick={() => startPythonSync(pythonSyncConfirmDevice)}
-                            className="px-4 py-2 text-sm rounded-md bg-orange-600 text-white font-medium hover:bg-orange-700 flex items-center gap-2"
-                        >
-                            <Cpu className="w-4 h-4" />
-                            Python Sync
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    // ── Render: fetch matched logs modal (with date filter) ───────────────────
-    const renderFetchAllModal = () => showFetchAllModal && (
-        <div className="fixed z-20 inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setShowFetchAllModal(false)} />
-                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-lg w-full p-6">
-                    <div className="flex items-start gap-4 mb-5">
-                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-blue-100">
-                            <RefreshCw className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-900">Fetch Logs — All Devices</h3>
-                            <p className="text-sm text-gray-500 mt-0.5">Fetches and matches logs from all {deviceList.filter(d => d.status === 'active').length} active devices</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Start Date <span className="text-gray-400 font-normal">(Optional)</span>
-                                </label>
-                                <input
-                                    type="date"
-                                    value={fetchAllStartDate}
-                                    onChange={e => setFetchAllStartDate(e.target.value)}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
+    const renderSyncConfirm = () =>
+        syncConfirmDevice && (
+            <div className="fixed z-20 inset-0 overflow-y-auto">
+                <div className="flex items-center justify-center min-h-screen px-4">
+                    <div
+                        className="fixed inset-0 bg-gray-500 opacity-75"
+                        onClick={() => setSyncConfirmDevice(null)}
+                    />
+                    <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
+                                <RefreshCw className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    End Date <span className="text-gray-400 font-normal">(Optional)</span>
-                                </label>
-                                <input
-                                    type="date"
-                                    value={fetchAllEndDate}
-                                    onChange={e => setFetchAllEndDate(e.target.value)}
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                            </div>
-                        </div>
-
-                        <p className="text-xs text-gray-500">Leave dates blank to fetch all available logs.</p>
-
-                        {/* Per-device cache toggle list */}
-                        <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
-                            {deviceList.filter(d => d.status === 'active').map(device => {
-                                const cache = jsonCacheInfo[device.id];
-                                const hasCache = cache?.exists;
-                                const isOn = (fetchAllUseCachedMap[device.id] ?? false) && hasCache;
-                                return (
-                                    <div key={device.id} className="flex items-center justify-between px-3 py-2.5">
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-800">{device.name}</p>
-                                            <p className="text-xs text-gray-400">
-                                                {hasCache
-                                                    ? `Cache: ${cache.fetch_time} · ${cache.total_logs} logs`
-                                                    : 'No cache — will fetch live'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => hasCache && setFetchAllUseCachedMap(prev => ({ ...prev, [device.id]: !prev[device.id] }))}
-                                            disabled={!hasCache}
-                                            title={hasCache ? 'Toggle use cached data' : 'No cache available'}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isOn ? 'bg-blue-500' : 'bg-gray-200'} ${!hasCache ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                        >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowFetchAllModal(false)}
-                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                        >Cancel</button>
-                        <button
-                            type="button"
-                            onClick={startFetchAllLogs}
-                            className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
-                        >Fetch All Devices</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderFetchLogsModal = () => fetchLogsDevice && (
-        <div className="fixed z-20 inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4">
-                <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setFetchLogsDevice(null)} />
-                <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
-                    <div className="flex items-start gap-4 mb-5">
-                        <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
-                            <RefreshCw className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-900">
-                                Fetch Logs for ZKTeco Device ({fetchLogsDevice.ip_address})
-                            </h3>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Start Date <span className="text-gray-400 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="date"
-                                value={fetchStartDate}
-                                onChange={e => setFetchStartDate(e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                End Date <span className="text-gray-400 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="date"
-                                value={fetchEndDate}
-                                onChange={e => setFetchEndDate(e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                            />
-                        </div>
-
-                        <p className="text-xs text-gray-500">
-                            Leave dates blank to fetch all available logs. If both dates are provided, only logs within that range will be fetched.
-                        </p>
-
-                        <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-700">Use cached data</p>
-                                <p className="text-xs text-gray-400">
-                                    {jsonCacheInfo[fetchLogsDevice.id]?.exists
-                                        ? `Synced ${jsonCacheInfo[fetchLogsDevice.id].fetch_time} · ${jsonCacheInfo[fetchLogsDevice.id].total_logs} logs`
-                                        : 'No cache yet — sync device first'}
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Sync — {syncConfirmDevice.name}
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Fetches all raw attendance logs from the
+                                    device and <strong>saves to cache</strong>.
+                                    Runs in the background — you can navigate
+                                    away freely.
                                 </p>
+                                <p className="mt-1 text-xs text-gray-400">
+                                    IP: {syncConfirmDevice.ip_address} &bull;
+                                    Port: {syncConfirmDevice.port}
+                                </p>
+                                {jsonCacheInfo[syncConfirmDevice.id] && (
+                                    <p className="mt-2 text-xs text-green-600">
+                                        Last synced:{" "}
+                                        {
+                                            jsonCacheInfo[syncConfirmDevice.id]
+                                                .fetch_time
+                                        }{" "}
+                                        &bull;{" "}
+                                        {
+                                            jsonCacheInfo[syncConfirmDevice.id]
+                                                .total_logs
+                                        }{" "}
+                                        logs
+                                    </p>
+                                )}
                             </div>
+                        </div>
+                        <div className="mt-5 flex justify-end gap-2">
                             <button
                                 type="button"
-                                onClick={() => jsonCacheInfo[fetchLogsDevice.id]?.exists && setFetchUseCached(v => !v)}
-                                disabled={!jsonCacheInfo[fetchLogsDevice.id]?.exists}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'bg-green-500' : 'bg-gray-200'} ${!jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onClick={() => setSyncConfirmDevice(null)}
+                                className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                             >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? 'translate-x-6' : 'translate-x-1'}`} />
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => startRawSync(syncConfirmDevice)}
+                                className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 flex items-center gap-2"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Sync Now
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        );
 
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setFetchLogsDevice(null)}
-                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                        >Cancel</button>
-                        <button
-                            type="button"
-                            onClick={() => startFetchLogs(fetchLogsDevice)}
-                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700"
-                        >Fetch Logs</button>
+    // ── Render: Python sync confirmation modal ────────────────────────────────
+    const renderPythonSyncConfirm = () =>
+        pythonSyncConfirmDevice && (
+            <div className="fixed z-20 inset-0 overflow-y-auto">
+                <div className="flex items-center justify-center min-h-screen px-4">
+                    <div
+                        className="fixed inset-0 bg-gray-500 opacity-75"
+                        onClick={() => setPythonSyncConfirmDevice(null)}
+                    />
+                    <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-orange-100">
+                                <Cpu className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Python Sync — {pythonSyncConfirmDevice.name}
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Fetches all raw attendance logs using{" "}
+                                    <strong>pyzk</strong> (Python) and saves to
+                                    cache. Runs in the background — you can
+                                    navigate away freely.
+                                </p>
+                                <p className="mt-1 text-xs text-gray-400">
+                                    IP: {pythonSyncConfirmDevice.ip_address}{" "}
+                                    &bull; Port: {pythonSyncConfirmDevice.port}
+                                </p>
+                                {jsonCacheInfo[pythonSyncConfirmDevice.id] && (
+                                    <p className="mt-2 text-xs text-orange-600">
+                                        Last synced:{" "}
+                                        {
+                                            jsonCacheInfo[
+                                                pythonSyncConfirmDevice.id
+                                            ].fetch_time
+                                        }{" "}
+                                        &bull;{" "}
+                                        {
+                                            jsonCacheInfo[
+                                                pythonSyncConfirmDevice.id
+                                            ].total_logs
+                                        }{" "}
+                                        logs
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setPythonSyncConfirmDevice(null)}
+                                className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    startPythonSync(pythonSyncConfirmDevice)
+                                }
+                                className="px-4 py-2 text-sm rounded-md bg-orange-600 text-white font-medium hover:bg-orange-700 flex items-center gap-2"
+                            >
+                                <Cpu className="w-4 h-4" />
+                                Python Sync
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+
+    // ── Render: fetch matched logs modal (with date filter) ───────────────────
+    const renderFetchAllModal = () =>
+        showFetchAllModal && (
+            <div className="fixed z-20 inset-0 overflow-y-auto">
+                <div className="flex items-center justify-center min-h-screen px-4">
+                    <div
+                        className="fixed inset-0 bg-gray-500 opacity-75"
+                        onClick={() => setShowFetchAllModal(false)}
+                    />
+                    <div className="relative bg-white rounded-lg shadow-xl sm:max-w-lg w-full p-6">
+                        <div className="flex items-start gap-4 mb-5">
+                            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-blue-100">
+                                <RefreshCw className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Fetch Logs — All Devices
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    Fetches and matches logs from all{" "}
+                                    {
+                                        deviceList.filter(
+                                            (d) => d.status === "active",
+                                        ).length
+                                    }{" "}
+                                    active devices
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Start Date{" "}
+                                        <span className="text-gray-400 font-normal">
+                                            (Optional)
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={fetchAllStartDate}
+                                        onChange={(e) =>
+                                            setFetchAllStartDate(e.target.value)
+                                        }
+                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        End Date{" "}
+                                        <span className="text-gray-400 font-normal">
+                                            (Optional)
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={fetchAllEndDate}
+                                        onChange={(e) =>
+                                            setFetchAllEndDate(e.target.value)
+                                        }
+                                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-gray-500">
+                                Leave dates blank to fetch all available logs.
+                            </p>
+
+                            {/* Per-device cache toggle list */}
+                            <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
+                                {deviceList
+                                    .filter((d) => d.status === "active")
+                                    .map((device) => {
+                                        const cache = jsonCacheInfo[device.id];
+                                        const hasCache = cache?.exists;
+                                        const isOn =
+                                            (fetchAllUseCachedMap[device.id] ??
+                                                false) &&
+                                            hasCache;
+                                        return (
+                                            <div
+                                                key={device.id}
+                                                className="flex items-center justify-between px-3 py-2.5"
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-800">
+                                                        {device.name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400">
+                                                        {hasCache
+                                                            ? `Cache: ${cache.fetch_time} · ${cache.total_logs} logs`
+                                                            : "No cache — will fetch live"}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        hasCache &&
+                                                        setFetchAllUseCachedMap(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                [device.id]:
+                                                                    !prev[
+                                                                        device
+                                                                            .id
+                                                                    ],
+                                                            }),
+                                                        )
+                                                    }
+                                                    disabled={!hasCache}
+                                                    title={
+                                                        hasCache
+                                                            ? "Toggle use cached data"
+                                                            : "No cache available"
+                                                    }
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isOn ? "bg-blue-500" : "bg-gray-200"} ${!hasCache ? "opacity-40 cursor-not-allowed" : ""}`}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isOn ? "translate-x-6" : "translate-x-1"}`}
+                                                    />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowFetchAllModal(false)}
+                                className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startFetchAllLogs}
+                                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
+                            >
+                                Fetch All Devices
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+    const renderFetchLogsModal = () =>
+        fetchLogsDevice && (
+            <div className="fixed z-20 inset-0 overflow-y-auto">
+                <div className="flex items-center justify-center min-h-screen px-4">
+                    <div
+                        className="fixed inset-0 bg-gray-500 opacity-75"
+                        onClick={() => setFetchLogsDevice(null)}
+                    />
+                    <div className="relative bg-white rounded-lg shadow-xl sm:max-w-md w-full p-6">
+                        <div className="flex items-start gap-4 mb-5">
+                            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
+                                <RefreshCw className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900">
+                                    Fetch Logs for ZKTeco Device (
+                                    {fetchLogsDevice.ip_address})
+                                </h3>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Start Date{" "}
+                                    <span className="text-gray-400 font-normal">
+                                        (Optional)
+                                    </span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={fetchStartDate}
+                                    onChange={(e) =>
+                                        setFetchStartDate(e.target.value)
+                                    }
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    End Date{" "}
+                                    <span className="text-gray-400 font-normal">
+                                        (Optional)
+                                    </span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={fetchEndDate}
+                                    onChange={(e) =>
+                                        setFetchEndDate(e.target.value)
+                                    }
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                                />
+                            </div>
+
+                            <p className="text-xs text-gray-500">
+                                Leave dates blank to fetch all available logs.
+                                If both dates are provided, only logs within
+                                that range will be fetched.
+                            </p>
+
+                            <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-700">
+                                        Use cached data
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        {jsonCacheInfo[fetchLogsDevice.id]
+                                            ?.exists
+                                            ? `Synced ${jsonCacheInfo[fetchLogsDevice.id].fetch_time} · ${jsonCacheInfo[fetchLogsDevice.id].total_logs} logs`
+                                            : "No cache yet — sync device first"}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        jsonCacheInfo[fetchLogsDevice.id]
+                                            ?.exists &&
+                                        setFetchUseCached((v) => !v)
+                                    }
+                                    disabled={
+                                        !jsonCacheInfo[fetchLogsDevice.id]
+                                            ?.exists
+                                    }
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? "bg-green-500" : "bg-gray-200"} ${!jsonCacheInfo[fetchLogsDevice.id]?.exists ? "opacity-50 cursor-not-allowed" : ""}`}
+                                >
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${fetchUseCached && jsonCacheInfo[fetchLogsDevice.id]?.exists ? "translate-x-6" : "translate-x-1"}`}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setFetchLogsDevice(null)}
+                                className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => startFetchLogs(fetchLogsDevice)}
+                                className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700"
+                            >
+                                Fetch Logs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
 
     // ── Render: floating chips (one per active sync) ───────────────────────────
     const renderSyncChips = () => {
@@ -704,33 +980,47 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
         if (syncs.length === 0) return null;
         return (
             <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end">
-                {syncs.map(sync => {
+                {syncs.map((sync) => {
                     if (sync.isExpanded) return null;
                     const deviceId = sync.device.id;
-                    const isSyncing = sync.status === 'syncing';
-                    const isDone = sync.status === 'preview' || sync.status === 'no_records';
+                    const isSyncing = sync.status === "syncing";
+                    const isDone =
+                        sync.status === "preview" ||
+                        sync.status === "no_records";
                     return (
                         <div
                             key={deviceId}
                             className="flex items-center gap-3 bg-white border border-gray-200 shadow-xl rounded-full px-4 py-2.5 cursor-pointer hover:shadow-2xl transition-shadow"
                             onClick={() => expandSync(deviceId)}
                         >
-                            {isSyncing
-                                ? <RefreshCw className="h-4 w-4 text-green-600 animate-spin flex-shrink-0" />
-                                : <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                            }
+                            {isSyncing ? (
+                                <RefreshCw className="h-4 w-4 text-green-600 animate-spin flex-shrink-0" />
+                            ) : (
+                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            )}
                             <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-semibold text-gray-800 truncate max-w-[140px]">{sync.device.name}</span>
+                                <span className="text-xs font-semibold text-gray-800 truncate max-w-[140px]">
+                                    {sync.device.name}
+                                </span>
                                 <span className="text-xs text-gray-400 truncate max-w-[140px]">
-                                    {isSyncing ? sync.stage : 'Preview ready — click to review'}
+                                    {isSyncing
+                                        ? sync.stage
+                                        : "Preview ready — click to review"}
                                 </span>
                             </div>
                             {isSyncing && (
                                 <>
                                     <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                        <div className="h-1.5 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${sync.progress}%` }} />
+                                        <div
+                                            className="h-1.5 rounded-full bg-green-500 transition-all duration-500"
+                                            style={{
+                                                width: `${sync.progress}%`,
+                                            }}
+                                        />
                                     </div>
-                                    <span className="text-xs font-medium text-green-600 w-7 text-right">{Math.round(sync.progress)}%</span>
+                                    <span className="text-xs font-medium text-green-600 w-7 text-right">
+                                        {Math.round(sync.progress)}%
+                                    </span>
                                 </>
                             )}
                         </div>
@@ -742,7 +1032,7 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
     // ── Render: expanded sync modal (progress or preview) ─────────────────────
     const renderExpandedSync = () => {
-        const sync = Object.values(activeSyncs).find(s => s.isExpanded);
+        const sync = Object.values(activeSyncs).find((s) => s.isExpanded);
         if (!sync) return null;
         const deviceId = sync.device.id;
 
@@ -750,142 +1040,465 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             <div className="fixed z-10 inset-0 overflow-y-auto">
                 <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                     <div className="fixed inset-0 bg-gray-500 opacity-75" />
-                    <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                    <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sync.status === 'preview' && sync.previewRecords.length > 0 ? 'sm:max-w-4xl' : 'sm:max-w-lg'} sm:w-full`}>
-
-                        {sync.status === 'syncing' ? (
+                    <span
+                        className="hidden sm:inline-block sm:align-middle sm:h-screen"
+                        aria-hidden="true"
+                    >
+                        &#8203;
+                    </span>
+                    <div
+                        className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sync.status === "preview" && sync.previewRecords.length > 0 ? "sm:max-w-4xl" : "sm:max-w-lg"} sm:w-full`}
+                    >
+                        {sync.status === "syncing" ? (
                             /* Progress view */
                             <div className="bg-white px-6 py-8">
                                 <div className="flex flex-col items-center">
                                     <div className="mb-2 flex items-center gap-2 text-green-600 w-full justify-between">
                                         <div className="flex items-center gap-2">
                                             <RefreshCw className="h-5 w-5 animate-spin" />
-                                            <span className="text-sm font-medium">Syncing {sync.device.name}…</span>
+                                            <span className="text-sm font-medium">
+                                                Syncing {sync.device.name}…
+                                            </span>
                                         </div>
                                         <button
-                                            onClick={() => collapseSync(deviceId)}
+                                            onClick={() =>
+                                                collapseSync(deviceId)
+                                            }
                                             title="Minimize"
                                             className="text-gray-400 hover:text-gray-600 text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100"
                                         >
                                             <span>Minimize</span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-3.5 w-3.5"
+                                                viewBox="0 0 20 20"
+                                                fill="currentColor"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </button>
                                     </div>
-                                    <p className="text-xs text-gray-500 self-start">Fetching all available logs</p>
+                                    <p className="text-xs text-gray-500 self-start">
+                                        Fetching all available logs
+                                    </p>
                                     <div className="mt-4 mb-2 w-full flex justify-between text-xs text-gray-500 font-medium">
                                         <span>{sync.stage}</span>
-                                        <span>{Math.round(sync.progress)}%</span>
+                                        <span>
+                                            {Math.round(sync.progress)}%
+                                        </span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                                        <div className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500" style={{ width: `${sync.progress}%` }} />
+                                        <div
+                                            className="h-4 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
+                                            style={{
+                                                width: `${sync.progress}%`,
+                                            }}
+                                        />
                                     </div>
-                                    <p className="mt-4 text-xs text-gray-400 text-center">You can minimize this and continue using the dashboard.</p>
-                                    <button onClick={() => removeSync(deviceId)} className="mt-4 text-xs text-red-500 hover:text-red-700 underline">Cancel</button>
+                                    <p className="mt-4 text-xs text-gray-400 text-center">
+                                        You can minimize this and continue using
+                                        the dashboard.
+                                    </p>
+                                    <button
+                                        onClick={() => removeSync(deviceId)}
+                                        className="mt-4 text-xs text-red-500 hover:text-red-700 underline"
+                                    >
+                                        Cancel
+                                    </button>
                                 </div>
                             </div>
-
-                        ) : sync.status === 'preview' && sync.previewRecords.length > 0 ? (
+                        ) : sync.status === "preview" &&
+                          sync.previewRecords.length > 0 ? (
                             /* Preview table */
                             <div className="bg-white">
                                 <div className="px-6 pt-5 pb-3 border-b border-gray-200 flex items-center justify-between">
                                     <div>
-                                        <h3 className="text-lg font-semibold text-gray-900">Preview — {sync.device.name}</h3>
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            Preview — {sync.device.name}
+                                        </h3>
                                         <div className="mt-1 flex gap-4 text-sm">
-                                            <span className="text-gray-600">Total: <strong>{sync.previewSummary?.total_records ?? sync.previewRecords.length}</strong></span>
-                                            <span className="text-green-600">New: <strong>{sync.previewSummary?.new_records ?? 0}</strong></span>
-                                            <span className="text-blue-600">Updates: <strong>{sync.previewSummary?.update_records ?? 0}</strong></span>
-                                            {sync.previewSummary?.skipped_count > 0 && (
-                                                <span className="text-gray-400">Skipped: <strong>{sync.previewSummary.skipped_count}</strong></span>
+                                            <span className="text-gray-600">
+                                                Total:{" "}
+                                                <strong>
+                                                    {sync.previewSummary
+                                                        ?.total_records ??
+                                                        sync.previewRecords
+                                                            .length}
+                                                </strong>
+                                            </span>
+                                            <span className="text-green-600">
+                                                New:{" "}
+                                                <strong>
+                                                    {sync.previewSummary
+                                                        ?.new_records ?? 0}
+                                                </strong>
+                                            </span>
+                                            <span className="text-blue-600">
+                                                Updates:{" "}
+                                                <strong>
+                                                    {sync.previewSummary
+                                                        ?.update_records ?? 0}
+                                                </strong>
+                                            </span>
+                                            {sync.previewSummary
+                                                ?.skipped_count > 0 && (
+                                                <span className="text-gray-400">
+                                                    Skipped:{" "}
+                                                    <strong>
+                                                        {
+                                                            sync.previewSummary
+                                                                .skipped_count
+                                                        }
+                                                    </strong>
+                                                </span>
                                             )}
                                         </div>
                                     </div>
-                                    <button onClick={() => collapseSync(deviceId)} className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-100">Minimize</button>
+                                    <button
+                                        onClick={() => collapseSync(deviceId)}
+                                        className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-100"
+                                    >
+                                        Minimize
+                                    </button>
                                 </div>
-                                <div className="overflow-auto" style={{ maxHeight: '55vh' }}>
+                                <div
+                                    className="overflow-auto"
+                                    style={{ maxHeight: "55vh" }}
+                                >
                                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                                         <thead className="bg-gray-50 sticky top-0">
                                             <tr>
-                                                {['ID', 'Employee', 'Date', 'Time In', 'Time Out', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
-                                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                {[
+                                                    "ID",
+                                                    "Employee",
+                                                    "Date",
+                                                    "Time In",
+                                                    "Time Out",
+                                                    "Time In",
+                                                    "Time Out",
+                                                    "Hours",
+                                                    "Status",
+                                                ].map((h) => (
+                                                    <th
+                                                        key={h}
+                                                        className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                                                    >
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-100">
-                                            {sync.previewRecords.slice((sync.previewPage - 1) * previewPageSize, sync.previewPage * previewPageSize).map((r, i) => (
-                                                <tr key={i} className={r.is_new ? '' : 'bg-blue-50/40'}>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">{r.employee_idno}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">{r.employee_name}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.attendance_date}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_in ? r.time_in.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">{r.break_in ? r.break_in.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">{r.break_out ? r.break_out.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.time_out ? r.time_out.split(' ')[1]?.slice(0,5) : '—'}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{r.hours_worked ?? '—'}</td>
-                                                    <td className="px-3 py-1.5 whitespace-nowrap">
-                                                        {r.is_new
-                                                            ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">New</span>
-                                                            : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Update</span>
+                                            {sync.previewRecords
+                                                .slice(
+                                                    (sync.previewPage - 1) *
+                                                        previewPageSize,
+                                                    sync.previewPage *
+                                                        previewPageSize,
+                                                )
+                                                .map((r, i) => (
+                                                    <tr
+                                                        key={i}
+                                                        className={
+                                                            r.is_new
+                                                                ? ""
+                                                                : "bg-blue-50/40"
                                                         }
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                    >
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-500">
+                                                            {r.employee_idno}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap font-medium text-gray-900">
+                                                            {r.employee_name}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">
+                                                            {r.attendance_date}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">
+                                                            {r.time_in
+                                                                ? r.time_in
+                                                                      .split(
+                                                                          " ",
+                                                                      )[1]
+                                                                      ?.slice(
+                                                                          0,
+                                                                          5,
+                                                                      )
+                                                                : "—"}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">
+                                                            {r.break_in
+                                                                ? r.break_in
+                                                                      .split(
+                                                                          " ",
+                                                                      )[1]
+                                                                      ?.slice(
+                                                                          0,
+                                                                          5,
+                                                                      )
+                                                                : "—"}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-400">
+                                                            {r.break_out
+                                                                ? r.break_out
+                                                                      .split(
+                                                                          " ",
+                                                                      )[1]
+                                                                      ?.slice(
+                                                                          0,
+                                                                          5,
+                                                                      )
+                                                                : "—"}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">
+                                                            {r.time_out
+                                                                ? r.time_out
+                                                                      .split(
+                                                                          " ",
+                                                                      )[1]
+                                                                      ?.slice(
+                                                                          0,
+                                                                          5,
+                                                                      )
+                                                                : "—"}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">
+                                                            {r.hours_worked ??
+                                                                "—"}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap">
+                                                            {r.is_new ? (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                    New
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                                    Update
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                         </tbody>
                                     </table>
                                 </div>
-                                {sync.previewRecords.length > previewPageSize && (() => {
-                                    const totalPages = Math.ceil(sync.previewRecords.length / previewPageSize);
-                                    return (
-                                        <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm">
-                                            <span className="text-gray-500">
-                                                Showing {((sync.previewPage - 1) * previewPageSize) + 1}–{Math.min(sync.previewPage * previewPageSize, sync.previewRecords.length)} of {sync.previewRecords.length}
-                                            </span>
-                                            <div className="flex items-center gap-1">
-                                                <button onClick={() => updateSync(deviceId, { previewPage: 1 })} disabled={sync.previewPage === 1} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">«</button>
-                                                <button onClick={() => updateSync(deviceId, { previewPage: sync.previewPage - 1 })} disabled={sync.previewPage === 1} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">‹</button>
-                                                <span className="px-3 py-1 text-gray-700">Page {sync.previewPage} / {totalPages}</span>
-                                                <button onClick={() => updateSync(deviceId, { previewPage: sync.previewPage + 1 })} disabled={sync.previewPage === totalPages} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">›</button>
-                                                <button onClick={() => updateSync(deviceId, { previewPage: totalPages })} disabled={sync.previewPage === totalPages} className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50">»</button>
+                                {sync.previewRecords.length > previewPageSize &&
+                                    (() => {
+                                        const totalPages = Math.ceil(
+                                            sync.previewRecords.length /
+                                                previewPageSize,
+                                        );
+                                        return (
+                                            <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm">
+                                                <span className="text-gray-500">
+                                                    Showing{" "}
+                                                    {(sync.previewPage - 1) *
+                                                        previewPageSize +
+                                                        1}
+                                                    –
+                                                    {Math.min(
+                                                        sync.previewPage *
+                                                            previewPageSize,
+                                                        sync.previewRecords
+                                                            .length,
+                                                    )}{" "}
+                                                    of{" "}
+                                                    {sync.previewRecords.length}
+                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() =>
+                                                            updateSync(
+                                                                deviceId,
+                                                                {
+                                                                    previewPage: 1,
+                                                                },
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            sync.previewPage ===
+                                                            1
+                                                        }
+                                                        className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                                    >
+                                                        «
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            updateSync(
+                                                                deviceId,
+                                                                {
+                                                                    previewPage:
+                                                                        sync.previewPage -
+                                                                        1,
+                                                                },
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            sync.previewPage ===
+                                                            1
+                                                        }
+                                                        className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                                    >
+                                                        ‹
+                                                    </button>
+                                                    <span className="px-3 py-1 text-gray-700">
+                                                        Page {sync.previewPage}{" "}
+                                                        / {totalPages}
+                                                    </span>
+                                                    <button
+                                                        onClick={() =>
+                                                            updateSync(
+                                                                deviceId,
+                                                                {
+                                                                    previewPage:
+                                                                        sync.previewPage +
+                                                                        1,
+                                                                },
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            sync.previewPage ===
+                                                            totalPages
+                                                        }
+                                                        className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                                    >
+                                                        ›
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            updateSync(
+                                                                deviceId,
+                                                                {
+                                                                    previewPage:
+                                                                        totalPages,
+                                                                },
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            sync.previewPage ===
+                                                            totalPages
+                                                        }
+                                                        className="px-2 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-40 hover:bg-gray-50"
+                                                    >
+                                                        »
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })()}
+                                        );
+                                    })()}
                                 <div className="px-6 py-3 bg-gray-50 flex justify-end gap-3 border-t border-gray-200">
-                                    <button type="button" onClick={() => removeSync(deviceId)} className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Discard</button>
-                                    <button type="button" onClick={() => saveLogs(deviceId)} disabled={sync.isSaving} className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50">
-                                        {sync.isSaving ? 'Saving…' : `Save ${sync.previewRecords.length} Records`}
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSync(deviceId)}
+                                        className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Discard
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => saveLogs(deviceId)}
+                                        disabled={sync.isSaving}
+                                        className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        {sync.isSaving
+                                            ? "Saving…"
+                                            : `Save ${sync.previewRecords.length} Records`}
                                     </button>
                                 </div>
                             </div>
-
                         ) : (
                             /* No records / error state */
                             <div className="bg-white px-6 py-8">
                                 <div className="flex flex-col items-center text-center">
                                     {(() => {
-                                        const reason = sync.previewSummary?.no_records_reason;
-                                        if (reason === 'device_empty') return (<>
-                                            <ServerCrash className="h-12 w-12 text-orange-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">Device Returned No Data</h3>
-                                            <p className="text-sm text-gray-500 mb-1"><strong>{sync.device.name}</strong> connected but returned 0 logs.</p>
-                                            <p className="text-xs text-orange-500 mb-6">The device may be busy or its log storage is empty. Wait a minute and try again.</p>
-                                        </>);
-                                        if (reason === 'all_unmatched') return (<>
-                                            <XCircle className="h-12 w-12 text-red-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Matched Employees</h3>
-                                            <p className="text-sm text-gray-500 mb-1">Logs were found on <strong>{sync.device.name}</strong> but no user IDs matched any employee.</p>
-                                            <p className="text-xs text-red-500 mb-6">Use the Enrolled Users panel to add unmatched users to employees.</p>
-                                        </>);
-                                        return (<>
-                                            <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Records Found</h3>
-                                            <p className="text-xs text-gray-400 mb-6">All available logs were fetched but none were found on <strong>{sync.device.name}</strong>.</p>
-                                        </>);
+                                        const reason =
+                                            sync.previewSummary
+                                                ?.no_records_reason;
+                                        if (reason === "device_empty")
+                                            return (
+                                                <>
+                                                    <ServerCrash className="h-12 w-12 text-orange-400 mb-4" />
+                                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                                        Device Returned No Data
+                                                    </h3>
+                                                    <p className="text-sm text-gray-500 mb-1">
+                                                        <strong>
+                                                            {sync.device.name}
+                                                        </strong>{" "}
+                                                        connected but returned 0
+                                                        logs.
+                                                    </p>
+                                                    <p className="text-xs text-orange-500 mb-6">
+                                                        The device may be busy
+                                                        or its log storage is
+                                                        empty. Wait a minute and
+                                                        try again.
+                                                    </p>
+                                                </>
+                                            );
+                                        if (reason === "all_unmatched")
+                                            return (
+                                                <>
+                                                    <XCircle className="h-12 w-12 text-red-400 mb-4" />
+                                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                                        No Matched Employees
+                                                    </h3>
+                                                    <p className="text-sm text-gray-500 mb-1">
+                                                        Logs were found on{" "}
+                                                        <strong>
+                                                            {sync.device.name}
+                                                        </strong>{" "}
+                                                        but no user IDs matched
+                                                        any employee.
+                                                    </p>
+                                                    <p className="text-xs text-red-500 mb-6">
+                                                        Use the Enrolled Users
+                                                        panel to add unmatched
+                                                        users to employees.
+                                                    </p>
+                                                </>
+                                            );
+                                        return (
+                                            <>
+                                                <XCircle className="h-12 w-12 text-gray-400 mb-4" />
+                                                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                                    No Records Found
+                                                </h3>
+                                                <p className="text-xs text-gray-400 mb-6">
+                                                    All available logs were
+                                                    fetched but none were found
+                                                    on{" "}
+                                                    <strong>
+                                                        {sync.device.name}
+                                                    </strong>
+                                                    .
+                                                </p>
+                                            </>
+                                        );
                                     })()}
                                     <div className="flex gap-2">
-                                        <button type="button" onClick={() => removeSync(deviceId)} className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Close</button>
-                                        <button type="button" onClick={() => { removeSync(deviceId); openFetchLogsModal(sync.device); }} className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700">Try Again</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeSync(deviceId)}
+                                            className="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                removeSync(deviceId);
+                                                openFetchLogsModal(sync.device);
+                                            }}
+                                            className="px-4 py-2 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700"
+                                        >
+                                            Try Again
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -968,7 +1581,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
 
             if (data.success && data.devices && data.devices.length > 0) {
                 // Filter out devices that are already in the list
-                const existingIPs = deviceList.map((device) => device.ip_address);
+                const existingIPs = deviceList.map(
+                    (device) => device.ip_address,
+                );
                 const newDevices = data.devices.filter(
                     (device) => !existingIPs.includes(device.ip_address),
                 );
@@ -1128,13 +1743,22 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     const confirmDelete = async () => {
         if (!deviceToDelete) return;
         try {
-            const res = await fetch(route("biometric-devices.destroy", deviceToDelete.id), {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-TOKEN": csrfToken() },
-            });
+            const res = await fetch(
+                route("biometric-devices.destroy", deviceToDelete.id),
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "X-CSRF-TOKEN": csrfToken(),
+                    },
+                },
+            );
             const data = await res.json();
             if (res.ok && data.success) {
-                setDeviceList(prev => prev.filter(d => d.id !== deviceToDelete.id));
+                setDeviceList((prev) =>
+                    prev.filter((d) => d.id !== deviceToDelete.id),
+                );
                 setShowDeleteConfirm(false);
                 setDeviceToDelete(null);
                 toast.success("Device deleted successfully");
@@ -1226,7 +1850,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                 const newStatus = data.success ? "active" : "inactive";
                 setDeviceList((prev) =>
                     prev.map((d) =>
-                        d.id === testingDevice.id ? { ...d, status: newStatus } : d,
+                        d.id === testingDevice.id
+                            ? { ...d, status: newStatus }
+                            : d,
                     ),
                 );
             }
@@ -1245,7 +1871,9 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                         ? `${testingDevice.name} set to Inactive`
                         : "Connection Verification Failed",
                     {
-                        description: data.message || "Unable to establish device connection",
+                        description:
+                            data.message ||
+                            "Unable to establish device connection",
                         duration: 4000,
                     },
                 );
@@ -1428,130 +2056,138 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
     return (
         <AuthenticatedLayout user={auth.user}>
             <Head title="Biometric Device Management" />
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="p-6 bg-white border-b border-gray-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Biometric Device Management
+                            </h2>
+                            <div className="flex space-x-2">
+                                <button
+                                    className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:shadow-outline-gray transition ease-in-out duration-150"
+                                    onClick={() => handleTestConnectionClick()}
+                                >
+                                    <ServerCrash className="w-4 h-4 mr-2" />
+                                    Test Connection
+                                </button>
 
-                {/* ── Page Header ── */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-[#0D2E6E] flex items-center justify-center shadow-sm flex-shrink-0">
-                            <Cpu className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black text-gray-900 leading-tight">Biometric Device Management</h1>
-                            <p className="text-sm text-gray-400 leading-none mt-0.5">Manage and monitor connected biometric devices</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handleTestConnectionClick()}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"
-                        >
-                            <ServerCrash className="w-4 h-4 text-gray-500" />
-                            Test Connection
-                        </button>
-                        <button
-                            onClick={handleAddDevice}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0D2E6E] text-white text-sm font-semibold hover:bg-[#0a2257] shadow-sm transition-all"
-                        >
-                            <PlusCircle className="w-4 h-4" />
-                            Add Device
-                        </button>
-                    </div>
-                </div>
+                                <button
+                                    className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150"
+                                    onClick={() => setShowFetchAllModal(true)}
+                                >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Fetch All Devices
+                                </button>
 
-                {/* ── Devices Table Card ── */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-
-                    {/* Stats bar */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 border-b border-gray-100">
-                        {[
-                            { label: 'Total Devices',   value: deviceList.length },
-                            { label: 'Active',          value: deviceList.filter(d => d.status === 'active').length,   color: 'text-emerald-600' },
-                            { label: 'Inactive',        value: deviceList.filter(d => d.status !== 'active').length,   color: 'text-red-500' },
-                            { label: 'Synced Today',    value: deviceList.filter(d => d.last_sync && new Date(d.last_sync).toDateString() === new Date().toDateString()).length },
-                        ].map(s => (
-                            <div key={s.label} className="px-5 py-4">
-                                <p className="text-xs text-gray-400 font-medium mb-1">{s.label}</p>
-                                <p className={`text-2xl font-black ${s.color || 'text-gray-800'}`}>{s.value}</p>
+                                <button
+                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:shadow-outline-gray transition ease-in-out duration-150"
+                                    onClick={handleAddDevice}
+                                >
+                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                    Add Device
+                                </button>
                             </div>
-                        ))}
-                    </div>
+                        </div>
 
-                    {/* Table */}
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead>
-                                <tr className="bg-gray-50 border-b border-gray-100">
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Device</th>
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IP Address</th>
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Port</th>
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Last Sync</th>
-                                    <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {!deviceList || deviceList.length === 0 ? (
+                        {/* Devices Table */}
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <td colSpan="7" className="px-5 py-16 text-center">
-                                            <div className="flex flex-col items-center gap-3">
-                                                <div className="h-14 w-14 rounded-2xl bg-gray-100 flex items-center justify-center">
-                                                    <Cpu className="h-7 w-7 text-gray-300" />
-                                                </div>
-                                                <p className="text-sm font-semibold text-gray-500">No devices found</p>
-                                                <p className="text-xs text-gray-400">Click <span className="font-semibold">Add Device</span> to register a biometric device.</p>
-                                            </div>
-                                        </td>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Name
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            IP Address
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Port
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Location
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Last Sync
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
                                     </tr>
-                                ) : (
-                                    deviceList.map((device) => (
-                                        <tr key={device.id} className="hover:bg-gray-50/60 transition-colors group">
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-8 w-8 rounded-lg bg-[#0D2E6E]/8 flex items-center justify-center flex-shrink-0">
-                                                        <Cpu className="h-4 w-4 text-[#0D2E6E]" />
-                                                    </div>
-                                                    <span className="text-sm font-bold text-gray-900">{device.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-600 font-mono">{device.ip_address}</span>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-600 font-mono">{device.port}</span>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-600">{device.location}</span>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-500">
-                                                    {device.last_sync
-                                                        ? new Date(device.last_sync).toLocaleString('en-US', {
-                                                              month: 'short', day: 'numeric', year: 'numeric',
-                                                              hour: 'numeric', minute: '2-digit', hour12: true,
-                                                          })
-                                                        : <span className="text-gray-400 italic">Never</span>}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                    device.status === 'active'
-                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                        : 'bg-red-50 text-red-600 border border-red-200'
-                                                }`}>
-                                                    <span className={`h-1.5 w-1.5 rounded-full ${device.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                                    {device.status === 'active' ? 'Active' : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-right">
-                                                {renderDeviceActions(device)}
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {!deviceList || deviceList.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan="7"
+                                                className="px-6 py-4 whitespace-nowrap text-center text-gray-500"
+                                            >
+                                                No devices found. Click "Add
+                                                Device" to add a new biometric
+                                                device.
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ) : (
+                                        deviceList.map((device) => (
+                                            <tr key={device.id}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    {device.name}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {device.ip_address}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {device.port}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {device.location}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {device.last_sync
+                                                        ? new Date(
+                                                              device.last_sync,
+                                                          ).toLocaleString(
+                                                              "en-US",
+                                                              {
+                                                                  month: "short",
+                                                                  day: "numeric",
+                                                                  year: "numeric",
+                                                                  hour: "numeric",
+                                                                  minute: "2-digit",
+                                                                  hour12: true,
+                                                              },
+                                                          )
+                                                        : "Never"}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span
+                                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                            device.status ===
+                                                            "active"
+                                                                ? "bg-green-100 text-green-800"
+                                                                : "bg-red-100 text-red-800"
+                                                        }`}
+                                                    >
+                                                        {device.status ===
+                                                        "active"
+                                                            ? "Active"
+                                                            : "Inactive"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    {renderDeviceActions(
+                                                        device,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1576,7 +2212,10 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             {showUsersPanel && (
                 <div className="fixed inset-0 z-50 overflow-y-auto">
                     <div className="flex items-start justify-center min-h-screen pt-10 px-4">
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-50" onClick={() => setShowUsersPanel(false)} />
+                        <div
+                            className="fixed inset-0 bg-gray-500 bg-opacity-50"
+                            onClick={() => setShowUsersPanel(false)}
+                        />
                         <div className="relative bg-white rounded-lg shadow-xl w-full max-w-3xl">
                             {/* Header */}
                             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -1586,27 +2225,48 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                     </h3>
                                     {!usersLoading && (
                                         <p className="text-xs text-gray-500 mt-0.5">
-                                            {deviceUsers.length} users &nbsp;·&nbsp;
-                                            <span className="text-green-600">{deviceUsers.filter(u => u.matched).length} matched</span>
+                                            {deviceUsers.length} users
                                             &nbsp;·&nbsp;
-                                            <span className="text-red-500">{deviceUsers.filter(u => !u.matched).length} unmatched</span>
+                                            <span className="text-green-600">
+                                                {
+                                                    deviceUsers.filter(
+                                                        (u) => u.matched,
+                                                    ).length
+                                                }{" "}
+                                                matched
+                                            </span>
+                                            &nbsp;·&nbsp;
+                                            <span className="text-red-500">
+                                                {
+                                                    deviceUsers.filter(
+                                                        (u) => !u.matched,
+                                                    ).length
+                                                }{" "}
+                                                unmatched
+                                            </span>
                                         </p>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {!usersLoading && deviceUsers.some(u => u.matched) && (
-                                        <button
-                                            onClick={() => {
-                                                setShowUsersPanel(false);
-                                                openFetchLogsModal(usersDevice);
-                                            }}
-                                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700"
-                                        >
-                                            <RefreshCw className="w-3.5 h-3.5" />
-                                            Fetch Matched Logs
-                                        </button>
-                                    )}
-                                    <button onClick={() => setShowUsersPanel(false)} className="text-gray-400 hover:text-gray-600">
+                                    {!usersLoading &&
+                                        deviceUsers.some((u) => u.matched) && (
+                                            <button
+                                                onClick={() => {
+                                                    setShowUsersPanel(false);
+                                                    openFetchLogsModal(
+                                                        usersDevice,
+                                                    );
+                                                }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700"
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                Fetch Matched Logs
+                                            </button>
+                                        )}
+                                    <button
+                                        onClick={() => setShowUsersPanel(false)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
                                         <XCircle className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -1622,92 +2282,188 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
                                             placeholder="Search ID, name, employee..."
                                             className="pl-8 pr-3 py-1.5 w-full text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                             value={usersFilter}
-                                            onChange={e => setUsersFilter(e.target.value)}
+                                            onChange={(e) =>
+                                                setUsersFilter(e.target.value)
+                                            }
                                         />
                                     </div>
                                     <select
                                         className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={usersMatchFilter}
-                                        onChange={e => setUsersMatchFilter(e.target.value)}
+                                        onChange={(e) =>
+                                            setUsersMatchFilter(e.target.value)
+                                        }
                                     >
                                         <option value="all">All</option>
-                                        <option value="matched">Matched only</option>
-                                        <option value="unmatched">Unmatched only</option>
+                                        <option value="matched">
+                                            Matched only
+                                        </option>
+                                        <option value="unmatched">
+                                            Unmatched only
+                                        </option>
                                     </select>
                                 </div>
                             )}
 
                             {/* Body */}
-                            <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
+                            <div
+                                className="overflow-auto"
+                                style={{ maxHeight: "60vh" }}
+                            >
                                 {usersLoading ? (
                                     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                                         <Loader className="w-8 h-8 animate-spin mb-3" />
-                                        <p className="text-sm">Fetching enrolled users from device...</p>
+                                        <p className="text-sm">
+                                            Fetching enrolled users from
+                                            device...
+                                        </p>
                                     </div>
                                 ) : deviceUsers.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                                         <XCircle className="w-10 h-10 mb-3" />
-                                        <p className="text-sm">No users enrolled on this device.</p>
+                                        <p className="text-sm">
+                                            No users enrolled on this device.
+                                        </p>
                                     </div>
-                                ) : (() => {
-                                    const q = usersFilter.toLowerCase();
-                                    const filtered = deviceUsers.filter(u => {
-                                        const matchesSearch = !q ||
-                                            u.userid?.toLowerCase().includes(q) ||
-                                            u.name?.toLowerCase().includes(q) ||
-                                            u.employee?.toLowerCase().includes(q) ||
-                                            u.department?.toLowerCase().includes(q);
-                                        const matchesStatus =
-                                            usersMatchFilter === "all" ||
-                                            (usersMatchFilter === "matched" && u.matched) ||
-                                            (usersMatchFilter === "unmatched" && !u.matched);
-                                        return matchesSearch && matchesStatus;
-                                    });
+                                ) : (
+                                    (() => {
+                                        const q = usersFilter.toLowerCase();
+                                        const filtered = deviceUsers.filter(
+                                            (u) => {
+                                                const matchesSearch =
+                                                    !q ||
+                                                    u.userid
+                                                        ?.toLowerCase()
+                                                        .includes(q) ||
+                                                    u.name
+                                                        ?.toLowerCase()
+                                                        .includes(q) ||
+                                                    u.employee
+                                                        ?.toLowerCase()
+                                                        .includes(q) ||
+                                                    u.department
+                                                        ?.toLowerCase()
+                                                        .includes(q);
+                                                const matchesStatus =
+                                                    usersMatchFilter ===
+                                                        "all" ||
+                                                    (usersMatchFilter ===
+                                                        "matched" &&
+                                                        u.matched) ||
+                                                    (usersMatchFilter ===
+                                                        "unmatched" &&
+                                                        !u.matched);
+                                                return (
+                                                    matchesSearch &&
+                                                    matchesStatus
+                                                );
+                                            },
+                                        );
 
-                                    return filtered.length === 0 ? (
-                                        <div className="text-center py-10 text-sm text-gray-400">No users match your filter.</div>
-                                    ) : (
-                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                            <thead className="bg-gray-50 sticky top-0">
-                                                <tr>
-                                                    {['UID', 'User ID', 'Device Name', 'Employee', 'Department', 'Status', ''].map(h => (
-                                                        <th key={h} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white divide-y divide-gray-100">
-                                                {filtered.map((u, i) => (
-                                                    <tr key={i} className={u.matched ? '' : 'bg-red-50'}>
-                                                        <td className="px-4 py-2 text-gray-500">{u.uid}</td>
-                                                        <td className="px-4 py-2 font-mono font-medium">{u.userid}</td>
-                                                        <td className="px-4 py-2 text-gray-600">{u.name}</td>
-                                                        <td className="px-4 py-2">{u.employee ?? <span className="text-red-400 italic">No match</span>}</td>
-                                                        <td className="px-4 py-2 text-gray-500">{u.department ?? '—'}</td>
-                                                        <td className="px-4 py-2">
-                                                            {u.matched
-                                                                ? <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle className="w-3.5 h-3.5" /> Matched</span>
-                                                                : <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium"><XCircle className="w-3.5 h-3.5" /> Unmatched</span>}
-                                                        </td>
-                                                        <td className="px-4 py-2">
-                                                            {!u.matched && (
-                                                                <button
-                                                                    onClick={() => handleOpenAddEmployeeModal(u)}
-                                                                    disabled={!!addingUsers[u.userid]}
-                                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
-                                                                >
-                                                                    {addingUsers[u.userid]
-                                                                        ? <Loader className="w-3 h-3 animate-spin" />
-                                                                        : <PlusCircle className="w-3 h-3" />}
-                                                                    Add
-                                                                </button>
-                                                            )}
-                                                        </td>
+                                        return filtered.length === 0 ? (
+                                            <div className="text-center py-10 text-sm text-gray-400">
+                                                No users match your filter.
+                                            </div>
+                                        ) : (
+                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                                <thead className="bg-gray-50 sticky top-0">
+                                                    <tr>
+                                                        {[
+                                                            "UID",
+                                                            "User ID",
+                                                            "Device Name",
+                                                            "Employee",
+                                                            "Department",
+                                                            "Status",
+                                                            "",
+                                                        ].map((h) => (
+                                                            <th
+                                                                key={h}
+                                                                className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                                                            >
+                                                                {h}
+                                                            </th>
+                                                        ))}
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    );
-                                })()}
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-gray-100">
+                                                    {filtered.map((u, i) => (
+                                                        <tr
+                                                            key={i}
+                                                            className={
+                                                                u.matched
+                                                                    ? ""
+                                                                    : "bg-red-50"
+                                                            }
+                                                        >
+                                                            <td className="px-4 py-2 text-gray-500">
+                                                                {u.uid}
+                                                            </td>
+                                                            <td className="px-4 py-2 font-mono font-medium">
+                                                                {u.userid}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-gray-600">
+                                                                {u.name}
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                {u.employee ?? (
+                                                                    <span className="text-red-400 italic">
+                                                                        No match
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-gray-500">
+                                                                {u.department ??
+                                                                    "—"}
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                {u.matched ? (
+                                                                    <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
+                                                                        <CheckCircle className="w-3.5 h-3.5" />{" "}
+                                                                        Matched
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium">
+                                                                        <XCircle className="w-3.5 h-3.5" />{" "}
+                                                                        Unmatched
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-2">
+                                                                {!u.matched && (
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleOpenAddEmployeeModal(
+                                                                                u,
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            !!addingUsers[
+                                                                                u
+                                                                                    .userid
+                                                                            ]
+                                                                        }
+                                                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+                                                                    >
+                                                                        {addingUsers[
+                                                                            u
+                                                                                .userid
+                                                                        ] ? (
+                                                                            <Loader className="w-3 h-3 animate-spin" />
+                                                                        ) : (
+                                                                            <PlusCircle className="w-3 h-3" />
+                                                                        )}
+                                                                        Add
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        );
+                                    })()
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1717,112 +2473,225 @@ const BiometricManagement = ({ auth, devices = [], jsonCacheInfo: initialJsonCac
             {/* Add Employee Modal */}
             {showAddEmployeeModal && addEmployeeUser && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto">
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddEmployeeModal(false)}></div>
+                    <div
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowAddEmployeeModal(false)}
+                    ></div>
                     <div className="relative w-full max-w-md mx-4 my-6 bg-white rounded-xl shadow-2xl border border-gray-200 z-10">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl">
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-800">Add Employee</h3>
-                                <p className="text-xs text-gray-500">Device User ID: <span className="font-mono font-medium">{addEmployeeUser.userid}</span></p>
+                                <h3 className="text-sm font-semibold text-gray-800">
+                                    Add Employee
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                    Device User ID:{" "}
+                                    <span className="font-mono font-medium">
+                                        {addEmployeeUser.userid}
+                                    </span>
+                                </p>
                             </div>
-                            <button onClick={() => setShowAddEmployeeModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <button
+                                onClick={() => setShowAddEmployeeModal(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
                                 <XCircle className="w-4 h-4" />
                             </button>
                         </div>
                         <div className="px-4 py-3 space-y-2">
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">First Name</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        First Name
+                                    </label>
                                     <input
                                         type="text"
                                         className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Fname}
-                                        onChange={e => setAddEmployeeForm(f => ({ ...f, Fname: e.target.value }))}
+                                        onChange={(e) =>
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                Fname: e.target.value,
+                                            }))
+                                        }
                                         placeholder="First name"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Last Name</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        Last Name
+                                    </label>
                                     <input
                                         type="text"
                                         className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Lname}
-                                        onChange={e => setAddEmployeeForm(f => ({ ...f, Lname: e.target.value }))}
+                                        onChange={(e) =>
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                Lname: e.target.value,
+                                            }))
+                                        }
                                         placeholder="Last name"
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-0.5">Middle Name</label>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                    Middle Name
+                                </label>
                                 <input
                                     type="text"
                                     className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     value={addEmployeeForm.MName}
-                                    onChange={e => setAddEmployeeForm(f => ({ ...f, MName: e.target.value }))}
+                                    onChange={(e) =>
+                                        setAddEmployeeForm((f) => ({
+                                            ...f,
+                                            MName: e.target.value,
+                                        }))
+                                    }
                                     placeholder="Middle name (optional)"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 {/* Department combobox */}
                                 <div className="relative">
-                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Department</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        Department
+                                    </label>
                                     <input
                                         type="text"
                                         className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Department}
-                                        onChange={e => { setAddEmployeeForm(f => ({ ...f, Department: e.target.value })); setOpenCombo('dept'); }}
-                                        onFocus={() => setOpenCombo('dept')}
-                                        onBlur={() => setTimeout(() => setOpenCombo(c => c === 'dept' ? null : c), 150)}
+                                        onChange={(e) => {
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                Department: e.target.value,
+                                            }));
+                                            setOpenCombo("dept");
+                                        }}
+                                        onFocus={() => setOpenCombo("dept")}
+                                        onBlur={() =>
+                                            setTimeout(
+                                                () =>
+                                                    setOpenCombo((c) =>
+                                                        c === "dept" ? null : c,
+                                                    ),
+                                                150,
+                                            )
+                                        }
                                         placeholder="Select or type"
                                     />
-                                    {openCombo === 'dept' && (() => {
-                                        const q = addEmployeeForm.Department.toLowerCase();
-                                        const filtered = departments.filter(d => d.toLowerCase().includes(q));
-                                        return filtered.length > 0 ? (
-                                            <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
-                                                {filtered.map((d, i) => (
-                                                    <li key={i} onMouseDown={() => { setAddEmployeeForm(f => ({ ...f, Department: d })); setOpenCombo(null); }}
-                                                        className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700">
-                                                        {d}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : null;
-                                    })()}
+                                    {openCombo === "dept" &&
+                                        (() => {
+                                            const q =
+                                                addEmployeeForm.Department.toLowerCase();
+                                            const filtered = departments.filter(
+                                                (d) =>
+                                                    d.toLowerCase().includes(q),
+                                            );
+                                            return filtered.length > 0 ? (
+                                                <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
+                                                    {filtered.map((d, i) => (
+                                                        <li
+                                                            key={i}
+                                                            onMouseDown={() => {
+                                                                setAddEmployeeForm(
+                                                                    (f) => ({
+                                                                        ...f,
+                                                                        Department:
+                                                                            d,
+                                                                    }),
+                                                                );
+                                                                setOpenCombo(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                            className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700"
+                                                        >
+                                                            {d}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : null;
+                                        })()}
                                 </div>
                                 {/* Job Title combobox */}
                                 <div className="relative">
-                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Job Title</label>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        Job Title
+                                    </label>
                                     <input
                                         type="text"
                                         className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                         value={addEmployeeForm.Jobtitle}
-                                        onChange={e => { setAddEmployeeForm(f => ({ ...f, Jobtitle: e.target.value })); setOpenCombo('jobtitle'); }}
-                                        onFocus={() => setOpenCombo('jobtitle')}
-                                        onBlur={() => setTimeout(() => setOpenCombo(c => c === 'jobtitle' ? null : c), 150)}
+                                        onChange={(e) => {
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                Jobtitle: e.target.value,
+                                            }));
+                                            setOpenCombo("jobtitle");
+                                        }}
+                                        onFocus={() => setOpenCombo("jobtitle")}
+                                        onBlur={() =>
+                                            setTimeout(
+                                                () =>
+                                                    setOpenCombo((c) =>
+                                                        c === "jobtitle"
+                                                            ? null
+                                                            : c,
+                                                    ),
+                                                150,
+                                            )
+                                        }
                                         placeholder="Select or type"
                                     />
-                                    {openCombo === 'jobtitle' && (() => {
-                                        const q = addEmployeeForm.Jobtitle.toLowerCase();
-                                        const filtered = jobtitles.filter(j => j.toLowerCase().includes(q));
-                                        return filtered.length > 0 ? (
-                                            <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
-                                                {filtered.map((j, i) => (
-                                                    <li key={i} onMouseDown={() => { setAddEmployeeForm(f => ({ ...f, Jobtitle: j })); setOpenCombo(null); }}
-                                                        className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700">
-                                                        {j}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : null;
-                                    })()}
+                                    {openCombo === "jobtitle" &&
+                                        (() => {
+                                            const q =
+                                                addEmployeeForm.Jobtitle.toLowerCase();
+                                            const filtered = jobtitles.filter(
+                                                (j) =>
+                                                    j.toLowerCase().includes(q),
+                                            );
+                                            return filtered.length > 0 ? (
+                                                <ul className="absolute z-20 left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto text-sm">
+                                                    {filtered.map((j, i) => (
+                                                        <li
+                                                            key={i}
+                                                            onMouseDown={() => {
+                                                                setAddEmployeeForm(
+                                                                    (f) => ({
+                                                                        ...f,
+                                                                        Jobtitle:
+                                                                            j,
+                                                                    }),
+                                                                );
+                                                                setOpenCombo(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                            className="px-2 py-1.5 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700"
+                                                        >
+                                                            {j}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : null;
+                                        })()}
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-0.5">Status</label>
+                                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                    Status
+                                </label>
                                 <select
                                     className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     value={addEmployeeForm.JobStatus}
-                                    onChange={e => setAddEmployeeForm(f => ({ ...f, JobStatus: e.target.value }))}
+                                    onChange={(e) =>
+                                        setAddEmployeeForm((f) => ({
+                                            ...f,
+                                            JobStatus: e.target.value,
+                                        }))
+                                    }
                                 >
                                     <option value="Active">Active</option>
                                     <option value="Inactive">Inactive</option>
