@@ -1,444 +1,231 @@
 import React from 'react';
-import { X, Edit, Clock, Calendar, User, Building, Timer, AlertTriangle, CheckCircle, Moon, Sun, Info } from 'lucide-react';
-import { Button } from '@/Components/ui/Button';
-import { Alert, AlertDescription } from '@/Components/ui/alert';
+import { X, Edit, Clock, Calendar, User, Timer, AlertTriangle, CheckCircle, Moon, Sun, Briefcase, Info, Tag } from 'lucide-react';
 
 const AttendanceInfoModal = ({ isOpen, attendance, onClose, onEdit }) => {
   if (!isOpen || !attendance) return null;
 
-  // Helper function to format time
   const formatTime = (timeString) => {
-    if (!timeString) return '-';
-    
+    if (!timeString) return '—';
     try {
       let timeOnly;
-      if (timeString.includes('T')) {
-        const [, time] = timeString.split('T');
-        timeOnly = time.slice(0, 5);
-      } else if (timeString.includes(' ') && timeString.includes(':')) {
-        const timeParts = timeString.split(' ');
-        timeOnly = timeParts[timeParts.length - 1].slice(0, 5);
-      } else if (timeString.includes(':')) {
-        timeOnly = timeString.slice(0, 5);
-      } else {
-        return '-';
-      }
-      
-      const parts = timeOnly.split(':');
-      if (parts.length < 2) return '-';
-      
-      const hours = parseInt(parts[0], 10);
-      const minutes = parts[1];
-      
-      if (isNaN(hours)) return '-';
-      
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const formattedHours = hours % 12 || 12;
-      
-      return `${formattedHours}:${minutes} ${ampm}`;
-    } catch (error) {
-      console.error('Time formatting error:', error);
-      return '-';
-    }
+      if (timeString.includes('T')) timeOnly = timeString.split('T')[1].slice(0, 5);
+      else if (timeString.includes(' ') && timeString.includes(':')) timeOnly = timeString.split(' ').pop().slice(0, 5);
+      else if (timeString.includes(':')) timeOnly = timeString.slice(0, 5);
+      else return '—';
+      const [h, m] = timeOnly.split(':');
+      const hours = parseInt(h, 10);
+      if (isNaN(hours)) return '—';
+      return `${hours % 12 || 12}:${m} ${hours >= 12 ? 'PM' : 'AM'}`;
+    } catch { return '—'; }
   };
 
-  // Helper function to format date
   const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    
+    if (!dateString) return '—';
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '-';
-      
-      return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return '-';
-    }
+      const d = new Date(dateString);
+      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } catch { return '—'; }
   };
 
-  // Helper function to format minutes to hours and minutes
   const formatMinutes = (minutes) => {
     if (!minutes || minutes <= 0) return null;
-    
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
+    const h = Math.floor(minutes / 60), m = minutes % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  // Calculate late/undertime display
-  const getLateUndertimeDisplay = () => {
-    const late = attendance.late_minutes || 0;
-    const undertime = attendance.undertime_minutes || 0;
-    
-    if (late === 0 && undertime === 0) {
-      return (
-        <div className="flex items-center text-green-600">
-          <CheckCircle className="h-4 w-4 mr-1" />
-          <span className="font-medium">On Time</span>
-        </div>
-      );
-    }
-    
-    const parts = [];
-    if (late > 0) {
-      parts.push(
-        <div key="late" className="flex items-center text-red-600">
-          <AlertTriangle className="h-4 w-4 mr-1" />
-          <span className="font-medium">{formatMinutes(late)} late</span>
-        </div>
-      );
-    }
-    
-    if (undertime > 0) {
-      parts.push(
-        <div key="undertime" className="flex items-center text-orange-600">
-          <Timer className="h-4 w-4 mr-1" />
-          <span className="font-medium">{formatMinutes(undertime)} undertime</span>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="space-y-1">
-        {parts}
-      </div>
-    );
-  };
+  const fmt = (v, d = 2) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '—' : Number(v).toFixed(d);
 
-  // Helper function to format numeric values
-  const formatNumeric = (value, decimals = 2) => {
-    if (value === null || value === undefined || value === '' || isNaN(Number(value))) {
-      return '-';
-    }
-    return Number(value).toFixed(decimals);
-  };
+  const isNight = attendance.is_nightshift;
 
-  // Helper function to render boolean badges
-  const renderBooleanBadge = (value) => {
-    return value ? (
-      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        Yes
-      </span>
-    ) : (
-      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-        No
-      </span>
-    );
-  };
+  const Field = ({ label, value, mono = false, children }) => (
+    <div>
+      <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+      {children ?? <p className={`text-sm font-semibold text-gray-800 ${mono ? 'font-mono' : ''}`}>{value}</p>}
+    </div>
+  );
 
-  // Helper function to render source badge
-  const renderSourceBadge = (source) => {
-    const sourceColors = {
-      'import': 'bg-blue-100 text-blue-800',
-      'manual': 'bg-yellow-100 text-yellow-800',
-      'biometric': 'bg-green-100 text-green-800',
-      'manual_edit': 'bg-red-100 text-red-800',
-      'slvl_sync': 'bg-indigo-100 text-indigo-800'
+  const Badge = ({ color, children }) => {
+    const colors = {
+      green:  'bg-green-100 text-green-700',
+      red:    'bg-red-100 text-red-700',
+      yellow: 'bg-yellow-100 text-yellow-700',
+      gray:   'bg-gray-100 text-gray-500',
+      blue:   'bg-blue-100 text-blue-700',
+      indigo: 'bg-indigo-100 text-indigo-700',
+      purple: 'bg-purple-100 text-purple-700',
+      orange: 'bg-orange-100 text-orange-700',
     };
-    
-    const sourceLabels = {
-      'manual_edit': 'Manually Edited',
-      'slvl_sync': 'SLVL Sync',
-      'import': 'Imported',
-      'biometric': 'Biometric',
-      'manual': 'Manual Entry'
-    };
-    
-    const colorClass = sourceColors[source] || 'bg-gray-100 text-gray-800';
-    const label = sourceLabels[source] || (source ? source.charAt(0).toUpperCase() + source.slice(1) : 'Unknown');
-    
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
-        {label}
-      </span>
-    );
+    return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors[color] ?? colors.gray}`}>{children}</span>;
   };
+
+  const sourceMap = {
+    import:      { label: 'Imported',        color: 'blue' },
+    manual:      { label: 'Manual Entry',     color: 'yellow' },
+    biometric:   { label: 'Biometric',        color: 'green' },
+    manual_edit: { label: 'Manually Edited',  color: 'orange' },
+    slvl_sync:   { label: 'SLVL Sync',        color: 'indigo' },
+  };
+  const src = sourceMap[attendance.source] ?? { label: attendance.source ?? 'Unknown', color: 'gray' };
+
+  const SectionHeader = ({ icon: Icon, title, color = 'text-indigo-600' }) => (
+    <div className={`flex items-center gap-2 mb-3`}>
+      <Icon className={`w-4 h-4 ${color}`} />
+      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{title}</span>
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 md:mx-8 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b">
-          <div className="flex items-center space-x-3">
-            <h2 className="text-xl font-semibold text-gray-800">Attendance Details</h2>
-            {attendance.is_nightshift ? (
-              <div className="flex items-center space-x-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                <Moon className="h-4 w-4" />
-                <span>Night Shift</span>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+
+        {/* ── Header ── */}
+        <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-6 py-5 flex-shrink-0">
+          <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
+          <div className="flex items-start justify-between relative">
+            <div>
+              <p className="text-indigo-200 text-xs font-medium mb-0.5">Attendance Record</p>
+              <h2 className="text-xl font-bold text-white">{attendance.employee_name ?? 'Unknown Employee'}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-indigo-200 text-xs">ID: {attendance.idno ?? '—'}</span>
+                <span className="text-indigo-400">·</span>
+                <span className="text-indigo-200 text-xs">{attendance.department ?? '—'}</span>
+                {attendance.line && <><span className="text-indigo-400">·</span><span className="text-indigo-200 text-xs">{attendance.line}</span></>}
               </div>
-            ) : (
-              <div className="flex items-center space-x-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
-                <Sun className="h-4 w-4" />
-                <span>Regular Shift</span>
-              </div>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isNight ? 'bg-violet-800/60 text-violet-200' : 'bg-yellow-400/20 text-yellow-200'}`}>
+                {isNight ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                {isNight ? 'Night Shift' : 'Regular Shift'}
+              </span>
+              <button onClick={onClose} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Employee Information */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <User className="h-5 w-5 mr-2" />
-              Employee Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p className="text-gray-900">{attendance.employee_name || 'Unknown Employee'}</p>
+        {/* ── Body ── */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+          {/* Date + Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <SectionHeader icon={Calendar} title="Date" />
+              <div className="space-y-3">
+                <Field label="Date" value={formatDate(attendance.attendance_date)} />
+                <Field label="Day of Week" value={attendance.day ?? '—'} />
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Employee ID</label>
-                <p className="text-gray-900">{attendance.idno || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Department</label>
-                <p className="text-gray-900">{attendance.department || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Line</label>
-                <p className="text-gray-900">{attendance.line || 'N/A'}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <SectionHeader icon={Clock} title="Time" />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Time In"   value={formatTime(attendance.time_in)}   mono />
+                <Field label="Break Out" value={formatTime(attendance.break_out)} mono />
+                <Field label="Break In"  value={formatTime(attendance.break_in)}  mono />
+                <Field label={isNight && attendance.next_day_timeout ? 'Next Day Out' : 'Time Out'}
+                       value={isNight && attendance.next_day_timeout ? formatTime(attendance.next_day_timeout) : formatTime(attendance.time_out)}
+                       mono />
               </div>
             </div>
           </div>
 
-          {/* Date Information */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Calendar className="h-5 w-5 mr-2" />
-              Date Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Date</label>
-                <p className="text-gray-900">{formatDate(attendance.attendance_date)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Day</label>
-                <p className="text-gray-900">{attendance.day || 'N/A'}</p>
-              </div>
+          {/* Hours & Status */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <SectionHeader icon={Timer} title="Hours & Attendance" />
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <Field label="Hours Worked">
+                <p className="text-2xl font-bold text-indigo-600">{fmt(attendance.hours_worked)}<span className="text-sm font-normal text-gray-400 ml-1">hrs</span></p>
+              </Field>
+              <Field label="Late">
+                {attendance.late_minutes > 0
+                  ? <Badge color="red"><AlertTriangle className="w-3 h-3" />{formatMinutes(attendance.late_minutes)}</Badge>
+                  : <Badge color="green"><CheckCircle className="w-3 h-3" />On time</Badge>}
+              </Field>
+              <Field label="Undertime">
+                {attendance.undertime_minutes > 0
+                  ? <Badge color="orange"><Timer className="w-3 h-3" />{formatMinutes(attendance.undertime_minutes)}</Badge>
+                  : <Badge color="green"><CheckCircle className="w-3 h-3" />Full time</Badge>}
+              </Field>
+            </div>
+            <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
+              <Field label="Source">
+                <Badge color={src.color}>{src.label}</Badge>
+              </Field>
+              <Field label="Posting Status">
+                {attendance.posting_status === 'posted'
+                  ? <Badge color="green"><CheckCircle className="w-3 h-3" />Posted</Badge>
+                  : <Badge color="yellow"><AlertTriangle className="w-3 h-3" />Not Posted</Badge>}
+              </Field>
             </div>
           </div>
 
-          {/* Time Information */}
-          <div className="bg-green-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Clock className="h-5 w-5 mr-2" />
-              Time Information
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Time In</label>
-                <p className="text-gray-900 font-mono">{formatTime(attendance.time_in)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Break Out</label>
-                <p className="text-gray-900 font-mono">{formatTime(attendance.break_out)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Break In</label>
-                <p className="text-gray-900 font-mono">{formatTime(attendance.break_in)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">
-                  {attendance.is_nightshift && attendance.next_day_timeout ? 'Next Day Timeout' : 'Time Out'}
-                </label>
-                <p className="text-gray-900 font-mono">
-                  {attendance.is_nightshift && attendance.next_day_timeout 
-                    ? formatTime(attendance.next_day_timeout)
-                    : formatTime(attendance.time_out)
-                  }
-                </p>
-              </div>
+          {/* Payroll Figures */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <SectionHeader icon={Briefcase} title="Payroll Figures" />
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: 'Overtime',          value: fmt(attendance.overtime) },
+                { label: 'Travel Order',       value: fmt(attendance.travel_order, 1) },
+                { label: 'SLVL',              value: fmt(attendance.slvl, 1) },
+                { label: 'Holiday',           value: fmt(attendance.holiday) },
+                { label: 'OT Reg Holiday',    value: fmt(attendance.ot_reg_holiday) },
+                { label: 'OT Spl Holiday',    value: fmt(attendance.ot_special_holiday) },
+                { label: 'Retro Multiplier',  value: fmt(attendance.retromultiplier) },
+                { label: 'Offset',            value: fmt(attendance.offset) },
+              ].map(({ label, value }) => (
+                <Field key={label} label={label} value={value} />
+              ))}
             </div>
           </div>
 
-          {/* Hours and Attendance Metrics */}
-          <div className="bg-yellow-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Timer className="h-5 w-5 mr-2" />
-              Hours & Attendance Metrics
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Hours Worked</label>
-                <p className="text-gray-900 text-lg font-semibold">{formatNumeric(attendance.hours_worked)} hours</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Late Minutes</label>
-                <p className="text-gray-900">
-                  {attendance.late_minutes > 0 ? (
-                    <span className="text-red-600 font-medium">{formatMinutes(attendance.late_minutes)}</span>
-                  ) : (
-                    <span className="text-green-600 font-medium">On time</span>
-                  )}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Undertime Minutes</label>
-                <p className="text-gray-900">
-                  {attendance.undertime_minutes > 0 ? (
-                    <span className="text-orange-600 font-medium">{formatMinutes(attendance.undertime_minutes)}</span>
-                  ) : (
-                    <span className="text-green-600 font-medium">Full time</span>
-                  )}
-                </p>
-              </div>
-            </div>
-            
-            {/* Late/Undertime Summary */}
-            <div className="mt-4 pt-4 border-t border-yellow-200">
-              <label className="text-sm font-medium text-gray-500">Attendance Status</label>
-              <div className="mt-1">
-                {getLateUndertimeDisplay()}
-              </div>
-            </div>
-          </div>
-
-          {/* Payroll Information */}
-          <div className="bg-purple-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Building className="h-5 w-5 mr-2" />
-              Payroll Information
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Overtime</label>
-                <p className="text-gray-900">{formatNumeric(attendance.overtime)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Travel Order</label>
-                <p className="text-gray-900">{formatNumeric(attendance.travel_order, 1)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">SLVL</label>
-                <p className="text-gray-900">{formatNumeric(attendance.slvl, 1)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Holiday</label>
-                <p className="text-gray-900">{formatNumeric(attendance.holiday)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">OT Reg Holiday</label>
-                <p className="text-gray-900">{formatNumeric(attendance.ot_reg_holiday)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">OT Special Holiday</label>
-                <p className="text-gray-900">{formatNumeric(attendance.ot_special_holiday)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Retro Multiplier</label>
-                <p className="text-gray-900">{formatNumeric(attendance.retromultiplier)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Offset</label>
-                <p className="text-gray-900">{formatNumeric(attendance.offset)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Flags and Status */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-              <Info className="h-5 w-5 mr-2" />
-              Flags & Status
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">CT (Compensatory Time)</label>
-                <div className="mt-1">{renderBooleanBadge(attendance.ct)}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">CS (Compressed Schedule)</label>
-                <div className="mt-1">{renderBooleanBadge(attendance.cs)}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Rest Day</label>
-                <div className="mt-1">{renderBooleanBadge(attendance.restday)}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Official Business</label>
-                <div className="mt-1">{renderBooleanBadge(attendance.ob)}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Trip</label>
-                <p className="text-gray-900">{formatNumeric(attendance.trip)}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Source</label>
-                <div className="mt-1">{renderSourceBadge(attendance.source)}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Posting Status</label>
-                <div className="mt-1">
-                  {attendance.posting_status === 'posted' ? (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Posted
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Not Posted
-                    </span>
-                  )}
+          {/* Flags */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <SectionHeader icon={Info} title="Flags" />
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'CT',               val: attendance.ct },
+                { label: 'CS',               val: attendance.cs },
+                { label: 'Rest Day',          val: attendance.restday },
+                { label: 'Official Business', val: attendance.ob },
+              ].map(({ label, val }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">{label}:</span>
+                  <Badge color={val ? 'green' : 'gray'}>{val ? 'Yes' : 'No'}</Badge>
                 </div>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-500">Trip:</span>
+                <Badge color={parseFloat(attendance.trip || 0) > 0 ? 'indigo' : 'gray'}>{fmt(attendance.trip, 0)}</Badge>
               </div>
             </div>
           </div>
 
-          {/* System Information */}
+          {/* Manual edit notice */}
           {attendance.source === 'manual_edit' && (
-            <Alert className="border-orange-200 bg-orange-50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-800">
-                <strong>Manual Edit Notice:</strong> This attendance record has been manually edited. 
-                The late minutes, undertime minutes, and hours worked have been automatically recalculated 
-                based on the updated time entries.
-              </AlertDescription>
-            </Alert>
+            <div className="flex gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-orange-700"><strong>Manual Edit:</strong> Late/undertime and hours worked have been automatically recalculated based on the updated time entries.</p>
+            </div>
           )}
-          
+
+          {/* Remarks */}
           {attendance.remarks && (
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Remarks</h3>
-              <p className="text-gray-700">{attendance.remarks}</p>
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-xs text-blue-400 uppercase tracking-wider font-semibold mb-1">Remarks</p>
+              <p className="text-sm text-blue-800">{attendance.remarks}</p>
             </div>
           )}
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 border-t">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
             Close
-          </Button>
-          <Button
-            onClick={onEdit}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Edit className="h-4 w-4 mr-2" />
+          </button>
+          <button onClick={onEdit} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+            <Edit className="w-4 h-4" />
             Edit Attendance
-          </Button>
+          </button>
         </div>
       </div>
     </div>
