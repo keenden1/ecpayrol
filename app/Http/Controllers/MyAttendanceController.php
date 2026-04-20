@@ -40,6 +40,8 @@ class MyAttendanceController extends Controller
                 'attendance_date'  => $a->attendance_date?->format('Y-m-d'),
                 'day'              => $a->day,
                 'time_in'          => $a->time_in  ? $a->time_in->format('h:i A')  : null,
+                'break_in'         => $a->break_in ? \Carbon\Carbon::parse($a->break_in)->format('h:i A') : null,
+                'break_out'        => $a->break_out ? \Carbon\Carbon::parse($a->break_out)->format('h:i A') : null,
                 'time_out'         => $a->time_out ? $a->time_out->format('h:i A') : null,
                 'hours_worked'     => $a->hours_worked,
                 'late_minutes'     => $a->late_minutes,

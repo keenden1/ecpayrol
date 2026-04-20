@@ -177,15 +177,21 @@ export default function MyAttendance() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
-                                        <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Day</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Time In</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Time Out</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hours</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Late</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Undertime</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
+                                        <th rowSpan={2} className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Date</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Day</th>
+                                        <th colSpan={2} className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center border-b border-gray-200">Morning</th>
+                                        <th colSpan={2} className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center border-b border-gray-200">Afternoon</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Hours</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Late</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Undertime</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Status</th>
+                                        <th rowSpan={2} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle">Remarks</th>
+                                    </tr>
+                                    <tr className="bg-gray-50 text-left">
+                                        <th className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Time In</th>
+                                        <th className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Time Out</th>
+                                        <th className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Time In</th>
+                                        <th className="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Time Out</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
@@ -200,6 +206,16 @@ export default function MyAttendance() {
                                             <td className="px-4 py-3.5 whitespace-nowrap">
                                                 {rec.time_in
                                                     ? <span className="text-green-700 font-semibold">{rec.time_in}</span>
+                                                    : <span className="text-gray-300">—</span>}
+                                            </td>
+                                            <td className="px-4 py-3.5 whitespace-nowrap">
+                                                {rec.break_in
+                                                    ? <span className="text-indigo-700 font-semibold">{rec.break_in}</span>
+                                                    : <span className="text-gray-300">—</span>}
+                                            </td>
+                                            <td className="px-4 py-3.5 whitespace-nowrap">
+                                                {rec.break_out
+                                                    ? <span className="text-green-700 font-semibold">{rec.break_out}</span>
                                                     : <span className="text-gray-300">—</span>}
                                             </td>
                                             <td className="px-4 py-3.5 whitespace-nowrap">

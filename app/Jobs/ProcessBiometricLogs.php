@@ -382,6 +382,8 @@ class ProcessBiometricLogs implements ShouldQueue
                         ->first();
 
                     if ($existingRecord) {
+                        // Merge with existing punches so logs from other biometric devices on the same date are preserved.
+                        $logEntry = $this->mergeAttendanceRecord($employeeId, $date, $existingRecord, $logEntry);
                         DB::table('processed_attendances')
                             ->where('id', $existingRecord->id)
                             ->update($logEntry);
@@ -617,6 +619,79 @@ class ProcessBiometricLogs implements ShouldQueue
         ];
     }
 
+    /**
+     * Merge a freshly-processed day record with whatever already exists in processed_attendances
+     * so punches from multiple biometric devices on the same date are combined, not overwritten.
+     *
+     * Collects all non-null timestamps from both sides, dedupes, sorts chronologically, then
+     * re-classifies positionally under the company policy (In → Out → In → Out) and recomputes hours.
+     */
+    private function mergeAttendanceRecord($employeeId, $date, $existing, array $newRec): array
+    {
+        $collect = function ($row) {
+            $out = [];
+            foreach (['time_in', 'break_in', 'break_out', 'time_out', 'next_day_timeout'] as $f) {
+                $v = is_array($row) ? ($row[$f] ?? null) : ($row->{$f} ?? null);
+                if ($v) {
+                    try { $out[] = Carbon::parse($v); } catch (\Throwable $e) { /* skip */ }
+                }
+            }
+            return $out;
+        };
+
+        $all = array_merge($collect($existing), $collect($newRec));
+
+        // Dedupe to the minute — identical punches from the same person within 60s are one event.
+        $seen = [];
+        $unique = [];
+        foreach ($all as $c) {
+            $key = $c->format('Y-m-d H:i');
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $c;
+            }
+        }
+
+        usort($unique, fn($a, $b) => $a->timestamp <=> $b->timestamp);
+
+        $n = count($unique);
+        if ($n === 0) {
+            return $newRec;
+        }
+
+        // Positional statuses mirror processLogsWithOptimizedPatternRecognition()
+        if ($n === 1) {
+            $statuses = [$unique[0]->hour < 12 ? 'Clock In' : 'Clock Out'];
+        } elseif ($n === 2) {
+            $statuses = ['Clock In', 'Clock Out'];
+        } elseif ($n === 3) {
+            $statuses = ['Clock In', 'Break In', 'Break Out'];
+        } elseif ($n === 4) {
+            $statuses = ['Clock In', 'Break In', 'Break Out', 'Clock Out'];
+        } else {
+            $statuses = ['Clock In'];
+            for ($i = 1; $i < $n - 1; $i++) {
+                $statuses[] = ($i % 2 === 1) ? 'Break In' : 'Break Out';
+            }
+            $statuses[] = 'Clock Out';
+        }
+
+        $logData = [
+            'timestamps'      => $unique,
+            'states'          => array_fill(0, $n, null),
+            'actual_statuses' => $statuses,
+        ];
+
+        $rebuilt = $this->createAttendanceRecord($employeeId, $date, $logData);
+
+        // Preserve created_at from the existing record if we have one
+        if (is_object($existing) && isset($existing->created_at)) {
+            unset($rebuilt['created_at']);
+        }
+
+        return $rebuilt;
+    }
+
     private function processLogsWithOptimizedPatternRecognition($logs): array
     {
         // Group logs by employee+date so we can assign statuses by position
@@ -651,7 +726,11 @@ class ProcessBiometricLogs implements ShouldQueue
                             $log['actual_status'] = $i === 0 ? 'Clock In' : 'Clock Out';
                             break;
                         case 3:
-                            $statuses = ['Clock In', 'Break In', 'Clock Out'];
+                            // Company pattern is In → Out(lunch) → In(back) → Out.
+                            // With only 3 punches, the missing one is the final Clock Out.
+                            // Mapping 3rd to Break Out keeps return-from-lunch in the 2nd Time In slot
+                            // and lets createAttendanceRecord flag the missing Clock Out.
+                            $statuses = ['Clock In', 'Break In', 'Break Out'];
                             $log['actual_status'] = $statuses[$i];
                             break;
                         case 4:

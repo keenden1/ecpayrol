@@ -88,6 +88,7 @@ const BiometricManagement = ({
         Department: "",
         Jobtitle: "",
         JobStatus: "Active",
+        Gender: "",
     });
     const [openCombo, setOpenCombo] = useState(null); // 'dept' | 'jobtitle' | null
     const previewPageSize = 50;
@@ -2847,23 +2848,44 @@ const BiometricManagement = ({
                                         })()}
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                                    Status
-                                </label>
-                                <select
-                                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={addEmployeeForm.JobStatus}
-                                    onChange={(e) =>
-                                        setAddEmployeeForm((f) => ({
-                                            ...f,
-                                            JobStatus: e.target.value,
-                                        }))
-                                    }
-                                >
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                </select>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        Gender <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.Gender}
+                                        onChange={(e) =>
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                Gender: e.target.value,
+                                            }))
+                                        }
+                                    >
+                                        <option value="">Select...</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                                        Status
+                                    </label>
+                                    <select
+                                        className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={addEmployeeForm.JobStatus}
+                                        onChange={(e) =>
+                                            setAddEmployeeForm((f) => ({
+                                                ...f,
+                                                JobStatus: e.target.value,
+                                            }))
+                                        }
+                                    >
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">

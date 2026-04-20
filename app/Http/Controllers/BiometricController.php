@@ -564,6 +564,8 @@ public function saveLogs(Request $request)
                 ->first();
 
             if ($existing) {
+                // Merge with existing punches so logs from other biometric devices on the same date are preserved.
+                $dbRecord = $this->mergeProcessedAttendance($existing, $dbRecord);
                 DB::table('processed_attendances')
                     ->where('id', $existing->id)
                     ->update($dbRecord);
@@ -669,13 +671,13 @@ public function addDeviceUserAsEmployee(Request $request)
 {
     $validated = $request->validate([
         'idno'      => 'required|string|max:50|unique:employees,idno',
-        'Lname'     => 'nullable|string|max:100',
-        'Fname'     => 'nullable|string|max:100',
+        'Lname'     => 'required|string|max:100',
+        'Fname'     => 'required|string|max:100',
         'MName'     => 'nullable|string|max:100',
         'Department'=> 'nullable|string|max:100',
         'Jobtitle'  => 'nullable|string|max:100',
         'JobStatus' => 'nullable|string|in:Active,Inactive',
-        'Gender'    => 'nullable|string|in:Male,Female',
+        'Gender'    => 'required|string|in:Male,Female',
     ]);
 
     try {
@@ -986,6 +988,105 @@ private function getAttendanceLogsOptimized($zk, $validated)
     }
     
     return $logs;
+}
+
+/**
+ * Merge an incoming processed-attendance record with an existing DB row so punches
+ * from multiple biometric devices on the same (employee, date) are combined instead of overwritten.
+ *
+ * Collects all non-null timestamps, dedupes to the minute, sorts chronologically, re-classifies
+ * positionally under the company policy (In → Out → In → Out), and recomputes derived fields.
+ */
+private function mergeProcessedAttendance($existing, array $newRec): array
+{
+    $collect = function ($row) {
+        $out = [];
+        foreach (['time_in', 'break_in', 'break_out', 'time_out', 'next_day_timeout'] as $f) {
+            $v = is_array($row) ? ($row[$f] ?? null) : ($row->{$f} ?? null);
+            if ($v) {
+                try { $out[] = Carbon::parse($v); } catch (\Throwable $e) { /* skip */ }
+            }
+        }
+        return $out;
+    };
+
+    $all = array_merge($collect($existing), $collect($newRec));
+
+    $seen = [];
+    $unique = [];
+    foreach ($all as $c) {
+        $key = $c->format('Y-m-d H:i');
+        if (!isset($seen[$key])) {
+            $seen[$key] = true;
+            $unique[] = $c;
+        }
+    }
+    usort($unique, fn($a, $b) => $a->timestamp <=> $b->timestamp);
+
+    $n = count($unique);
+    if ($n === 0) {
+        return $newRec;
+    }
+
+    $timeIn = $breakIn = $breakOut = $timeOut = null;
+    $missingPunchReasons = [];
+
+    if ($n === 1) {
+        // Single punch — can't tell which it is; keep as Time In, flag missing out.
+        $timeIn = $unique[0];
+        $missingPunchReasons[] = 'Clock-out not recorded';
+    } elseif ($n === 2) {
+        $timeIn  = $unique[0];
+        $timeOut = $unique[1];
+    } elseif ($n === 3) {
+        // Policy: In → Out → In → Out. Missing final out.
+        $timeIn   = $unique[0];
+        $breakIn  = $unique[1];
+        $breakOut = $unique[2];
+        $missingPunchReasons[] = 'Clock-out not recorded';
+    } else {
+        $timeIn   = $unique[0];
+        $breakIn  = $unique[1];
+        $breakOut = $unique[2];
+        $timeOut  = $unique[$n - 1];
+    }
+
+    // Compute hours only when all four punches are present (no missing punch).
+    $hoursWorked = null;
+    if ($timeIn && $breakIn && $breakOut && $timeOut && empty($missingPunchReasons)) {
+        $minutes = $timeIn->diffInMinutes($breakIn) + $breakOut->diffInMinutes($timeOut);
+        $hoursWorked = round($minutes / 60, 2);
+    } elseif ($timeIn && $timeOut && !$breakIn && !$breakOut && empty($missingPunchReasons)) {
+        $hoursWorked = round($timeIn->diffInMinutes($timeOut) / 60, 2);
+    }
+
+    $isNightShift = $timeIn && $timeOut ? $timeIn->format('Y-m-d') !== $timeOut->format('Y-m-d') : false;
+    $nextDayTimeout = null;
+    if ($isNightShift && $timeOut) {
+        $nextDayTimeout = $timeOut;
+        $timeOut = null;
+    }
+
+    $notesText = $newRec['notes'] ?? ($existing->notes ?? '');
+    if (!empty($missingPunchReasons)) {
+        $flag = 'MISSING PUNCH - ' . implode('; ', array_unique($missingPunchReasons)) . ' (hours left blank — admin to correct)';
+        $notesText = $notesText && !str_contains($notesText, 'MISSING PUNCH')
+            ? trim($notesText) . ' | ' . $flag
+            : (trim($notesText) ?: 'Auto-processed') . (str_contains($notesText ?? '', 'MISSING PUNCH') ? '' : ' | ' . $flag);
+    }
+
+    $merged = $newRec;
+    $merged['time_in']          = $timeIn ? $timeIn->format('Y-m-d H:i:s') : null;
+    $merged['break_in']         = $breakIn ? $breakIn->format('Y-m-d H:i:s') : null;
+    $merged['break_out']        = $breakOut ? $breakOut->format('Y-m-d H:i:s') : null;
+    $merged['time_out']         = $timeOut ? $timeOut->format('Y-m-d H:i:s') : null;
+    $merged['next_day_timeout'] = $nextDayTimeout ? $nextDayTimeout->format('Y-m-d H:i:s') : null;
+    $merged['hours_worked']     = $hoursWorked;
+    $merged['is_nightshift']    = $isNightShift;
+    $merged['notes']            = $notesText ?: 'Auto-processed';
+    $merged['updated_at']       = now();
+
+    return $merged;
 }
 
 
