@@ -561,7 +561,13 @@ class ProcessBiometricLogs implements ShouldQueue
         }
 
         if ($timeIn === null && count($timestamps) > 0) {
-            $timeIn = $timestamps[0];
+            // If the first punch was explicitly classified as Break In (missed-morning-IN
+            // pattern where the first tap is actually going out for lunch), leave time_in
+            // blank — do not force it into the Morning Time In slot.
+            $firstStatus = $actualStatuses[0] ?? null;
+            if ($firstStatus !== 'Break In') {
+                $timeIn = $timestamps[0];
+            }
             $missingPunchReasons[] = 'Clock-in not recorded';
         }
 
@@ -665,7 +671,14 @@ class ProcessBiometricLogs implements ShouldQueue
         } elseif ($n === 2) {
             $statuses = ['Clock In', 'Clock Out'];
         } elseif ($n === 3) {
-            $statuses = ['Clock In', 'Break In', 'Break Out'];
+            // If the first punch is 11:00 AM or later, the employee almost certainly
+            // forgot the morning Clock In — map the 3 punches as lunch-out, lunch-back, clock-out.
+            // Otherwise assume the missing punch is the final Clock Out.
+            if ((int)$unique[0]->format('H') >= 11) {
+                $statuses = ['Break In', 'Break Out', 'Clock Out'];
+            } else {
+                $statuses = ['Clock In', 'Break In', 'Break Out'];
+            }
         } elseif ($n === 4) {
             $statuses = ['Clock In', 'Break In', 'Break Out', 'Clock Out'];
         } else {
@@ -727,10 +740,15 @@ class ProcessBiometricLogs implements ShouldQueue
                             break;
                         case 3:
                             // Company pattern is In → Out(lunch) → In(back) → Out.
-                            // With only 3 punches, the missing one is the final Clock Out.
-                            // Mapping 3rd to Break Out keeps return-from-lunch in the 2nd Time In slot
-                            // and lets createAttendanceRecord flag the missing Clock Out.
-                            $statuses = ['Clock In', 'Break In', 'Break Out'];
+                            // If the first punch is 11:00 AM or later, the employee almost certainly
+                            // forgot the morning Clock In — map the 3 punches as lunch-out, lunch-back, clock-out.
+                            // Otherwise assume the missing punch is the final Clock Out.
+                            $firstHour = (int)date('H', strtotime($dayLogs[0]['timestamp']));
+                            if ($firstHour >= 11) {
+                                $statuses = ['Break In', 'Break Out', 'Clock Out'];
+                            } else {
+                                $statuses = ['Clock In', 'Break In', 'Break Out'];
+                            }
                             $log['actual_status'] = $statuses[$i];
                             break;
                         case 4:
