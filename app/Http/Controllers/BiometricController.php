@@ -681,13 +681,13 @@ public function addDeviceUserAsEmployee(Request $request)
     try {
         $employee = Employee::create([
             'idno'       => $validated['idno'],
-            'Lname'      => $validated['Lname'] ?? '',
-            'Fname'      => $validated['Fname'] ?? '',
-            'MName'      => $validated['MName'] ?? '',
-            'Department' => $validated['Department'] ?? '',
-            'Jobtitle'   => $validated['Jobtitle'] ?? '',
+            'Lname'      => $validated['Lname'] ?? null,
+            'Fname'      => $validated['Fname'] ?? null,
+            'MName'      => $validated['MName'] ?? null,
+            'Department' => $validated['Department'] ?? null,
+            'Jobtitle'   => $validated['Jobtitle'] ?? null,
             'JobStatus'  => $validated['JobStatus'] ?? 'Active',
-            'Gender'     => $validated['Gender'] ?? '',
+            'Gender'     => $validated['Gender'] ?? null,
         ]);
 
         return response()->json([
