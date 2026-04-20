@@ -50,9 +50,9 @@ class Employee extends Model
     ];
 
     protected $casts = [
-        'Birthdate' => 'date',
-        'HiredDate' => 'date',
-        'EndOfContract' => 'date',
+        'Birthdate' => 'date:Y-m-d',
+        'HiredDate' => 'date:Y-m-d',
+        'EndOfContract' => 'date:Y-m-d',
         'Taxable' => 'boolean',
         'payrate' => 'decimal:2',
         'pay_allowance' => 'decimal:2'
