@@ -515,6 +515,7 @@ class ProcessBiometricLogs implements ShouldQueue
         $timeOut = null;
         $breakIn = null;
         $breakOut = null;
+        $missingPunchReasons = [];
 
         // Process timestamps
         for ($i = 0; $i < count($timestamps); $i++) {
@@ -535,6 +536,9 @@ class ProcessBiometricLogs implements ShouldQueue
                         $workedMinutes = $punchIn->diffInMinutes($currentTime);
                         $totalWorkedMinutes += $workedMinutes;
                         $punchIn = null;
+                    } else {
+                        // No open punch — employee resumed after break without punching back in
+                        $missingPunchReasons[] = 'Return from break not recorded';
                     }
                     break;
 
@@ -556,15 +560,15 @@ class ProcessBiometricLogs implements ShouldQueue
 
         if ($timeIn === null && count($timestamps) > 0) {
             $timeIn = $timestamps[0];
+            $missingPunchReasons[] = 'Clock-in not recorded';
         }
 
-        $notesText = 'Auto-processed via background job';
         $lastStatus = end($actualStatuses);
 
         if ($timeOut === null && count($timestamps) > 0) {
             if ($lastStatus === 'Clock In' || $lastStatus === 'Break Out') {
                 $timeOut = null;
-                $notesText .= ' | INCOMPLETE SHIFT - No clock out recorded';
+                $missingPunchReasons[] = 'Clock-out not recorded';
             } else {
                 $timeOut = end($timestamps);
             }
@@ -575,13 +579,25 @@ class ProcessBiometricLogs implements ShouldQueue
         $nextDayTimeout = null;
 
         if ($timeIn && $timeOut) {
-            $hoursWorked = round($totalWorkedMinutes / 60, 2);
             $isNightShift = $timeIn->format('Y-m-d') !== $timeOut->format('Y-m-d');
+
+            // Only compute hours when the shift has NO missing punches.
+            // Missing-punch records are left blank so admins correct them manually.
+            if (empty($missingPunchReasons)) {
+                $hoursWorked = round($totalWorkedMinutes / 60, 2);
+            }
 
             if ($isNightShift) {
                 $nextDayTimeout = $timeOut;
                 $timeOut = null;
             }
+        }
+
+        $notesText = 'Auto-processed via background job';
+        if (!empty($missingPunchReasons)) {
+            $notesText .= ' | MISSING PUNCH - '
+                . implode('; ', array_unique($missingPunchReasons))
+                . ' (hours left blank — admin to correct)';
         }
 
         return [

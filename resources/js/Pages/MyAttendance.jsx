@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
@@ -39,10 +39,31 @@ export default function MyAttendance() {
 
     const [month, setMonth] = useState(filters.month ?? new Date().getMonth() + 1);
     const [year,  setYear]  = useState(filters.year  ?? new Date().getFullYear());
+    const [lastUpdated, setLastUpdated] = useState(new Date());
 
     function navigate(newMonth, newYear) {
         router.get('/my-attendance', { month: newMonth, year: newYear }, { preserveState: true });
     }
+
+    // Auto-refresh records every 60 seconds (only when tab is visible) so newly processed biometric punches appear without a manual reload.
+    useEffect(() => {
+        const now = new Date();
+        const isCurrentMonth = month === (now.getMonth() + 1) && year === now.getFullYear();
+        if (!isCurrentMonth) return;
+
+        const tick = () => {
+            if (document.visibilityState !== 'visible') return;
+            router.reload({
+                only: ['records', 'summary'],
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => setLastUpdated(new Date()),
+            });
+        };
+
+        const id = setInterval(tick, 60_000);
+        return () => clearInterval(id);
+    }, [month, year]);
 
     function prevMonth() {
         const m = month === 1 ? 12 : month - 1;
@@ -127,11 +148,22 @@ export default function MyAttendance() {
 
                 {/* Table */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100">
-                        <h2 className="text-sm font-bold text-gray-800">
-                            Attendance Records — {MONTHS[month - 1]} {year}
-                        </h2>
-                        <p className="text-xs text-gray-400 mt-0.5">{records.length} record{records.length !== 1 ? 's' : ''} found</p>
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
+                        <div>
+                            <h2 className="text-sm font-bold text-gray-800">
+                                Attendance Records — {MONTHS[month - 1]} {year}
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-0.5">{records.length} record{records.length !== 1 ? 's' : ''} found</p>
+                        </div>
+                        {month === (new Date().getMonth() + 1) && year === new Date().getFullYear() && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 whitespace-nowrap">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span>Auto-refresh • {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        )}
                     </div>
 
                     {records.length === 0 ? (

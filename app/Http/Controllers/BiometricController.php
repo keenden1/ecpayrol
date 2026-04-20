@@ -102,12 +102,13 @@ class BiometricController extends Controller
         ]);
 
         $artisan = base_path('artisan');
+        $logFile = storage_path("logs/biometric_sync_raw_{$log->id}.log");
         $cmd     = "php \"{$artisan}\" biometric:sync-raw {$device->id} {$log->id}";
 
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen("start /B {$cmd}", "r"));
+            pclose(popen("start /B \"\" cmd /c \"{$cmd} > \"{$logFile}\" 2>&1\"", "r"));
         } else {
-            exec("{$cmd} > /dev/null 2>&1 &");
+            exec("{$cmd} > \"{$logFile}\" 2>&1 &");
         }
 
         return response()->json([
@@ -148,13 +149,14 @@ class BiometricController extends Controller
             'started_at'    => now(),
         ]);
 
-        $script = base_path('biometric_sync.py');
-        $cmd    = "python \"{$script}\" {$device->id} {$log->id}";
+        $script  = base_path('biometric_sync.py');
+        $logFile = storage_path("logs/biometric_sync_python_{$log->id}.log");
+        $cmd     = "python \"{$script}\" {$device->id} {$log->id}";
 
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen("start /B {$cmd}", "r"));
+            pclose(popen("start /B \"\" cmd /c \"{$cmd} > \"{$logFile}\" 2>&1\"", "r"));
         } else {
-            exec("{$cmd} > /dev/null 2>&1 &");
+            exec("{$cmd} > \"{$logFile}\" 2>&1 &");
         }
 
         return response()->json([
@@ -1141,12 +1143,13 @@ private function saveBiometricLogsBatch($logs, $deviceId)
                 $timeOut = null;
                 $breakIn = null;
                 $breakOut = null;
-                
+                $missingPunchReasons = [];
+
                 // Process timestamps based on actual status
                 for ($i = 0; $i < count($timestamps); $i++) {
                     $currentTime = $timestamps[$i];
                     $currentActualStatus = $actualStatuses[$i];
-                    
+
                     // Process based on actual status (not device state)
                     switch ($currentActualStatus) {
                         case 'Clock In':
@@ -1155,16 +1158,19 @@ private function saveBiometricLogsBatch($logs, $deviceId)
                             }
                             $punchIn = $currentTime;
                             break;
-                            
+
                         case 'Clock Out':
                             $timeOut = $currentTime;
                             if ($punchIn !== null) {
                                 $workedMinutes = $punchIn->diffInMinutes($currentTime);
                                 $totalWorkedMinutes += $workedMinutes;
                                 $punchIn = null;
+                            } else {
+                                // No open punch — employee resumed after break without punching back in
+                                $missingPunchReasons[] = 'Return from break not recorded';
                             }
                             break;
-                            
+
                         case 'Break In':
                             $breakIn = $currentTime;
                             if ($punchIn !== null) {
@@ -1173,43 +1179,55 @@ private function saveBiometricLogsBatch($logs, $deviceId)
                                 $punchIn = null;
                             }
                             break;
-                            
+
                         case 'Break Out':
                             $breakOut = $currentTime;
                             $punchIn = $currentTime;
                             break;
                     }
                 }
-                
+
                 if ($timeIn === null && count($timestamps) > 0) {
                     $timeIn = $timestamps[0];
+                    $missingPunchReasons[] = 'Clock-in not recorded';
                 }
-                
+
                 $notesText = 'Processed with optimized pattern recognition';
                 $lastStatus = end($actualStatuses);
-                
+
                 if ($timeOut === null && count($timestamps) > 0) {
                     if ($lastStatus === 'Clock In' || $lastStatus === 'Break Out') {
                         $timeOut = null;
-                        $notesText .= ' ATTENTION - Employee is still clocked in. No checkout recorded.';
+                        $missingPunchReasons[] = 'Clock-out not recorded';
                     } else {
                         $timeOut = end($timestamps);
                     }
                 }
-                
+
                 $hoursWorked = null;
                 $isNightShift = false;
                 $nextDayTimeout = null;
 
                 if ($timeIn && $timeOut) {
-                    $hoursWorked = round($totalWorkedMinutes / 60, 2);
                     $isNightShift = $timeIn->format('Y-m-d') !== $timeOut->format('Y-m-d');
+
+                    // Only compute hours when shift has NO missing punches.
+                    // Missing-punch records are left blank so admins correct them manually.
+                    if (empty($missingPunchReasons)) {
+                        $hoursWorked = round($totalWorkedMinutes / 60, 2);
+                    }
 
                     // For night shifts, store timeout in next_day_timeout field
                     if ($isNightShift) {
                         $nextDayTimeout = $timeOut;
                         $timeOut = null; // Clear regular time_out for night shifts
                     }
+                }
+
+                if (!empty($missingPunchReasons)) {
+                    $notesText .= ' | MISSING PUNCH - '
+                        . implode('; ', array_unique($missingPunchReasons))
+                        . ' (hours left blank — admin to correct)';
                 }
 
                 $logEntry = [
@@ -1570,6 +1588,7 @@ private function saveBiometricLogs($logs, $deviceId)
                 $timeOut = null;
                 $breakIn = null;
                 $breakOut = null;
+                $missingPunchReasons = [];
 
                 // Process timestamps based on actual status
                 for ($i = 0; $i < count($timestamps); $i++) {
@@ -1584,23 +1603,26 @@ private function saveBiometricLogs($logs, $deviceId)
                             }
                             $punchIn = $currentTime;
                             break;
-                            
+
                         case 'Clock Out':
                             $timeOut = $currentTime;
                             if ($punchIn !== null) {
                                 $workedMinutes = $punchIn->diffInMinutes($currentTime);
                                 $totalWorkedMinutes += $workedMinutes;
-                                
+
                                 Log::info("Counted work session for employee $employeeId", [
                                     'from' => $punchIn->toDateTimeString(),
                                     'to' => $currentTime->toDateTimeString(),
                                     'minutes' => $workedMinutes,
                                 ]);
-                                
+
                                 $punchIn = null;
+                            } else {
+                                // No open punch — employee resumed after break without punching back in
+                                $missingPunchReasons[] = 'Return from break not recorded';
                             }
                             break;
-                            
+
                         case 'Break In':
                             $breakIn = $currentTime;
                             if ($punchIn !== null) {
@@ -1610,7 +1632,7 @@ private function saveBiometricLogs($logs, $deviceId)
                                 $punchIn = null;
                             }
                             break;
-                            
+
                         case 'Break Out':
                             $breakOut = $currentTime;
                             // Resume work timing after break
@@ -1622,8 +1644,9 @@ private function saveBiometricLogs($logs, $deviceId)
                 // If timeIn is still null, use first timestamp regardless
                 if ($timeIn === null && count($timestamps) > 0) {
                     $timeIn = $timestamps[0];
+                    $missingPunchReasons[] = 'Clock-in not recorded';
                 }
-                
+
                 // Handle missing checkout differently - don't set timeOut if it's likely
                 // that the employee is still at work (hasn't checked out yet)
                 if ($timeOut === null && count($timestamps) > 0) {
@@ -1632,23 +1655,26 @@ private function saveBiometricLogs($logs, $deviceId)
                     if ($lastStatus === 'Clock In' || $lastStatus === 'Break Out') {
                         // Employee is still at work - leave timeOut as null to indicate ongoing shift
                         $timeOut = null;
-                        $notesText = 'ATTENTION - Employee is still clocked in. No checkout recorded.';
+                        $missingPunchReasons[] = 'Clock-out not recorded';
                     } else {
                         // If last status was not Clock In or Break Out, use last timestamp as timeOut
                         $timeOut = end($timestamps);
-                    }               
+                    }
                 }
 
-                // Calculate hours only if we have both timeIn and timeOut
+                // Calculate hours only if we have both timeIn and timeOut AND no missing punches.
+                // Missing-punch records are left blank so admins correct them manually.
                 $hoursWorked = null;
                 $isNightShift = false;
-                
+
                 if ($timeIn && $timeOut) {
-                    $hoursWorked = round($totalWorkedMinutes / 60, 2);
                     $isNightShift = $timeIn->format('Y-m-d') !== $timeOut->format('Y-m-d');
+                    if (empty($missingPunchReasons)) {
+                        $hoursWorked = round($totalWorkedMinutes / 60, 2);
+                    }
                 }
 
-                // Check for missing punches in the logs
+                // Collect notes from pattern-recognition stage as well
                 $missingPunchNotes = [];
                 foreach ($actualStatuses as $idx => $status) {
                     $missingPunch = $processedLogsWithStatus[$idx]['missing_punch'] ?? false;
@@ -1657,9 +1683,13 @@ private function saveBiometricLogs($logs, $deviceId)
                         $missingPunchNotes[] = $missingPunchNote;
                     }
                 }
-                
-                // Create notes from missing punch information
+
                 $notesText = 'Processed with pattern recognition';
+                if (!empty($missingPunchReasons)) {
+                    $notesText .= ' | MISSING PUNCH - '
+                        . implode('; ', array_unique($missingPunchReasons))
+                        . ' (hours left blank — admin to correct)';
+                }
                 if (!empty($missingPunchNotes)) {
                     $notesText .= '. ATTENTION - ' . implode(' ', $missingPunchNotes);
                 }

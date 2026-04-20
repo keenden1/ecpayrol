@@ -3825,6 +3825,8 @@ public function detectDtrProblems(Request $request)
                         'severity' => $this->calculateProblemSeverity($problems),
                         'time_in' => $attendance->time_in ? $attendance->time_in->format('H:i') : null,
                         'time_out' => $attendance->time_out ? $attendance->time_out->format('H:i') : null,
+                        'break_in' => $attendance->break_in ? Carbon::parse($attendance->break_in)->format('H:i') : null,
+                        'break_out' => $attendance->break_out ? Carbon::parse($attendance->break_out)->format('H:i') : null,
                         'hours_worked' => $attendance->hours_worked,
                         'is_nightshift' => $attendance->is_nightshift
                     ];

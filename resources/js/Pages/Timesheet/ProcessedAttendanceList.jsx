@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Search, Calendar, Filter, Edit, RefreshCw, Clock, AlertTriangle, CheckCircle, Download, Trash2, X, Users, FileText, Eye, Moon, Sun, AlertCircle, CheckCircle2, Info, Calculator, Car, Upload, Calendar as CalendarIcon, Target, Send, Save, AlertOctagon, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
@@ -108,6 +108,27 @@ const ProcessedAttendanceList = () => {
   const [showProblemsModal, setShowProblemsModal] = useState(false);
   const [problemRecords, setProblemRecords] = useState([]);
   const [problemSummary, setProblemSummary] = useState(null);
+  const [problemFilters, setProblemFilters] = useState({ search: '', severity: 'all', type: 'all' });
+
+  const filteredProblemRecords = useMemo(() => {
+    const q = problemFilters.search.trim().toLowerCase();
+    return problemRecords.filter(r => {
+      if (q) {
+        const hay = `${r.employee_name ?? ''} ${r.employee_no ?? ''} ${r.department ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (problemFilters.severity !== 'all' && r.severity !== problemFilters.severity) return false;
+      if (problemFilters.type !== 'all' && !(r.problems || []).some(p => p.type === problemFilters.type)) return false;
+      return true;
+    });
+  }, [problemRecords, problemFilters]);
+
+  const problemTypeOptions = useMemo(() => {
+    if (!problemSummary?.problems) return [];
+    return Object.entries(problemSummary.problems)
+      .filter(([, count]) => count > 0)
+      .map(([type, count]) => ({ type, count, label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }));
+  }, [problemSummary]);
   
   // Modal state
   const [selectedAttendance, setSelectedAttendance] = useState(null);
@@ -2460,7 +2481,7 @@ const handleAutoRecalculate = async (showMessage = false) => {
                     <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-white" /></div>
                     <h2 className="text-base font-bold text-white">DTR Problems Detection</h2>
                   </div>
-                  <button onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); }}
+                  <button onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); setProblemFilters({ search: '', severity: 'all', type: 'all' }); }}
                     className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
                     <X className="w-4 h-4" />
                   </button>
@@ -2508,27 +2529,90 @@ const handleAutoRecalculate = async (showMessage = false) => {
 
                   {/* Problem Records Table */}
                   {problemRecords.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">Records with Problems</h3>
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-medium text-gray-900">Records with Problems</h3>
+                        <span className="text-xs text-gray-500">
+                          Showing <span className="font-semibold text-gray-700">{filteredProblemRecords.length}</span> of {problemRecords.length}
+                        </span>
+                      </div>
+
+                      {/* Filters */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="md:col-span-2 relative">
+                          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={problemFilters.search}
+                            onChange={(e) => setProblemFilters((p) => ({ ...p, search: e.target.value }))}
+                            placeholder="Search name, ID, or department..."
+                            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          />
+                        </div>
+                        <select
+                          value={problemFilters.severity}
+                          onChange={(e) => setProblemFilters((p) => ({ ...p, severity: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                        >
+                          <option value="all">All Severities</option>
+                          <option value="high">High</option>
+                          <option value="medium">Medium</option>
+                          <option value="low">Low</option>
+                        </select>
+                        <select
+                          value={problemFilters.type}
+                          onChange={(e) => setProblemFilters((p) => ({ ...p, type: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                        >
+                          <option value="all">All Problem Types</option>
+                          {problemTypeOptions.map((opt) => (
+                            <option key={opt.type} value={opt.type}>{opt.label} ({opt.count})</option>
+                          ))}
+                        </select>
+                        {(problemFilters.search || problemFilters.severity !== 'all' || problemFilters.type !== 'all') && (
+                          <div className="md:col-span-4 flex justify-end">
+                            <button
+                              onClick={() => setProblemFilters({ search: '', severity: 'all', type: 'all' })}
+                              className="text-xs text-red-600 hover:text-red-800 hover:underline inline-flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" /> Clear filters
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Problems</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time In/Out</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Break In/Out</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {problemRecords.map((record) => (
+                          {filteredProblemRecords.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="px-3 py-8 text-center text-sm text-gray-500">
+                                No records match the current filters.
+                              </td>
+                            </tr>
+                          ) : filteredProblemRecords.map((record) => (
                             <tr key={record.id} className="hover:bg-gray-50">
                               <td className="px-3 py-4 whitespace-nowrap">
                                 <div>
                                   <div className="text-sm font-medium text-gray-900">{record.employee_name}</div>
                                   <div className="text-xs text-gray-500">{record.employee_no}</div>
                                 </div>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {record.department || '-'}
                               </td>
                               <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {record.attendance_date}
@@ -2564,12 +2648,32 @@ const handleAutoRecalculate = async (showMessage = false) => {
                                 </div>
                               </td>
                               <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div>
+                                  <div>In: {record.break_in || '-'}</div>
+                                  <div>Out: {record.break_out || '-'}</div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {record.hours_worked || '-'}
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-sm">
+                                <button
+                                  onClick={() => {
+                                    setSelectedAttendance(record);
+                                    setShowProblemsModal(false);
+                                    setShowEditModal(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
+                                  title="Fix this record"
+                                >
+                                  <Edit className="w-3 h-3" /> Edit
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -2581,7 +2685,7 @@ const handleAutoRecalculate = async (showMessage = false) => {
 
                   <div className="flex justify-end mt-6">
                     <button
-                      onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); }}
+                      onClick={() => { setShowProblemsModal(false); setProblemRecords([]); setProblemSummary(null); setProblemFilters({ search: '', severity: 'all', type: 'all' }); }}
                       className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                     >
                       Close

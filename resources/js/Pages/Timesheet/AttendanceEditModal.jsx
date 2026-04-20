@@ -193,9 +193,9 @@ const AttendanceEditModal = ({ isOpen, attendance, onClose, onSave, onDelete, on
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-600">
               {[
                 ['In',        attendance?.time_in],
-                ['Out',       attendance?.time_out],
-                ['Break Out', attendance?.break_out],
                 ['Break In',  attendance?.break_in],
+                ['Break Out', attendance?.break_out],
+                ['Out',       attendance?.time_out],
                 ['Next Day',  attendance?.next_day_timeout],
                 ['Trips',     attendance?.trip ?? 0],
               ].map(([lbl, val]) => (
@@ -237,15 +237,15 @@ const AttendanceEditModal = ({ isOpen, attendance, onClose, onSave, onDelete, on
             </span>
           </label>
 
-          {/* Time inputs */}
+          {/* Time inputs — ordered chronologically: In → Break In → Break Out → Out */}
           <div className="grid grid-cols-2 gap-4">
             <TimeField label="Time In"   name="time_in"   value={formData.time_in}   onChange={handleChange} disabled={loading} required />
+            <TimeField label="Break In (Optional)"  name="break_in"  value={formData.break_in}  onChange={handleChange} disabled={loading} hint="When going on break/lunch" />
+            <TimeField label="Break Out (Optional)" name="break_out" value={formData.break_out} onChange={handleChange} disabled={loading} hint="When returning from break/lunch" />
             <TimeField label="Time Out"  name="time_out"  value={formData.time_out}  onChange={handleChange}
               disabled={(isNight && !!formData.next_day_timeout) || loading}
               required={!isNight}
               hint={isNight ? 'Only if clocking out same day' : undefined} />
-            <TimeField label="Break Out (Optional)" name="break_out" value={formData.break_out} onChange={handleChange} disabled={loading} hint="When leaving for break/lunch" />
-            <TimeField label="Break In (Optional)"  name="break_in"  value={formData.break_in}  onChange={handleChange} disabled={loading} hint="When returning from break/lunch" />
             {isNight && (
               <TimeField label="Next Day Timeout" name="next_day_timeout" value={formData.next_day_timeout}
                 onChange={handleChange} disabled={!!formData.time_out || loading}
@@ -276,7 +276,7 @@ const AttendanceEditModal = ({ isOpen, attendance, onClose, onSave, onDelete, on
             <div className="px-4 pb-4 text-xs text-indigo-700 space-y-1 leading-relaxed">
               <p><strong>Regular Shifts:</strong> Fill Time In + Time Out for same-day attendance.</p>
               <p><strong>Night Shifts:</strong> Check Night Shift, then use Time Out (same day) OR Next Day Timeout (next day) — not both.</p>
-              <p><strong>Break Times:</strong> Break Out = leaving for break · Break In = returning from break. Both must be filled together.</p>
+              <p><strong>Break Times:</strong> Break In = going on break · Break Out = returning from break. Both must be filled together.</p>
               <p><strong>Trips:</strong> Number of trips completed. Supports decimals like 1.5.</p>
             </div>
           </details>
